@@ -99,7 +99,7 @@ async function performHandshake(targetIp, targetPort, networkCodeHash) {
             appVersion: (() => { try { const { app } = require('electron'); return app.getVersion(); } catch(_) { return '0.0.0'; } })(),
             dagTips: myTips,
             networkCodeHash
-        }, 5000);
+        }, 15000);
 
         if (response && response.nodeId) {
             const { registerSocket } = require('./ws_rpc');

@@ -182,7 +182,37 @@ function getLocalIPs() {
     return ips;
 }
 
+function getPeerCacheFilePath() {
+    try {
+        const { app } = require('electron');
+        return require('path').join(app.getPath('userData'), 'peer_cache.json');
+    } catch (e) {
+        return null;
+    }
+}
+
 function savePeerCache() {
+    // Salva sempre su file JSON (funziona anche senza DB)
+    try {
+        const cacheFile = getPeerCacheFilePath();
+        if (cacheFile) {
+            const fs = require('fs');
+            const toSave = {};
+            for (const [ip, data] of Object.entries(activePeers)) {
+                if (ip === '127.0.0.1') continue;
+                toSave[ip] = {
+                    port: data.port || PORT,
+                    name: data.name || 'Adestio Node',
+                    nodeId: data.nodeId || null,
+                    protocolVersion: data.protocolVersion || 0,
+                    lastSeen: data.lastSeen || Date.now()
+                };
+            }
+            fs.writeFileSync(cacheFile, JSON.stringify(toSave, null, 2), 'utf8');
+        }
+    } catch (_) {}
+
+    // Aggiorna anche il DB se disponibile
     try {
         const db = require('./db').getDB('config');
         for (const [ip, data] of Object.entries(activePeers)) {
@@ -209,32 +239,147 @@ function savePeerCache() {
         }
         require('./db').saveDB('config');
     } catch (e) {
-        console.error('[Sync] savePeerCache error:', e);
+        if (!e.message || !e.message.includes('DB_NOT_INITIALIZED')) {
+            console.error('[Sync] savePeerCache DB error:', e);
+        }
     }
 }
 
 function loadPeerCache() {
+    const myIPs = getLocalIPs();
+
+    // Prova dal DB prima (più aggiornato)
     try {
         const db = require('./db').getDB('config');
         const rows = db.query('SELECT ip, port, name, node_id, protocol_version, last_seen FROM known_peers ORDER BY last_seen DESC LIMIT 50');
-        if (!rows || rows.length === 0) return;
-        const myIPs = getLocalIPs();
-        for (const row of rows) {
-            if (myIPs.includes(row.ip)) continue;
-            if (incompatiblePeers.has(row.ip)) continue;
-            activePeers[row.ip] = {
-                name: row.name || 'Adestio Node',
-                port: row.port || PORT,
-                lastSeen: row.last_seen || 0,
+        if (rows && rows.length > 0) {
+            for (const row of rows) {
+                if (myIPs.includes(row.ip)) continue;
+                if (incompatiblePeers.has(row.ip)) continue;
+                activePeers[row.ip] = {
+                    name: row.name || 'Adestio Node',
+                    port: row.port || PORT,
+                    lastSeen: row.last_seen || 0,
+                    pingMs: 0,
+                    protocolVersion: row.protocol_version || 0,
+                    nodeId: row.node_id || null,
+                    _fromCache: true
+                };
+            }
+            console.log(`[Sync] Caricati ${rows.length} peer dalla cache DB.`);
+            return;
+        }
+    } catch (e) {
+        if (!e.message || !e.message.includes('DB_NOT_INITIALIZED')) {
+            console.error('[Sync] loadPeerCache DB error:', e);
+        }
+        // DB non ancora pronto, usa il file JSON
+    }
+
+    // Fallback su file JSON (disponibile anche senza DB)
+    try {
+        const cacheFile = getPeerCacheFilePath();
+        if (!cacheFile) return;
+        const fs = require('fs');
+        if (!fs.existsSync(cacheFile)) return;
+        const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+        let count = 0;
+        for (const [ip, data] of Object.entries(cached)) {
+            if (myIPs.includes(ip)) continue;
+            if (incompatiblePeers.has(ip)) continue;
+            activePeers[ip] = {
+                name: data.name || 'Adestio Node',
+                port: data.port || PORT,
+                lastSeen: data.lastSeen || 0,
                 pingMs: 0,
-                protocolVersion: row.protocol_version || 0,
-                nodeId: row.node_id || null,
+                protocolVersion: data.protocolVersion || 0,
+                nodeId: data.nodeId || null,
                 _fromCache: true
             };
+            count++;
         }
-        console.log(`[Sync] Caricati ${rows.length} peer dalla cache.`);
-    } catch (e) {
-        console.error('[Sync] loadPeerCache error:', e);
+        if (count > 0) console.log(`[Sync] Caricati ${count} peer dalla cache file (DB non pronto).`);
+    } catch (_) {}
+}
+
+async function downloadUpdateFromPeer(version, peerIp) {
+    try {
+        const http = require('http');
+        const fs = require('fs');
+        const { app } = require('electron');
+        const destDir = require('path').join(app.getPath('userData'), 'updates');
+        if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+        const destPath = require('path').join(destDir, `Adestio-Setup-${version}.exe`);
+        if (fs.existsSync(destPath)) return destPath; // già presente
+        const tmpPath = destPath + '.tmp';
+
+        return new Promise((resolve, reject) => {
+            const file = fs.createWriteStream(tmpPath);
+            const req = http.get(`http://${peerIp}:${PORT}/sync/update/download/${version}`, { timeout: 120000 }, (res) => {
+                if (res.statusCode !== 200) {
+                    file.close(); fs.unlink(tmpPath, () => {});
+                    return reject(new Error(`HTTP ${res.statusCode}`));
+                }
+                const total = parseInt(res.headers['content-length'] || '0', 10);
+                let downloaded = 0;
+                res.on('data', (chunk) => {
+                    downloaded += chunk.length;
+                    if (total > 0 && downloaded % Math.floor(total / 10) < chunk.length) {
+                        try {
+                            const { BrowserWindow } = require('electron');
+                            BrowserWindow.getAllWindows().forEach(w => {
+                                if (!w.isDestroyed()) w.webContents.send('p2p-update-progress', { version, percent: Math.round(downloaded / total * 100) });
+                            });
+                        } catch(_) {}
+                    }
+                });
+                res.pipe(file);
+                file.on('finish', () => {
+                    file.close(() => {
+                        fs.rename(tmpPath, destPath, (err) => {
+                            if (err) return reject(err);
+                            console.log(`[Sync] Aggiornamento P2P v${version} scaricato da ${peerIp}.`);
+                            try {
+                                const um = require('./updates_manager');
+                                um.cleanOldUpdates();
+                                const { BrowserWindow } = require('electron');
+                                BrowserWindow.getAllWindows().forEach(w => {
+                                    if (!w.isDestroyed()) w.webContents.send('p2p-update-ready', { version, fromPeer: peerIp });
+                                });
+                            } catch(_) {}
+                            resolve(destPath);
+                        });
+                    });
+                });
+            });
+            req.on('error', (err) => { file.close(); fs.unlink(tmpPath, () => {}); reject(err); });
+            req.setTimeout(120000, () => { req.destroy(); reject(new Error('Download timeout')); });
+        });
+    } catch(e) {
+        console.error('[Sync] downloadUpdateFromPeer error:', e);
+    }
+}
+
+function announceLocalUpdate(version, installerPath) {
+    try {
+        const fs = require('fs');
+        const { app } = require('electron');
+        const updatesDir = require('path').join(app.getPath('userData'), 'updates');
+        if (!fs.existsSync(updatesDir)) fs.mkdirSync(updatesDir, { recursive: true });
+        const destPath = require('path').join(updatesDir, `Adestio-Setup-${version}.exe`);
+        if (installerPath && installerPath !== destPath && !fs.existsSync(destPath)) {
+            fs.copyFileSync(installerPath, destPath);
+            console.log(`[Sync] Installer v${version} copiato in ${destPath}`);
+        }
+        if (!udpServer) return;
+        const myIp = getPhysicalSubnets()[0]?.address || '';
+        const msg = Buffer.from(`UPDATE_AVAILABLE_P2P:${version}:${myIp}`);
+        for (const { subnet } of getPhysicalSubnets()) {
+            try { udpServer.send(msg, 0, msg.length, UDP_PORT, `${subnet}.255`); } catch(_) {}
+        }
+        console.log(`[Sync] Annuncio aggiornamento locale v${version} inviato ai peer LAN.`);
+    } catch(e) {
+        console.error('[Sync] announceLocalUpdate error:', e);
     }
 }
 
@@ -635,11 +780,26 @@ function startSyncServer() {
                             const version = parts[1];
                             if (version) {
                                 const { autoUpdater } = require('electron-updater');
-                                // Se la rete segnala un aggiornamento, innesca un controllo esplicito.
-                                // Il main.js intercetterà l'evento e cercherà in LAN il file.
                                 setTimeout(() => {
                                     try { autoUpdater.checkForUpdatesAndNotify(); } catch(e){}
                                 }, 2000);
+                            }
+                        } else if (message.startsWith('UPDATE_AVAILABLE_P2P:')) {
+                            const parts = message.split(':');
+                            const version = parts[1];
+                            const sourceIp = parts[2] || rinfo.address;
+                            if (version && sourceIp) {
+                                try {
+                                    const currentVersion = (() => { try { return require('electron').app.getVersion(); } catch(e) { return '0.0.0'; } })();
+                                    const um = require('./updates_manager');
+                                    const localHighest = um.getHighestLocalVersion() || currentVersion;
+                                    if (um.compareVersions(version, localHighest) > 0) {
+                                        console.log(`[Sync] Aggiornamento P2P v${version} disponibile da ${sourceIp}, scaricamento...`);
+                                        downloadUpdateFromPeer(version, sourceIp).catch(() => {});
+                                    }
+                                } catch(e) {
+                                    console.error('[Sync] UPDATE_AVAILABLE_P2P handler error:', e);
+                                }
                             }
                         }
                     } catch (e) {
@@ -932,6 +1092,7 @@ module.exports = {
     loadPeerCache,
     ensureFirewallRule,
     broadcastUpdateAvailable,
+    announceLocalUpdate,
     getLocalNodeId,
     getNetworkName,
     activePeers

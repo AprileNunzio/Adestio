@@ -1,6 +1,6 @@
 {
   "name": "Adestio",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "Adestio",
   "author": "NunzioTech",
   "main": "main.js",
@@ -13,6 +13,7 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "build": "electron-builder",
+    "build:local": "electron-builder --publish never",
     "build:publish": "electron-builder --publish always"
   },
   "dependencies": {
@@ -32,6 +33,7 @@
   },
   "build": {
     "appId": "com.adestio.app",
+    "artifactName": "Adestio-Setup-${version}.${ext}",
     "publish": [
       {
         "provider": "github",

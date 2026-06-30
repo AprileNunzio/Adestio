@@ -215,7 +215,16 @@ try {
             ipcMain.handle('checkIsRegistered', authHandlers.checkIsRegistered);
             ipcMain.handle('registerUser', authHandlers.registerUser);
             ipcMain.handle('loginUser', authHandlers.loginUser);
-            ipcMain.handle('unlockDatabase', authHandlers.unlockDatabase);
+            ipcMain.handle('unlockDatabase', async (event, args) => {
+                const result = await authHandlers.unlockDatabase(event, args);
+                if (result && result.success) {
+                    // DB ora disponibile: ricarica peer cache da DB (sovrascrive file JSON)
+                    setTimeout(() => {
+                        try { require('./backend/sync').loadPeerCache(); } catch(_) {}
+                    }, 500);
+                }
+                return result;
+            });
             ipcMain.handle('getUsersList', authHandlers.getUsersList);
             ipcMain.handle('getNetworkCode', authHandlers.getNetworkCode);
             ipcMain.handle('scanNodes', authHandlers.handleScanNodes);
@@ -349,6 +358,32 @@ try {
                     return { success: false };
                 }
             });
+            ipcMain.handle('announce-local-update', async () => {
+                try {
+                    const currentVersion = app.getVersion();
+                    const distPath = path.join(__dirname, 'dist');
+                    if (!fs.existsSync(distPath)) {
+                        return { success: false, error: `Cartella dist/ non trovata. Esegui prima: npm run build:local` };
+                    }
+                    // Cerca installer con nome canonico o qualsiasi .exe Adestio nella dist/
+                    const canonicalName = `Adestio-Setup-${currentVersion}.exe`;
+                    let installerPath = path.join(distPath, canonicalName);
+                    if (!fs.existsSync(installerPath)) {
+                        const files = fs.readdirSync(distPath).filter(f => f.endsWith('.exe') && /adestio/i.test(f));
+                        if (files.length === 0) {
+                            return { success: false, error: `Nessun installer trovato in dist/. Esegui: npm run build:local` };
+                        }
+                        installerPath = path.join(distPath, files[0]);
+                    }
+                    const { announceLocalUpdate } = require('./backend/sync');
+                    announceLocalUpdate(currentVersion, installerPath);
+                    return { success: true, version: currentVersion, installer: installerPath };
+                } catch(e) {
+                    console.error('[IPC] announce-local-update error:', e);
+                    return { success: false, error: e.message };
+                }
+            });
+
             ipcMain.handle('openGitHub', async () => {
                 const { shell } = require('electron');
                 await shell.openExternal('https://github.com/AprileNunzio/Adestio');
