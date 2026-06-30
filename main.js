@@ -1,4 +1,23 @@
 process.env.TZ = 'Europe/Rome';
+
+// Scudo globale: impedisce il crash dell'app su errori di rete non gestiti
+// (es. mDNS EHOSTUNREACH su adattatori virtuali Hyper-V/VirtualBox/VPN)
+const NETWORK_ERROR_CODES = new Set(['EHOSTUNREACH', 'ENETUNREACH', 'EADDRNOTAVAIL', 'ENOBUFS', 'EINVAL', 'ENOTFOUND', 'ECONNREFUSED', 'ETIMEDOUT']);
+process.on('uncaughtException', (err) => {
+    if (NETWORK_ERROR_CODES.has(err.code)) {
+        try { require('./backend/logger').logError('[Network] Uncaught network error (handled): ' + err.message); } catch(_) {}
+        return;
+    }
+    try { require('./backend/logger').logError('[Uncaught Exception] ' + (err.stack || err.message)); } catch(_) {}
+    console.error('[Uncaught Exception]', err);
+});
+process.on('unhandledRejection', (reason) => {
+    const msg = reason instanceof Error ? reason.message : String(reason);
+    if (reason instanceof Error && NETWORK_ERROR_CODES.has(reason.code)) return;
+    try { require('./backend/logger').logError('[Unhandled Rejection] ' + msg); } catch(_) {}
+    console.error('[Unhandled Rejection]', reason);
+});
+
 const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -428,7 +447,8 @@ try {
                 const { autoUnlockDB } = require('./backend/db');
                 const unlocked = await autoUnlockDB();
 
-                const { startSyncServer } = require('./backend/sync');
+                const { startSyncServer, ensureFirewallRule } = require('./backend/sync');
+                ensureFirewallRule();
                 startSyncServer();
 
                 if (unlocked) {

@@ -35,6 +35,79 @@ let bgDiscoveryTimer = null;
 let pruneTimer = null;
 const UDP_PORT = 34568;
 
+// Pattern adattatori virtuali da escludere dal broadcast UDP
+const VIRTUAL_ADAPTER_PATTERNS = [
+    /hyper-v/i, /virtualbox/i, /vmware/i, /vethernet/i,
+    /loopback/i, /teredo/i, /isatap/i, /6to4/i, /wsl/i,
+    /tap-windows/i, /cisco/i, /nordvpn/i, /expressvpn/i, /openvpn/i
+];
+
+function getPhysicalSubnets() {
+    const interfaces = os.networkInterfaces();
+    const subnets = [];
+    try {
+        for (const [name, addrs] of Object.entries(interfaces)) {
+            const isVirtual = VIRTUAL_ADAPTER_PATTERNS.some(p => p.test(name));
+            if (isVirtual) continue;
+            for (const iface of addrs) {
+                if (iface.family === 'IPv4' && !iface.internal) {
+                    const parts = iface.address.split('.');
+                    parts.pop();
+                    subnets.push({ subnet: parts.join('.'), address: iface.address, iface: name });
+                }
+            }
+        }
+    } catch (e) {}
+    // Fallback se tutti filtrati
+    if (subnets.length === 0) return getLocalSubnets().map(s => ({ subnet: s, address: null, iface: null }));
+    return subnets;
+}
+
+function ensureFirewallRule() {
+    try {
+        const { exec } = require('child_process');
+        // Aggiunge regola firewall Windows per porta 34567 TCP in ingresso (silenzioso se già esiste)
+        const ruleName = 'Adestio P2P Node';
+        exec(`netsh advfirewall firewall show rule name="${ruleName}"`, (err, stdout) => {
+            if (stdout && stdout.includes(ruleName)) return; // già esiste
+            exec(`netsh advfirewall firewall add rule name="${ruleName}" dir=in action=allow protocol=TCP localport=${PORT}`, (e) => {
+                if (!e) console.log(`[Sync] Regola firewall Windows aggiunta per porta ${PORT} TCP.`);
+            });
+            exec(`netsh advfirewall firewall add rule name="${ruleName} UDP" dir=in action=allow protocol=UDP localport=${UDP_PORT}`, () => {});
+        });
+    } catch (e) {
+        console.error('[Sync] ensureFirewallRule error:', e.message);
+    }
+}
+
+function scanArpTable() {
+    return new Promise((resolve) => {
+        try {
+            const { exec } = require('child_process');
+            exec('arp -a', { timeout: 4000 }, (err, stdout) => {
+                if (err || !stdout) return resolve([]);
+                const myIPs = getLocalIPs();
+                const ips = new Set();
+                for (const line of stdout.split('\n')) {
+                    const match = line.match(/(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/);
+                    if (!match) continue;
+                    const ip = match[1];
+                    if (myIPs.includes(ip)) continue;
+                    if (ip.endsWith('.255') || ip.endsWith('.0')) continue;
+                    if (ip.startsWith('224.') || ip.startsWith('239.') || ip.startsWith('255.')) continue;
+                    // Esclude gateway comuni (non aggiungono nodi Adestio)
+                    const lastOctet = parseInt(ip.split('.')[3], 10);
+                    if (lastOctet === 1 || lastOctet === 254) continue;
+                    ips.add(ip);
+                }
+                resolve([...ips]);
+            });
+        } catch (e) {
+            resolve([]);
+        }
+    });
+}
+
 async function initBonjour() {
     try {
         if (!BonjourClass) {
@@ -43,9 +116,42 @@ async function initBonjour() {
         }
         return new BonjourClass();
     } catch (e) {
-        console.error(e);
-        throw e;
+        return null;
     }
+}
+
+async function probeBonjourSafe(timeoutMs = 2000) {
+    return new Promise(async (resolve) => {
+        let bonjour = null;
+        const done = (results) => {
+            try { if (bonjour) bonjour.destroy(); } catch(_) {}
+            resolve(results);
+        };
+        const timer = setTimeout(() => done([]), timeoutMs);
+        try {
+            bonjour = await initBonjour();
+            if (!bonjour) { clearTimeout(timer); return done([]); }
+            const found = [];
+            const browser = bonjour.find({ type: SERVICE_NAME }, (service) => {
+                try {
+                    const mySubnets = getPhysicalSubnets().map(s => s.subnet);
+                    const bestIp = service.addresses.find(ip => mySubnets.some(sub => ip.startsWith(sub + '.')))
+                                || service.addresses.find(ip => /^\d+\.\d+\.\d+\.\d+$/.test(ip))
+                                || service.addresses[0];
+                    if (bestIp) found.push({ name: service.name, host: bestIp, port: service.port });
+                } catch(_) {}
+            });
+            // Sostituisci il timer con quello che ritorna i risultati
+            clearTimeout(timer);
+            setTimeout(() => {
+                try { browser.stop(); } catch(_) {}
+                done(found);
+            }, timeoutMs);
+        } catch (e) {
+            clearTimeout(timer);
+            done([]);
+        }
+    });
 }
 
 async function getUUID() {
@@ -457,15 +563,33 @@ function startSyncServer() {
             } catch (err) {
                 console.error('[Sync] Errore inizializzazione WebSocketServer:', err);
             }
+            // Bonjour publish completamente isolato — un crash qui non abbatte l'app
             try {
                 const { checkIsRegistered } = require('./handlers/auth');
                 const isInitialized = await checkIsRegistered();
                 if (isInitialized) {
-                    bonjourInstance = await initBonjour();
-                    bonjourInstance.publish({ name: getNetworkName(), type: SERVICE_NAME, port: PORT });
+                    // Timeout di sicurezza: se bonjour non risponde entro 3s abbandoniamo
+                    const bonjourTimeout = setTimeout(() => {
+                        try { if (bonjourInstance) { bonjourInstance.destroy(); bonjourInstance = null; } } catch(_) {}
+                    }, 3000);
+                    try {
+                        bonjourInstance = await initBonjour();
+                        if (bonjourInstance) {
+                            const svc = bonjourInstance.publish({ name: getNetworkName(), type: SERVICE_NAME, port: PORT });
+                            if (svc && typeof svc.on === 'function') {
+                                svc.on('error', (e) => console.warn('[Sync] Bonjour publish warning:', e.message));
+                            }
+                            clearTimeout(bonjourTimeout);
+                        } else {
+                            clearTimeout(bonjourTimeout);
+                        }
+                    } catch(bonErr) {
+                        clearTimeout(bonjourTimeout);
+                        console.warn('[Sync] Bonjour publish non disponibile:', bonErr.message);
+                    }
                 }
             } catch(e) {
-                console.error('Errore avvio Bonjour', e);
+                console.warn('[Sync] Bonjour init skipped:', e.message);
             }
 
             try {
@@ -585,142 +709,129 @@ function getLocalSubnets() {
     return subnets;
 }
 
+async function probeHost(ip, timeoutMs = 1200) {
+    try {
+        const controller = new AbortController();
+        const tid = setTimeout(() => controller.abort(), timeoutMs);
+        const startMs = Date.now();
+        const res = await fetch(`http://${ip}:${PORT}/ping`, { signal: controller.signal });
+        const pingMs = Date.now() - startMs;
+        clearTimeout(tid);
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (data.status === 'ok' && data.isInitialized !== false) {
+            return { name: data.node || 'Adestio Node', host: ip, port: PORT, pingMs, protocolVersion: data.protocolVersion || 0, nodeId: data.nodeId || null };
+        }
+        return null;
+    } catch (_) {
+        return null;
+    }
+}
+
 function scanForNodes(event = null) {
     return new Promise(async (resolve) => {
         try {
             const nodes = [];
             const seenHosts = new Set();
+            const myIPs = getLocalIPs();
 
             const emitProgress = (msg) => {
                 if (event && event.sender) {
-                    try { event.sender.send('scan-progress', msg); } catch(e){}
+                    try { event.sender.send('scan-progress', msg); } catch(_) {}
                 }
             };
 
             const addNode = (node) => {
                 try {
+                    if (!node || !node.host || myIPs.includes(node.host)) return;
                     if (!seenHosts.has(node.host)) {
                         seenHosts.add(node.host);
                         nodes.push(node);
-                        addNodeToMemory(node.name, node.host, node.port, node.pingMs || 0, node.protocolVersion || 0, node.nodeId);
-                    } else {
-                        if (node.nodeId) {
-                            addNodeToMemory(node.name, node.host, node.port, node.pingMs || 0, node.protocolVersion || 0, node.nodeId);
-                        }
                     }
-                } catch (e) {
-                    console.error('[Sync] addNode error:', e);
-                }
+                    addNodeToMemory(node.name, node.host, node.port, node.pingMs || 0, node.protocolVersion || 0, node.nodeId);
+                } catch (e) {}
             };
 
-            emitProgress('Fase 1: Scansione istantanea UDP in corso...');
+            // === FASE 0: ARP table (zero pacchetti — bypass totale firewall) ===
+            emitProgress('Fase 0: Lettura tabella ARP (zero-packet discovery)...');
+            const arpIPs = await scanArpTable();
+            if (arpIPs.length > 0) {
+                const arpProbes = arpIPs.map(ip => probeHost(ip, 800));
+                const arpResults = await Promise.all(arpProbes);
+                for (const r of arpResults) if (r) addNode(r);
+            }
+
+            // === FASE 1: UDP broadcast SOLO su adattatori fisici ===
+            emitProgress('Fase 1: UDP broadcast su adattatori fisici...');
             await new Promise((resUdp) => {
                 try {
-                    const client = dgram.createSocket('udp4');
+                    const client = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+                    client.on('error', () => { try { client.close(); } catch(_) {} resUdp(); });
                     client.on('message', (msg, rinfo) => {
                         try {
                             const str = msg.toString();
                             if (str.startsWith('I_AM_ADESTIO:')) {
                                 const parts = str.split(':');
-                                const name = parts[1] || 'Adestio Node';
-                                const port = parseInt(parts[2]) || PORT;
-                                const pv = parseInt(parts[3]) || 0;
-                                const nid = parts[4] || null;
-                                addNode({ name, host: rinfo.address, port, protocolVersion: pv, nodeId: nid });
+                                addNode({ name: parts[1] || 'Adestio Node', host: rinfo.address, port: parseInt(parts[2]) || PORT, protocolVersion: parseInt(parts[3]) || 0, nodeId: parts[4] || null });
                             }
-                        } catch (e) {
-                            console.error('[Sync] UDP message parse error:', e);
-                        }
+                        } catch (_) {}
                     });
                     client.bind(() => {
                         try {
                             client.setBroadcast(true);
                             const myNodeId = getLocalNodeId();
                             const msg = Buffer.from(`DISCOVER_ADESTIO:${getNetworkName()}:${PORT}:${PROTOCOL_VERSION}:${myNodeId}`);
-                            
-                            // Trasmettiamo su tutte le sottoreti attive per evitare che Windows usi solo l'adattatore virtuale
-                            const subnets = getLocalSubnets();
-                            const broadcastTargets = ['255.255.255.255'];
-                            for (const sub of subnets) broadcastTargets.push(`${sub}.255`);
-                            
-                            for (const target of broadcastTargets) {
+                            const physicalSubnets = getPhysicalSubnets();
+                            // Prima broadcast su indirizzi di subnet fisici, poi su 255.255.255.255 come fallback
+                            const targets = physicalSubnets.map(s => `${s.subnet}.255`);
+                            targets.push('255.255.255.255');
+                            for (const target of [...new Set(targets)]) {
                                 client.send(msg, 0, msg.length, UDP_PORT, target, (err) => {
-                                    if (err && err.code !== 'EACCES') console.error(`[Sync] UDP broadcast error on ${target}:`, err.message);
+                                    if (err && !['EACCES','EHOSTUNREACH','ENETUNREACH'].includes(err.code)) {
+                                        console.warn(`[Sync] UDP broadcast ${target}:`, err.message);
+                                    }
                                 });
                             }
-                        } catch (e) {
-                            console.error('[Sync] UDP bind callback error:', e);
-                        }
+                        } catch (e) { resUdp(); }
                     });
-                    setTimeout(() => {
-                        try { client.close(); } catch(e){}
-                        resUdp();
-                    }, 1500);
-                } catch(e) { resUdp(); }
+                    setTimeout(() => { try { client.close(); } catch(_) {} resUdp(); }, 1500);
+                } catch (_) { resUdp(); }
             });
 
-            emitProgress('Fase 2: Ricerca mDNS (Bonjour) in corso...');
-            await new Promise(async (resMdns) => {
-                try {
-                    const bonjour = await initBonjour();
-                    const browser = bonjour.find({ type: SERVICE_NAME }, (service) => {
-                        try {
-                            const mySubnets = getLocalSubnets();
-                            let bestIp = service.addresses.find(ip => mySubnets.some(sub => ip.startsWith(sub + '.'))) 
-                                      || service.addresses.find(ip => ip.includes('.')) 
-                                      || service.addresses[0];
-                            addNode({
-                                name: service.name,
-                                host: bestIp,
-                                port: service.port,
-                                protocolVersion: 0
-                            });
-                        } catch (e) {}
-                    });
-                    setTimeout(() => {
-                        try { browser.stop(); } catch(e){}
-                        resMdns();
-                    }, 1500);
-                } catch(e) { resMdns(); }
-            });
-
-            emitProgress('Fase 3: Scansione HTTP Avanzata di tutte le sottoreti...');
-            const subnets = getLocalSubnets();
-            const sweepPromises = [];
-
-            for (const subnet of subnets) {
-                for (let i = 1; i < 255; i++) {
-                    const targetIp = `${subnet}.${i}`;
-                    const p = new Promise(async (resSweep) => {
-                        try {
-                            const controller = new AbortController();
-                            const timeoutId = setTimeout(() => controller.abort(), 1500);
-                            const startMs = Date.now();
-                            const fetchReq = await fetch(`http://${targetIp}:${PORT}/ping`, { signal: controller.signal });
-                            const endMs = Date.now();
-                            clearTimeout(timeoutId);
-
-                            if (fetchReq.ok) {
-                                const data = await fetchReq.json();
-                                if (data.status === 'ok' && data.node && data.isInitialized !== false) {
-                                    addNode({
-                                        name: data.node,
-                                        host: targetIp,
-                                        port: PORT,
-                                        pingMs: endMs - startMs,
-                                        protocolVersion: data.protocolVersion || 0,
-                                        nodeId: data.nodeId
-                                    });
-                                }
-                            }
-                        } catch(e) {}
-                        resSweep();
-                    });
-                    sweepPromises.push(p);
+            // === FASE 2: mDNS/Bonjour completamente isolato (fallisce silenziosamente) ===
+            emitProgress('Fase 2: mDNS Bonjour (opzionale)...');
+            try {
+                const bonjourFound = await probeBonjourSafe(1500);
+                for (const svc of bonjourFound) {
+                    const r = await probeHost(svc.host, 800);
+                    if (r) addNode(r); else addNode({ ...svc, pingMs: 0, protocolVersion: 0, nodeId: null });
                 }
-            }
-            await Promise.all(sweepPromises);
+            } catch (_) {}
 
+            // === FASE 3: HTTP sweep — priorità agli IP dalla cache ARP, poi sweep completo ===
+            emitProgress('Fase 3: HTTP sweep intelligente...');
+            const physicalSubnets = getPhysicalSubnets();
+
+            // Raccoglie tutti gli IP da sondare: prima ARP (già provati), poi subnet completo
+            const allSubnetIPs = new Set(arpIPs);
+            for (const { subnet } of physicalSubnets) {
+                for (let i = 2; i < 255; i++) allSubnetIPs.add(`${subnet}.${i}`);
+            }
+            // Esclude già scansionati e se stessi
+            for (const ip of myIPs) allSubnetIPs.delete(ip);
+            for (const ip of seenHosts) allSubnetIPs.delete(ip);
+
+            const SWEEP_CHUNK = 50; // 50 connessioni parallele alla volta
+            const ipList = [...allSubnetIPs];
+            for (let i = 0; i < ipList.length; i += SWEEP_CHUNK) {
+                const chunk = ipList.slice(i, i + SWEEP_CHUNK);
+                const results = await Promise.all(chunk.map(ip => probeHost(ip, 1000)));
+                for (const r of results) if (r) addNode(r);
+                // Pausa breve ogni chunk per non saturare la rete
+                if (i + SWEEP_CHUNK < ipList.length) await new Promise(r => setTimeout(r, 50));
+            }
+
+            console.log(`[Sync] Discovery completato: ${nodes.length} nodi trovati (ARP:${arpIPs.length} host)`);
             resolve(nodes);
         } catch (e) {
             console.error('[Sync] scanForNodes error:', e);
@@ -819,7 +930,9 @@ module.exports = {
     addNodeToMemory,
     savePeerCache,
     loadPeerCache,
+    ensureFirewallRule,
     broadcastUpdateAvailable,
     getLocalNodeId,
-    getNetworkName
+    getNetworkName,
+    activePeers
 };
