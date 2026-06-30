@@ -1,0 +1,55 @@
+{
+  "name": "Adestio",
+  "version": "2.2.0",
+  "description": "Adestio",
+  "author": "NunzioTech",
+  "main": "main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AprileNunzio/Adestio.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "build": "electron-builder",
+    "build:publish": "electron-builder --publish always"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "bonjour-service": "^1.4.2",
+    "cors": "^2.8.6",
+    "electron-updater": "^6.8.9",
+    "express": "^5.2.1",
+    "sql.js": "^1.10.2",
+    "uuid": "^14.0.1",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3",
+    "strip-comments": "^2.0.1"
+  },
+  "build": {
+    "appId": "com.adestio.app",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "AprileNunzio",
+        "repo": "Adestio",
+        "releaseType": "release"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": true,
+      "include": "installer.nsh"
+    }
+  }
+}

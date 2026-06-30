@@ -1,0 +1,17 @@
+{
+    "id": "notifiche",
+    "name": "Notifiche",
+    "description": "Regole di alert e avvisi",
+    "icon": "icon.png",
+    "main": "app.js",
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza Applicazione"
+        },
+        {
+            "id": "edit",
+            "label": "Modifica Dati"
+        }
+    ]
+}
