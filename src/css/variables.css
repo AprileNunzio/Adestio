@@ -1,0 +1,30 @@
+:root {
+        --md-bg-color: #f8fafc;
+    --md-surface: rgba(255, 255, 255, 0.85);
+    --md-surface-variant: rgba(241, 245, 249, 0.8);
+
+    --md-primary: #3b82f6;
+    --md-primary-hover: #2563eb;
+    --md-secondary: #8b5cf6;
+    --md-secondary-hover: #7c3aed;
+
+    --md-on-bg: #0f172a;
+    --md-on-surface: #1e293b;
+    --md-on-surface-variant: #475569;
+
+    --md-outline: rgba(0, 0, 0, 0.1);
+    --md-outline-focus: rgba(59, 130, 246, 0.5);
+
+    --md-error: #ef4444;
+    --md-success: #10b981;
+
+        --font-heading: 'Outfit', sans-serif;
+    --font-body: 'Inter', sans-serif;
+
+        --glass-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.08), 0 0 20px rgba(59, 130, 246, 0.05);
+    --glass-blur: blur(20px);
+    --glass-border: 1px solid rgba(255, 255, 255, 0.6);
+
+    --transition-fast: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-medium: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}

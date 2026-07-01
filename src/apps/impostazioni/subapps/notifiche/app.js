@@ -1,0 +1,1 @@
+export default { render: async (el) => { try { el.innerHTML = '<h3>Notifiche</h3><p>Area in sviluppo.</p>'; } catch(e){} } };

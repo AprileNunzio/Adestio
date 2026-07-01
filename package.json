@@ -1,0 +1,78 @@
+{
+  "name": "adestio",
+  "productName": "Adestio",
+  "version": "3.0.0",
+  "description": "Adestio",
+  "author": "NunzioTech",
+  "main": "main.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AprileNunzio/Adestio.git"
+  },
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "build": "electron-builder",
+    "build:local": "electron-builder --publish never",
+    "build:publish": "node scripts/publish.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "bonjour-service": "^1.4.2",
+    "cors": "^2.8.6",
+    "electron-updater": "^6.8.9",
+    "express": "^5.2.1",
+    "sql.js": "^1.10.2",
+    "uuid": "^14.0.1",
+    "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3",
+    "strip-comments": "^2.0.1"
+  },
+  "build": {
+    "appId": "com.adestio.app",
+    "productName": "Adestio",
+    "copyright": "Copyright © 2026 NunzioTech",
+    "artifactName": "Adestio-Setup-${version}.${ext}",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "AprileNunzio",
+        "repo": "Adestio",
+        "releaseType": "release"
+      }
+    ],
+    "win": {
+      "icon": "adestio.ico",
+      "target": [
+        "nsis"
+      ],
+      "publisherName": "NunzioTech",
+      "legalTrademarks": "NunzioTech",
+      "requestedExecutionLevel": "requireAdministrator",
+      "verifyUpdateCodeSignature": false,
+      "signingHashAlgorithms": [
+        "sha256"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Adestio",
+      "uninstallDisplayName": "Adestio",
+      "installerIcon": "adestio.ico",
+      "uninstallerIcon": "adestio.ico",
+      "installerHeaderIcon": "adestio.ico",
+      "packElevateHelper": true,
+      "runAfterFinish": true,
+      "include": "installer.nsh"
+    }
+  }
+}

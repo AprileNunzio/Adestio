@@ -1,0 +1,17 @@
+{
+    "id": "smtp",
+    "name": "Server SMTP",
+    "description": "Configura l'invio di email di sistema",
+    "icon": "icon.png",
+    "main": "app.js",
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza Applicazione"
+        },
+        {
+            "id": "edit",
+            "label": "Modifica Dati"
+        }
+    ]
+}

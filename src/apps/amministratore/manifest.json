@@ -1,0 +1,18 @@
+{
+    "id": "amministratore",
+    "name": "Amministratore",
+    "description": "Gestione Utenti, Ruoli e Sicurezza",
+    "icon": "icona.png",
+    "main": "app.js",
+    "color": "#f44336",
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza Applicazione"
+        },
+        {
+            "id": "edit",
+            "label": "Modifica Dati"
+        }
+    ]
+}

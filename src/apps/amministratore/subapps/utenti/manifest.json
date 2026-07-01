@@ -1,0 +1,17 @@
+{
+    "id": "utenti",
+    "name": "Gestione Utenti",
+    "description": "Visualizza e gestisci gli utenti di rete",
+    "icon": "icon.png",
+    "main": "app.js",
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza Applicazione"
+        },
+        {
+            "id": "edit",
+            "label": "Modifica Dati"
+        }
+    ]
+}
