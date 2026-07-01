@@ -42,6 +42,20 @@ function createRouter() {
             res.status(500).json({ error: e.message });
         }
     });
+    router.get('/version', (req, res) => {
+        try {
+            const { app: electronApp } = require('electron');
+            const { PROTOCOL_VERSION } = require('./p2p/protocol/constants');
+            const updatesManager = require('./updates_manager');
+            res.json({
+                appVersion: electronApp.getVersion(),
+                protocolVersion: PROTOCOL_VERSION,
+                highestLocalInstaller: updatesManager.getHighestLocalVersion()
+            });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
     router.get('/blocks', (req, res) => {
         try {
             const { getAllBlocks } = require('./dag/graph/dag_store');

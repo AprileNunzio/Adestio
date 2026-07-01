@@ -53,8 +53,9 @@ function startSyncServer() {
         app.get('/ping', async (req, res) => {
             try {
                 const { checkIsRegistered } = require('../handlers/auth');
+                const { app: electronApp } = require('electron');
                 const isInitialized = await checkIsRegistered();
-                res.json({ status: 'ok', node: getNetworkName(), protocolVersion: PROTOCOL_VERSION, nodeId: getNodeId(), isInitialized });
+                res.json({ status: 'ok', node: getNetworkName(), protocolVersion: PROTOCOL_VERSION, appVersion: electronApp.getVersion(), nodeId: getNodeId(), isInitialized });
             } catch (e) {
                 res.status(500).json({ error: 'Internal error' });
             }
