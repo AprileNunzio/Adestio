@@ -56,6 +56,44 @@ function createRouter() {
             res.status(500).json({ error: e.message });
         }
     });
+    router.post('/scan', (req, res) => {
+        try {
+            const { runDiscovery } = require('./p2p/discovery/discovery_coordinator');
+            runDiscovery().catch(() => {});
+            res.json({ started: true });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+    router.post('/sync', async (req, res) => {
+        try {
+            const { ip, port } = req.body || {};
+            if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip || '')) return res.status(400).json({ error: 'Invalid ip' });
+            const { syncWithPeer } = require('./dag/sync/sync_coordinator');
+            const ok = await syncWithPeer(ip, port || 34567);
+            res.json({ success: ok });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+    router.post('/ensure-firewall', (req, res) => {
+        try {
+            const { ensureFirewallRules } = require('./p2p/firewall/windows_firewall');
+            ensureFirewallRules();
+            res.json({ started: true });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
+    router.post('/check-update', async (req, res) => {
+        try {
+            const { autoUpdater } = require('electron-updater');
+            const result = await autoUpdater.checkForUpdatesAndNotify();
+            res.json({ started: true, updateInfo: result && result.updateInfo ? { version: result.updateInfo.version } : null });
+        } catch (e) {
+            res.status(500).json({ error: e.message });
+        }
+    });
     router.get('/blocks', (req, res) => {
         try {
             const { getAllBlocks } = require('./dag/graph/dag_store');

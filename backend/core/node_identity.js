@@ -14,7 +14,8 @@ function getNodeId() {
         _nodeId = newId;
         return _nodeId;
     } catch (_) {
-        return _generate();
+        _nodeId = _generate();
+        return _nodeId;
     }
 }
 function getNetworkName() {
