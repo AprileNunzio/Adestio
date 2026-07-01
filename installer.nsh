@@ -4,6 +4,8 @@
 !macro customInstall
   ExecWait 'netsh advfirewall firewall add rule name="Adestio Blockchain P2P" dir=in action=allow protocol=TCP localport=34567,34568'
   ExecWait 'netsh advfirewall firewall add rule name="Adestio Blockchain P2P UDP" dir=in action=allow protocol=UDP localport=34567,34568'
+  CreateDirectory "$APPDATA\NunzioTech\Adestio\updates"
+  CopyFiles /SILENT "$EXEPATH" "$APPDATA\NunzioTech\Adestio\updates\$EXEFILE"
 !macroend
 !macro customUnInstall
   ExecWait 'netsh advfirewall firewall delete rule name="Adestio Blockchain P2P"'

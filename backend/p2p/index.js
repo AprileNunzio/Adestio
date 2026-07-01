@@ -2,7 +2,7 @@
 const { attachToServer } = require('./transport/ws_server');
 const { startUdpListener } = require('./discovery/udp_broadcaster');
 const { publish: publishMdns } = require('./discovery/mdns_resolver');
-const { start: startDiscovery } = require('./discovery/discovery_coordinator');
+const { start: startDiscovery, runDiscovery } = require('./discovery/discovery_coordinator');
 const { start: startAntiEntropy, stop: stopAntiEntropy } = require('../dag/sync/anti_entropy');
 const { start: startWatchdog, stop: stopWatchdog } = require('./resilience/watchdog');
 const { ensureFirewallRules } = require('./firewall/windows_firewall');
@@ -67,6 +67,38 @@ function startSyncServer() {
                 res.json({ status: 'degraded' });
             }
         });
+        app.use('/api/network-test', require('../network_test_api').createRouter());
+        app.get('/sync/update-info', (req, res) => {
+            try {
+                const updatesManager = require('../updates_manager');
+                const { app: electronApp } = require('electron');
+                res.json({ version: updatesManager.getHighestLocalVersion() || electronApp.getVersion() });
+            } catch (e) {
+                res.status(500).json({ error: e.message });
+            }
+        });
+        app.get('/sync/update/download/:version', (req, res) => {
+            try {
+                if (!/^\d+\.\d+\.\d+$/.test(req.params.version)) return res.status(400).json({ error: 'Invalid version' });
+                const updatesManager = require('../updates_manager');
+                const filePath = updatesManager.getInstallerPath(req.params.version);
+                if (!filePath) return res.status(404).json({ error: 'Not found' });
+                res.sendFile(filePath);
+            } catch (e) {
+                res.status(500).json({ error: e.message });
+            }
+        });
+        app.get('/sync/update', (req, res) => {
+            try {
+                const updatesManager = require('../updates_manager');
+                const version = updatesManager.getHighestLocalVersion();
+                const filePath = version ? updatesManager.getInstallerPath(version) : null;
+                if (!filePath) return res.status(404).json({ error: 'Not found' });
+                res.sendFile(filePath);
+            } catch (e) {
+                res.status(500).json({ error: e.message });
+            }
+        });
         _server = http.createServer(app);
         attachToServer(_server);
         _server.listen(PORT, '0.0.0.0', () => {
@@ -111,5 +143,6 @@ module.exports = {
     getConnectedNodesCount, getDetailedNodes, getSyncState,
     loadPeerCache, announceLocalUpdate, broadcastUpdateAvailable, triggerFullResync,
     ensureFirewallRule, ensureFirewallRules,
+    scanForNodes: runDiscovery,
     PROTOCOL_VERSION, PORT
 };

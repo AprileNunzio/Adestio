@@ -1,8 +1,9 @@
 const crypto = require('crypto');
 const dbManager = require('./db/db_manager');
+const { deriveKeyForPurpose } = require('./security/network_key_derivation');
 function hashNetworkCode(code) {
     try {
-        return crypto.createHash('sha256').update(code.replace(/-/g, '').toUpperCase()).digest('hex');
+        return deriveKeyForPurpose(code, 'network-membership-hash');
     } catch (e) {
         return '';
     }
@@ -43,7 +44,8 @@ async function autoUnlockDB() {
 }
 async function initEmptyDB(networkName) {
     try {
-        dbManager.deviceKey = dbManager.loadOrGenerateLocalDeviceKey();
+        const networkCode = generateNetworkCode();
+        dbManager.deviceKey = dbManager.loadOrGenerateLocalDeviceKey(networkCode);
         if (!dbManager.deviceKey) throw new Error('DPAPI error');
         const mAuth = require('./migrations/auth');
         const mConfig = require('./migrations/config');
@@ -53,7 +55,6 @@ async function initEmptyDB(networkName) {
         await dbManager.loadDatabase('config', mConfig);
         await dbManager.loadDatabase('ledger', mLedger);
         await dbManager.loadDatabase('app', mApp);
-        const networkCode = generateNetworkCode();
         const hashedCode = hashNetworkCode(networkCode);
         const nodeId = crypto.randomBytes(16).toString('hex');
         const configDb = dbManager.getDB('config');
@@ -107,7 +108,7 @@ async function verifyNetworkCodeLocally(code) {
 }
 async function importClonedDB(buffer, networkCode) {
     try {
-        dbManager.deviceKey = dbManager.loadOrGenerateLocalDeviceKey();
+        dbManager.deviceKey = dbManager.loadOrGenerateLocalDeviceKey(networkCode);
         if (!dbManager.deviceKey) return false;
         const mAuth = require('./migrations/auth');
         const mConfig = require('./migrations/config');

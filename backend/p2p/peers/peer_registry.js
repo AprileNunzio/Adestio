@@ -43,8 +43,12 @@ function getPexPeers() {
         .map(({ ip, name, port, nodeId, protocolVersion }) => ({ ip, name, port, nodeId, protocolVersion }));
 }
 function getDetailedPeers() {
+    const { getNodeId } = require('../../core/node_identity');
+    const myNodeId = getNodeId();
     const now = Date.now();
-    return getAllPeers().map(p => ({
+    return getAllPeers()
+        .filter(p => p.ip !== '127.0.0.1' && (!myNodeId || p.nodeId !== myNodeId))
+        .map(p => ({
         ...p,
         status: p.state === STATES.SYNCED && now - p.lastSeen < 45000 ? 'Online'
               : p.state === STATES.DISCONNECTED ? 'Offline'
@@ -53,9 +57,12 @@ function getDetailedPeers() {
 }
 function loadFromCache(cachedPeers) {
     const { getLocalIPs } = require('../discovery/arp_scanner');
+    const { getNodeId } = require('../../core/node_identity');
     const myIPs = new Set(getLocalIPs());
+    const myNodeId = getNodeId();
     for (const p of cachedPeers) {
-        if (myIPs.has(p.ip) || _peers.has(p.ip)) continue;
+        if (p.ip === '127.0.0.1' || myIPs.has(p.ip) || _peers.has(p.ip)) continue;
+        if (myNodeId && p.nodeId === myNodeId) continue;
         const fsm = new PeerFSM(p.ip);
         fsm.transition(STATES.DISCOVERED);
         _peers.set(p.ip, { fsm, meta: { ...p, lastSeen: p.lastSeen || 0 } });

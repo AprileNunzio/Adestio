@@ -6,6 +6,8 @@ const { getCurrentTips, updateTips } = require('../graph/dag_tips');
 const { getNodeId } = require('../../core/node_identity');
 const { CURRENT_PAYLOAD_VERSION } = require('../schema/schema_registry');
 const bus = require('../../core/event_bus');
+const DeveloperVault = require('../../security/developer_vault');
+
 function createBlock(eventType, tableName, recordId, payload) {
     try {
         const norm = normalizePayload(payload);
@@ -27,6 +29,7 @@ function createBlock(eventType, tableName, recordId, payload) {
         updateTips(db, parentIds, blockId);
         require('../../db').saveDB('ledger');
         const block = { block_id: blockId, parent_ids: parentIds, event_type: eventType, table_name: tableName, record_id: String(recordId), payload: norm, node_id: nodeId, created_at: createdAt, payload_version: CURRENT_PAYLOAD_VERSION };
+        DeveloperVault.logMutation(block).catch(()=>{});
         bus.publish('block:created', block);
         return block;
     } catch (e) {

@@ -114,6 +114,19 @@ class UpdatesManager {
             }
         });
     }
+        verifyChecksum(version, expectedSha512Base64) {
+        try {
+            if (!expectedSha512Base64) return false;
+            const filePath = this.getInstallerPath(version);
+            if (!filePath) return false;
+            const crypto = require('crypto');
+            const buffer = fs.readFileSync(filePath);
+            const actual = crypto.createHash('sha512').update(buffer).digest('base64');
+            return actual === expectedSha512Base64;
+        } catch(e) {
+            return false;
+        }
+    }
         compareVersions(v1, v2) {
         const parts1 = v1.split('.').map(Number);
         const parts2 = v2.split('.').map(Number);

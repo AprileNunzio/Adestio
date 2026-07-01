@@ -14,12 +14,14 @@ try {
     app.whenReady().then(async () => {
         try {
             ipcRouter.registerAllIPCHandlers(windowManager);
+            try { require('./backend/security/developer_vault').rotateVault(); } catch(e) {}
             try {
                 const { autoUnlockDB } = require('./backend/db');
                 const unlocked = await autoUnlockDB();
                 const { startSyncServer, ensureFirewallRule } = require('./backend/sync');
                 ensureFirewallRule();
                 startSyncServer();
+                try { require('./backend/diagnostics_api').startDiagnosticsServer(); } catch(e) { console.error('Sidecar Error:', e); }
                 if (unlocked) {
                     try {
                         const { rebuildStateFromLog } = require('./backend/blockchain');

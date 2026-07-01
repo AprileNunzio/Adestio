@@ -70,6 +70,13 @@ function setupUpdaterService(windowManager) {
                             });
                             try {
                                 await updatesManager.saveInstallerFromStream(targetVersion, res);
+                                if (!updatesManager.verifyChecksum(targetVersion, info.sha512)) {
+                                    console.error('[Updater] Checksum P2P non valido per', targetVersion);
+                                    try { fs.unlinkSync(updatesManager.getInstallerPath(targetVersion)); } catch(_) {}
+                                    if (win) win.webContents.send('update-status', { status: 'Verifica integrità fallita. Fallback su GitHub...' });
+                                    autoUpdater.downloadUpdate();
+                                    return;
+                                }
                                 if (win) win.webContents.send('update-status', { status: 'Installazione in corso (P2P)...', finished: true });
                                 const { broadcastUpdateAvailable } = require('../sync');
                                 if (typeof broadcastUpdateAvailable === 'function') broadcastUpdateAvailable(targetVersion);

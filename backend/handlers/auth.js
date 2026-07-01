@@ -1,14 +1,7 @@
 const { checkIsRegistered: dbCheck, initEmptyDB, unlockDB, getDB, saveDB, importClonedDB, hashNetworkCode, wrapMutationWithEvent } = require('../db');
-const { startSyncServer, scanForNodes, getUUID } = require('../sync');
+const { startSyncServer, scanForNodes } = require('../sync');
 const crypto = require('crypto');
-function hashData(data) {
-    try {
-        return crypto.createHash('sha256').update(data).digest('hex');
-    } catch (e) {
-        console.error(e);
-        throw e;
-    }
-}
+const passwordHasher = require('../security/password_hasher');
 async function checkIsRegistered() {
     try {
         return dbCheck();
@@ -57,36 +50,27 @@ async function loginUser(event, data) {
     try {
         const { id, pin, password } = data;
         const db = getDB();
-        let query, param;
-        if (password) {
-            query = "SELECT id, must_change_password FROM users WHERE id = ? AND password = ?";
-            param = hashData(password);
-        } else {
-            query = "SELECT id, must_change_password FROM users WHERE id = ? AND pin = ?";
-            param = hashData(pin);
-        }
-        const stmt = db.prepare(query);
-        stmt.bind([id, param]);
-        const success = stmt.step();
-        let mustChange = false;
-        if (success) {
+        const field = password ? 'password' : 'pin';
+        const credential = password || pin;
+        const rows = db.query(`SELECT * FROM users WHERE id = ?`, [id]);
+        if (!rows || rows.length === 0) return { success: false };
+        const row = rows[0];
+        const { valid, needsRehash } = await passwordHasher.verify(credential, row[field]);
+        if (!valid) return { success: false };
+        const now = Date.now();
+        db.run('UPDATE users SET last_login = ? WHERE id = ?', [now, id]);
+        if (needsRehash) {
             try {
-                const row = stmt.getAsObject();
-                if (row.must_change_password === 1) {
-                    mustChange = true;
+                const rehashed = await passwordHasher.hash(credential);
+                db.run(`UPDATE users SET ${field} = ?, last_modified = ? WHERE id = ?`, [rehashed, now, id]);
+                const updatedRows = db.query('SELECT * FROM users WHERE id = ?', [id]);
+                if (updatedRows && updatedRows.length > 0) {
+                    wrapMutationWithEvent('UPDATE', 'users', id, updatedRows[0]);
                 }
-            } catch(e) {}
+            } catch (e) { console.error('[Auth] rehash error:', e.message); }
         }
-        stmt.free();
-        if (success) {
-            try {
-                db.run('UPDATE users SET last_login = ? WHERE id = ?', [Date.now(), id]);
-                const { saveDB } = require('../db');
-                saveDB();
-            } catch(e) { console.error("Error updating last_login", e); }
-            return { success: true, must_change_password: mustChange };
-        }
-        return { success: false };
+        await saveDB();
+        return { success: true, must_change_password: row.must_change_password === 1 };
     } catch (e) {
         console.error(e);
         return { success: false, error: e.message };
@@ -95,19 +79,27 @@ async function loginUser(event, data) {
 async function registerUser(event, data) {
     try {
         const { nome, cognome, email, pin, password, networkName } = data;
-        const username = `${cognome} ${nome}`.trim();
         const networkCode = await initEmptyDB(networkName);
         if (!networkCode) return { success: false };
+        const baseUsername = `${cognome} ${nome}`.trim() || 'User';
+        let username = baseUsername;
         const db = getDB();
-        const hashedPw = hashData(password);
-        const hashedPin = hashData(pin);
-        const newId = await getUUID();
-        const ts = Math.floor(Date.now() / 1000);
+        let counter = 1;
+        while (true) {
+            const res = db.query("SELECT id FROM users WHERE username = ?", [username]);
+            if (res.length === 0) break;
+            username = `${baseUsername}${counter}`;
+            counter++;
+        }
+        const hashedPw = await passwordHasher.hash(password);
+        const hashedPin = await passwordHasher.hash(pin);
+        const newId = crypto.randomUUID();
+        const ts = Date.now();
         db.run(
             "INSERT INTO users (id, username, email, password, passkey, pin, last_modified, is_deleted, is_superadmin, nome, cognome) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [newId, username, email, hashedPw, '', hashedPin, ts, 0, 1, nome || '', cognome || '']
         );
-        saveDB();
+        await saveDB();
         const payload = {
             id: newId,
             username,

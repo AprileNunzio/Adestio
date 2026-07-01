@@ -12,6 +12,7 @@ const { recordFailure, recordSuccess } = require('../../p2p/resilience/backoff')
 const { recordSuccess: statSuccess, recordFailure: statFailure } = require('../../p2p/peers/peer_stats');
 const { getCurrentTips } = require('../graph/dag_tips');
 const bus = require('../../core/event_bus');
+const _inFlight = new Set();
 function _setState(state) {
     bus.publish('sync:state', { state });
     try {
@@ -20,7 +21,10 @@ function _setState(state) {
     } catch (_) {}
 }
 async function syncWithPeer(ip, port) {
+    if (!ip) return false;
     if (!isAllowed(ip)) return false;
+    if (_inFlight.has(ip)) return false;
+    _inFlight.add(ip);
     const fsm = getPeerFSM(ip);
     try {
         if (fsm) fsm.transition(STATES.CONNECTING);
@@ -65,13 +69,20 @@ async function syncWithPeer(ip, port) {
         bus.publish('peer:synced', { ip, applied, latency });
         return true;
     } catch (e) {
+        if (e.message && e.message.includes('DB_NOT_INITIALIZED')) {
+            return false; 
+        }
         if (fsm) fsm.transition(STATES.DEGRADED);
         _fail(ip); _setState('Errore di Sincronizzazione');
+        bus.publish('sync.error', { ip, message: e.message });
         console.error(`[SyncCoordinator] syncWithPeer ${ip}:`, e.message);
         return false;
+    } finally {
+        _inFlight.delete(ip);
     }
 }
 async function fullResync(ip, port) {
+    if (!ip) return false;
     try {
         const ws = await connectToPeer(ip, port, null);
         const { sendRequest } = require('../../p2p/protocol/rpc');

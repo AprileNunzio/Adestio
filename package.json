@@ -1,7 +1,7 @@
 {
   "name": "adestio",
   "productName": "Adestio",
-  "version": "3.0.0",
+  "version": "3.0.7",
   "description": "Adestio",
   "author": "NunzioTech",
   "main": "main.js",
@@ -14,7 +14,7 @@
     "pack": "electron-builder --dir",
     "dist": "electron-builder",
     "build": "electron-builder",
-    "build:local": "electron-builder --publish never",
+    "build:local": "npm version patch --no-git-tag-version && electron-builder --publish never",
     "build:publish": "node scripts/publish.js"
   },
   "dependencies": {

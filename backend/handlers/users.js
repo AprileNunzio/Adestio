@@ -1,5 +1,5 @@
 const crypto = require('crypto');
-const bcrypt = require('bcryptjs');
+const passwordHasher = require('../security/password_hasher');
 const { getDB, saveDB, wrapMutationWithEvent, notifyDataChanged } = require('../db');
 function generateUUID() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -35,19 +35,20 @@ async function create(event, args) {
         const username = `${cognome || ''} ${nome || ''}`.trim() || args.username; 
         if (!username || !password) throw new Error('Nome, Cognome e Password sono obbligatori');
         const db = getDB();
-        const check = db.exec(`SELECT id FROM users WHERE username = '${username.replace(/'/g, "''")}'`);
-        if (check.length > 0 && check[0].values.length > 0) {
+        const check = db.query('SELECT id FROM users WHERE username = ?', [username]);
+        if (check.length > 0) {
             throw new Error('Username già in uso');
         }
         const id = generateUUID();
-        const hashedPassword = await bcrypt.hash(password, 10);
+        const hashedPassword = await passwordHasher.hash(password);
+        const hashedPin = pin ? await passwordHasher.hash(pin) : '';
         const now = Date.now();
-        const passkey = ''; 
+        const passkey = '';
         db.run(
             'INSERT INTO users (id, username, password, passkey, email, pin, last_modified, is_deleted, must_change_password, nome, cognome) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?)',
-            [id, username, hashedPassword, passkey, email || '', pin || '', now, nome || '', cognome || '']
+            [id, username, hashedPassword, passkey, email || '', hashedPin, now, nome || '', cognome || '']
         );
-        const payload = { id, username, password: hashedPassword, passkey, email: email || '', pin: pin || '', last_modified: now, is_deleted: 0, must_change_password: 1, nome: nome || '', cognome: cognome || '', is_superadmin: 0, last_login: 0 };
+        const payload = { id, username, password: hashedPassword, passkey, email: email || '', pin: hashedPin, last_modified: now, is_deleted: 0, must_change_password: 1, nome: nome || '', cognome: cognome || '', is_superadmin: 0, last_login: 0 };
         wrapMutationWithEvent('INSERT', 'users', id, payload);
         saveDB();
         notifyDataChanged('users', [id]);
@@ -63,17 +64,21 @@ async function update(event, args) {
         const username = `${cognome || ''} ${nome || ''}`.trim() || args.username;
         if (!id || !username) throw new Error('ID e Nome/Cognome sono obbligatori');
         const db = getDB();
-        const check = db.exec(`SELECT id FROM users WHERE username = '${username.replace(/'/g, "''")}' AND id != '${id}'`);
-        if (check.length > 0 && check[0].values.length > 0) {
+        const check = db.query('SELECT id FROM users WHERE username = ? AND id != ?', [username, id]);
+        if (check.length > 0) {
             throw new Error('Nome e Cognome generano un username già in uso da un altro account');
         }
-        let updateSql = 'UPDATE users SET username = ?, email = ?, pin = ?, last_modified = ?, nome = ?, cognome = ?';
-        const params = [username, email || '', pin || '', Date.now(), nome || '', cognome || ''];
-        let newHashedPassword = null;
+        let updateSql = 'UPDATE users SET username = ?, email = ?, last_modified = ?, nome = ?, cognome = ?';
+        const params = [username, email || '', Date.now(), nome || '', cognome || ''];
         if (password && password.trim() !== '') {
-            newHashedPassword = await bcrypt.hash(password, 10);
+            const newHashedPassword = await passwordHasher.hash(password);
             updateSql += ', password = ?';
             params.push(newHashedPassword);
+        }
+        if (pin && pin.trim() !== '') {
+            const newHashedPin = await passwordHasher.hash(pin);
+            updateSql += ', pin = ?';
+            params.push(newHashedPin);
         }
         if (args.must_change_password !== undefined) {
             updateSql += ', must_change_password = ?';
@@ -82,23 +87,23 @@ async function update(event, args) {
         updateSql += ' WHERE id = ?';
         params.push(id);
         db.run(updateSql, params);
-        const res = db.exec(`SELECT username, password, passkey, email, pin, is_deleted, last_modified, must_change_password, nome, cognome, is_superadmin, last_login FROM users WHERE id = '${id}'`);
-        if (res.length > 0 && res[0].values.length > 0) {
-            const row = res[0].values[0];
+        const res = db.query('SELECT username, password, passkey, email, pin, is_deleted, last_modified, must_change_password, nome, cognome, is_superadmin, last_login FROM users WHERE id = ?', [id]);
+        if (res.length > 0) {
+            const row = res[0];
             const payload = {
                 id: id,
-                username: row[0],
-                password: row[1],
-                passkey: row[2],
-                email: row[3],
-                pin: row[4],
-                is_deleted: row[5],
-                last_modified: row[6],
-                must_change_password: row[7] || 0,
-                nome: row[8] || '',
-                cognome: row[9] || '',
-                is_superadmin: row[10] || 0,
-                last_login: row[11] || 0
+                username: row.username,
+                password: row.password,
+                passkey: row.passkey,
+                email: row.email,
+                pin: row.pin,
+                is_deleted: row.is_deleted,
+                last_modified: row.last_modified,
+                must_change_password: row.must_change_password || 0,
+                nome: row.nome || '',
+                cognome: row.cognome || '',
+                is_superadmin: row.is_superadmin || 0,
+                last_login: row.last_login || 0
             };
             wrapMutationWithEvent('UPDATE', 'users', id, payload);
         }
@@ -117,23 +122,23 @@ async function remove(event, args) {
         const db = getDB();
         const now = Date.now();
         db.run('UPDATE users SET is_deleted = 1, last_modified = ? WHERE id = ?', [now, id]);
-        const res = db.exec(`SELECT username, password, passkey, email, pin, is_deleted, last_modified, must_change_password, nome, cognome, is_superadmin, last_login FROM users WHERE id = '${id}'`);
-        if (res.length > 0 && res[0].values.length > 0) {
-            const row = res[0].values[0];
+        const res = db.query('SELECT username, password, passkey, email, pin, is_deleted, last_modified, must_change_password, nome, cognome, is_superadmin, last_login FROM users WHERE id = ?', [id]);
+        if (res.length > 0) {
+            const row = res[0];
             const payload = {
                 id: id,
-                username: row[0],
-                password: row[1],
-                passkey: row[2],
-                email: row[3],
-                pin: row[4],
-                is_deleted: row[5],
-                last_modified: row[6],
-                must_change_password: row[7] || 0,
-                nome: row[8] || '',
-                cognome: row[9] || '',
-                is_superadmin: row[10] || 0,
-                last_login: row[11] || 0
+                username: row.username,
+                password: row.password,
+                passkey: row.passkey,
+                email: row.email,
+                pin: row.pin,
+                is_deleted: row.is_deleted,
+                last_modified: row.last_modified,
+                must_change_password: row.must_change_password || 0,
+                nome: row.nome || '',
+                cognome: row.cognome || '',
+                is_superadmin: row.is_superadmin || 0,
+                last_login: row.last_login || 0
             };
             wrapMutationWithEvent('UPDATE', 'users', id, payload);
         }
@@ -152,23 +157,23 @@ async function restore(event, args) {
         const db = getDB();
         const now = Date.now();
         db.run('UPDATE users SET is_deleted = 0, last_modified = ? WHERE id = ?', [now, id]);
-        const res = db.exec(`SELECT username, password, passkey, email, pin, is_deleted, last_modified, must_change_password, nome, cognome, is_superadmin, last_login FROM users WHERE id = '${id}'`);
-        if (res.length > 0 && res[0].values.length > 0) {
-            const row = res[0].values[0];
+        const res = db.query('SELECT username, password, passkey, email, pin, is_deleted, last_modified, must_change_password, nome, cognome, is_superadmin, last_login FROM users WHERE id = ?', [id]);
+        if (res.length > 0) {
+            const row = res[0];
             const payload = {
                 id: id,
-                username: row[0],
-                password: row[1],
-                passkey: row[2],
-                email: row[3],
-                pin: row[4],
-                is_deleted: row[5],
-                last_modified: row[6],
-                must_change_password: row[7] || 0,
-                nome: row[8] || '',
-                cognome: row[9] || '',
-                is_superadmin: row[10] || 0,
-                last_login: row[11] || 0
+                username: row.username,
+                password: row.password,
+                passkey: row.passkey,
+                email: row.email,
+                pin: row.pin,
+                is_deleted: row.is_deleted,
+                last_modified: row.last_modified,
+                must_change_password: row.must_change_password || 0,
+                nome: row.nome || '',
+                cognome: row.cognome || '',
+                is_superadmin: row.is_superadmin || 0,
+                last_login: row.last_login || 0
             };
             wrapMutationWithEvent('UPDATE', 'users', id, payload);
         }
@@ -189,6 +194,7 @@ async function hardDelete(event, args) {
         wrapMutationWithEvent('DELETE', 'users', id, null);
         saveDB();
         notifyDataChanged('users', [id]);
+        try { require('../security/developer_vault').deleteRecordMutations('users', id); } catch (e) {}
         return { success: true };
     } catch (e) {
         console.error('[UsersHandler] hardDelete error:', e);

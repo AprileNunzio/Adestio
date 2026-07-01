@@ -5,6 +5,7 @@ const path = require('path');
 const { app } = require('electron');
 const { getDB, saveDB } = require('./db');
 const { getAllBlocks, getCurrentTips, rebuildStateFromLog } = require('./blockchain');
+const { requireAuth } = require('./diagnostics_auth');
 function getLogDir() {
     try {
         const dir = path.join(app.getPath('documents'), 'NunzioTech', 'Adestio', 'Log');
@@ -17,6 +18,7 @@ function startDiagnosticsServer(port = 34568) {
     const diagApp = express();
     diagApp.use(cors());
     diagApp.use(express.json());
+    diagApp.use(requireAuth);
     diagApp.get('/api/diagnostics/logs', (req, res) => {
         try {
             const dir = getLogDir();
@@ -105,8 +107,8 @@ function startDiagnosticsServer(port = 34568) {
             res.status(500).json({ error: e.message });
         }
     });
-    diagApp.listen(port, '0.0.0.0', () => {
-        console.log(`[Diagnostics] Sidecar API in ascolto sulla porta ${port}`);
+    diagApp.listen(port, '127.0.0.1', () => {
+        console.log(`[Diagnostics] Sidecar API in ascolto su 127.0.0.1:${port}`);
     }).on('error', (err) => {
         console.error(`[Diagnostics] Impossibile avviare il server sulla porta ${port}:`, err.message);
     });

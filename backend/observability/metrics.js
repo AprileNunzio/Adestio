@@ -27,4 +27,6 @@ bus.subscribe('block:created',    () => increment('blocks.created'));
 bus.subscribe('peer:synced',      ({ latency }) => { increment('sync.success'); histogram('sync.latency_ms', latency); });
 bus.subscribe('sync.error',       () => increment('sync.errors'));
 bus.subscribe('circuit-breaker:opened', () => increment('circuit_breaker.opens'));
+bus.subscribe('peer:discovered', ({ source }) => increment(`discovery.found.${source || 'unknown'}`));
+bus.subscribe('network:isolated', () => increment('network.isolated_events'));
 module.exports = { increment, gauge, histogram, getSnapshot };

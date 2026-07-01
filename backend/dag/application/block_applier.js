@@ -79,4 +79,19 @@ function applyBlock(block) {
         return false;
     }
 }
-module.exports = { applyBlock };
+function reapplyToTables(block) {
+    try {
+        if (!validateStructure(block)) return false;
+        const norm = normalizePayload(block.payload);
+        const enriched = { ...block, payload: norm };
+        if (!validateSchema(enriched)) return false;
+        if (!SYNC_TABLES.includes(block.table_name)) return false;
+        const auth = require('../../db').getDB('auth');
+        const adapted = adaptPayload(block.table_name, block.payload_version || 1, norm);
+        return _applyToTable(auth, block.event_type, block.table_name, block.record_id, adapted, block.created_at);
+    } catch (e) {
+        console.error('[BlockApplier] reapplyToTables error:', e.message);
+        return false;
+    }
+}
+module.exports = { applyBlock, reapplyToTables };

@@ -81,7 +81,7 @@ class SqlJsAdapter extends IDatabaseAdapter {
                 try {
                     let lastVersion = currentVersion;
                     for (const m of pendingMigrations) {
-                        this.execute(m.sql);
+                        this.exec(m.sql);
                         lastVersion = m.version;
                     }
                     this.execute(`PRAGMA user_version = ${lastVersion};`);

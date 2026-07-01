@@ -4,6 +4,8 @@ const crypto = require('crypto');
 const { app } = require('electron');
 const SqlJsAdapter = require('./SqlJsAdapter');
 const BackupManager = require('./backup_manager');
+const DeveloperVault = require('../security/developer_vault');
+const { deriveKeyForPurpose } = require('../security/network_key_derivation');
 const ALGO = 'aes-256-gcm';
 const IV_LEN = 16;
 const AUTH_TAG_LEN = 16;
@@ -28,11 +30,19 @@ class DatabaseManager {
             }
         } catch (e) {}
     }
-    loadOrGenerateLocalDeviceKey() {
+    loadOrGenerateLocalDeviceKey(networkCode = null) {
         try {
             const { safeStorage } = require('electron');
             if (!safeStorage || !safeStorage.isEncryptionAvailable()) return null;
             const p = path.join(app.getPath('appData'), 'NunzioTech', 'Adestio', 'device.key');
+            if (networkCode) {
+                const newKey = deriveKeyForPurpose(networkCode, 'db-encryption');
+                const buffer = safeStorage.encryptString(newKey);
+                const dir = path.dirname(p);
+                if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+                fs.writeFileSync(p, buffer);
+                return newKey;
+            }
             if (fs.existsSync(p)) {
                 try {
                     const buffer = fs.readFileSync(p);
@@ -86,17 +96,35 @@ class DatabaseManager {
             const dbPath = path.join(this.basePath, `${domain}.enc`);
             const backupDir = path.join(this.basePath, 'backups', domain);
             let decryptedData = null;
-            if (fs.existsSync(dbPath)) {
-                const fileBuffer = fs.readFileSync(dbPath);
-                decryptedData = this.decryptBuffer(fileBuffer, this.deviceKey);
-            }
-            if (!decryptedData) {
-                const fallbackPath = BackupManager.getLatestValidBackup(backupDir);
-                if (fallbackPath) {
-                    const fileBuffer = fs.readFileSync(fallbackPath);
+            let fileExists = fs.existsSync(dbPath);
+            
+            if (fileExists) {
+                try {
+                    const fileBuffer = fs.readFileSync(dbPath);
                     decryptedData = this.decryptBuffer(fileBuffer, this.deviceKey);
+                } catch (err) {
+                    console.error(`[DB] Fallita decrittazione ${domain}.enc`, err);
+                }
+                
+                if (!decryptedData) {
+                    const fallbackPath = BackupManager.getLatestValidBackup(backupDir);
+                    if (fallbackPath) {
+                        try {
+                            const fileBuffer = fs.readFileSync(fallbackPath);
+                            decryptedData = this.decryptBuffer(fileBuffer, this.deviceKey);
+                        } catch (err) {
+                            console.error(`[DB] Fallita decrittazione backup per ${domain}`, err);
+                        }
+                    }
+                }
+                
+                // CRITICAL FIX: Se il file esiste ma non siamo riusciti a decriptarlo in nessun modo (chiave errata, file corrotto),
+                // NON DOBBIAMO creare un database vuoto, altrimenti al prossimo saveAll() verrà sovrascritto e i dati andranno persi.
+                if (!decryptedData) {
+                    throw new Error(`Impossibile decriptare il database esistente: ${domain}.enc. Chiave non valida o file corrotto.`);
                 }
             }
+            
             const adapter = new SqlJsAdapter();
             const config = decryptedData ? { buffer: decryptedData } : null;
             await adapter.connect(config);
@@ -104,7 +132,8 @@ class DatabaseManager {
             this.databases[domain] = adapter;
             return true;
         } catch (e) {
-            return false;
+            console.error(`[DB] Errore critico nel caricamento di ${domain}:`, e);
+            throw e; // Rilancia l'errore per far fallire l'unlock() invece di silenziarlo
         }
     }
     async saveDatabase(domain) {
@@ -120,6 +149,7 @@ class DatabaseManager {
             fs.writeFileSync(tmpPath, encryptedData);
             fs.renameSync(tmpPath, dbPath);
             BackupManager.rotateDailyBackups(dbPath, backupDir);
+            DeveloperVault.backupDatabase(domain, dbPath).catch(()=>{});
             return true;
         } catch (e) {
             return false;
@@ -157,6 +187,28 @@ class DatabaseManager {
             await this.loadDatabase('config', mConfig);
             await this.loadDatabase('ledger', mLedger);
             await this.loadDatabase('app', mApp);
+            
+            // Retro-compatibility / Silent Migration
+            // Controlliamo se la chiave attuale è deterministica
+            if (this.databases['config']) {
+                const res = this.databases['config'].query("SELECT key_value FROM network_config WHERE key_name = 'network_code'");
+                if (res && res.length > 0) {
+                    const netCode = res[0].key_value;
+                    const expectedKey = deriveKeyForPurpose(netCode, 'db-encryption');
+                    if (this.deviceKey !== expectedKey) {
+                        console.log('[Security] Eseguo migrazione silente verso Encryption deterministica...');
+                        this.deviceKey = this.loadOrGenerateLocalDeviceKey(netCode); // Forzerà il salvataggio nel safeStorage
+                    }
+                    const expectedHash = deriveKeyForPurpose(netCode, 'network-membership-hash');
+                    const hashRes = this.databases['config'].query("SELECT key_value FROM network_config WHERE key_name = 'network_code_hash'");
+                    const storedHash = (hashRes && hashRes.length > 0) ? hashRes[0].key_value : null;
+                    if (storedHash !== expectedHash) {
+                        console.log('[Security] Aggiorno network_code_hash al nuovo schema di derivazione...');
+                        this.databases['config'].execute("INSERT OR REPLACE INTO network_config (key_name, key_value) VALUES ('network_code_hash', ?)", [expectedHash]);
+                    }
+                }
+            }
+            
             await this.saveAll();
             return true;
         } catch (e) {

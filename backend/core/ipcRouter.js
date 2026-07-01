@@ -128,6 +128,32 @@ function registerAllIPCHandlers(windowManager) {
             }
             return result;
         });
+        ipcMain.handle('recoverDatabase', async (event, networkCode) => {
+            try {
+                const dbManager = require('../db/db_manager');
+                const mAuth = require('../migrations/auth');
+                const mConfig = require('../migrations/config');
+                const mLedger = require('../migrations/ledger');
+                const mApp = require('../migrations/app_data');
+                
+                dbManager.deviceKey = dbManager.loadOrGenerateLocalDeviceKey(networkCode);
+                if (!dbManager.deviceKey) return { success: false, error: 'Errore crittografico locale' };
+                
+                await dbManager.loadDatabase('auth', mAuth);
+                await dbManager.loadDatabase('config', mConfig);
+                await dbManager.loadDatabase('ledger', mLedger);
+                await dbManager.loadDatabase('app', mApp);
+                await dbManager.saveAll();
+                
+                setTimeout(() => {
+                    try { require('../sync').loadPeerCache(); } catch(_) {}
+                }, 500);
+                
+                return { success: true };
+            } catch (e) {
+                return { success: false, error: 'Codice di rete errato o database corrotto.' };
+            }
+        });
         ipcMain.handle('getUsersList', authHandlers.getUsersList);
         ipcMain.handle('getNetworkCode', authHandlers.getNetworkCode);
         ipcMain.handle('scanNodes', authHandlers.handleScanNodes);
@@ -198,16 +224,26 @@ function registerAllIPCHandlers(windowManager) {
         ipcMain.handle('forceP2PUpdate', async (event, peerIp) => {
             try {
                 const http = require('http');
+                const { autoUpdater } = require('electron-updater');
                 const updatesDir = path.join(app.getPath('userData'), 'updates');
                 if (!fs.existsSync(updatesDir)) fs.mkdirSync(updatesDir, { recursive: true });
                 const destPath = path.join(updatesDir, 'Adestio-Setup-latest.exe');
                 const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+                let expectedSha512 = null;
+                try {
+                    const checkResult = await autoUpdater.checkForUpdates();
+                    expectedSha512 = checkResult && checkResult.updateInfo ? checkResult.updateInfo.sha512 : null;
+                } catch (e) {}
+                if (!expectedSha512) {
+                    if (win) win.webContents.send('update-status', { status: 'Impossibile verificare l\'integrità. Uso GitHub...' });
+                    autoUpdater.checkForUpdatesAndNotify();
+                    return { success: false, fallback: true };
+                }
                 if (win) win.webContents.send('update-status', { status: 'Downloading from P2P node...' });
                 return new Promise((resolve) => {
                     const req = http.get(`http://${peerIp}:34567/sync/update`, (res) => {
                         if (res.statusCode !== 200) {
                             if (win) win.webContents.send('update-status', { status: 'P2P update not found. Falling back to GitHub...' });
-                            const { autoUpdater } = require('electron-updater');
                             autoUpdater.checkForUpdatesAndNotify();
                             return resolve({ success: false, fallback: true });
                         }
@@ -227,6 +263,14 @@ function registerAllIPCHandlers(windowManager) {
                         res.pipe(fileStream);
                         fileStream.on('finish', () => {
                             fileStream.close();
+                            const crypto = require('crypto');
+                            const actual = crypto.createHash('sha512').update(fs.readFileSync(destPath)).digest('base64');
+                            if (actual !== expectedSha512) {
+                                try { fs.unlinkSync(destPath); } catch (_) {}
+                                if (win) win.webContents.send('update-status', { status: 'Verifica integrità fallita. Fallback su GitHub...' });
+                                autoUpdater.checkForUpdatesAndNotify();
+                                return resolve({ success: false, fallback: true });
+                            }
                             if (win) win.webContents.send('update-status', { status: 'Download completato. Riavvio in corso...' });
                             setTimeout(() => {
                                 const { exec } = require('child_process');
@@ -239,7 +283,6 @@ function registerAllIPCHandlers(windowManager) {
                     });
                     req.on('error', (err) => {
                         if (win) win.webContents.send('update-status', { status: 'P2P network error. Falling back to GitHub...' });
-                        const { autoUpdater } = require('electron-updater');
                         autoUpdater.checkForUpdatesAndNotify();
                         resolve({ success: false, fallback: true });
                     });

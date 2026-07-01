@@ -23,21 +23,26 @@ async function _probeHost(ip, timeoutMs = 1200) {
 async function runDiscovery(onProgress) {
     const myIPs = new Set(getLocalIPs());
     const seen = new Set(myIPs);
-    const addPeer = (peer) => {
+    const myNodeId = getNodeId();
+    const addPeer = (peer, source) => {
         if (!peer || !peer.ip || seen.has(peer.ip)) return;
+        if (peer.nodeId === myNodeId || peer.ip === '127.0.0.1') {
+            seen.add(peer.ip);
+            return;
+        }
         seen.add(peer.ip);
-        bus.publish('peer:discovered', peer);
+        bus.publish('peer:discovered', { ...peer, source: peer.source || source });
     };
-    const _progress = (msg) => { if (onProgress) onProgress(msg); };
+    const _progress = (msg) => { if (typeof onProgress === 'function') onProgress(msg); };
     _progress('Fase 0: ARP...');
     const arpIPs = await scanArpTable();
-    await Promise.all(arpIPs.map(async ip => { const r = await _probeHost(ip, 800); if (r) addPeer(r); }));
+    await Promise.all(arpIPs.map(async ip => { const r = await _probeHost(ip, 800); if (r) addPeer(r, 'arp'); }));
     _progress('Fase 1: UDP broadcast...');
     const discoverMsg = `DISCOVER_ADESTIO:${getNetworkName()}:${PORT}:${PROTOCOL_VERSION}:${getNodeId()}`;
     await broadcast(discoverMsg, UDP_PORT);
     _progress('Fase 2: mDNS...');
     const mdnsFound = await discoverMdns(1500);
-    await Promise.all(mdnsFound.map(async svc => { const r = await _probeHost(svc.ip, 800); addPeer(r || svc); }));
+    await Promise.all(mdnsFound.map(async svc => { const r = await _probeHost(svc.ip, 800); addPeer(r || svc, 'mdns'); }));
     _progress('Fase 3: subnet sweep...');
     const subnets = getPhysicalSubnets();
     const allIPs = new Set(arpIPs);
@@ -47,7 +52,7 @@ async function runDiscovery(onProgress) {
     const ipList = [...allIPs];
     for (let i = 0; i < ipList.length; i += CHUNK) {
         const results = await Promise.all(ipList.slice(i, i + CHUNK).map(ip => _probeHost(ip, 1000)));
-        for (const r of results) if (r) addPeer(r);
+        for (const r of results) if (r) addPeer(r, 'sweep');
         if (i + CHUNK < ipList.length) await new Promise(r => setTimeout(r, 50));
     }
     console.log(`[Discovery] Completato. ${seen.size - myIPs.size} peer trovati.`);
