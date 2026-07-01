@@ -146,4 +146,37 @@ function setupUpdaterService(windowManager) {
         console.error('[UpdaterService] Error setting up updater:', e);
     }
 }
-module.exports = { setupUpdaterService };
+let _adoptingLanUpdate = false;
+async function maybeAdoptLanUpdate(version, peerIp, peerPort) {
+    if (_adoptingLanUpdate || !version || !peerIp) return;
+    try {
+        const updatesManager = require('../updates_manager');
+        if (updatesManager.compareVersions(version, app.getVersion()) <= 0) return;
+        _adoptingLanUpdate = true;
+        const { autoUpdater } = require('electron-updater');
+        const checkResult = await autoUpdater.checkForUpdates();
+        const info = checkResult && checkResult.updateInfo;
+        if (!info || info.version !== version) return;
+        const http = require('http');
+        await new Promise((resolve, reject) => {
+            const req = http.get(`http://${peerIp}:${peerPort}/sync/update/download/${version}`, (res) => {
+                if (res.statusCode !== 200) return reject(new Error(`P2P download failed: ${res.statusCode}`));
+                updatesManager.saveInstallerFromStream(version, res).then(resolve).catch(reject);
+            });
+            req.on('error', reject);
+        });
+        if (!updatesManager.verifyChecksum(version, info.sha512)) {
+            try { fs.unlinkSync(updatesManager.getInstallerPath(version)); } catch (_) {}
+            console.error('[Updater] Checksum non valido per aggiornamento annunciato via LAN:', version);
+            return;
+        }
+        const win = BrowserWindow.getAllWindows()[0];
+        if (win) win.webContents.send('update-status', { status: `Aggiornamento v${version} ricevuto dalla rete locale. Installazione...`, finished: true });
+        updatesManager.runInstaller(version);
+    } catch (e) {
+        console.error('[Updater] maybeAdoptLanUpdate error:', e.message);
+    } finally {
+        _adoptingLanUpdate = false;
+    }
+}
+module.exports = { setupUpdaterService, maybeAdoptLanUpdate };

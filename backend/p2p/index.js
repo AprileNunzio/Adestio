@@ -37,7 +37,7 @@ function loadPeerCache() {
 function announceLocalUpdate(version) {
     try {
         const { broadcast } = require('./discovery/udp_broadcaster');
-        broadcast(`UPDATE_AVAILABLE:${version}`, UDP_PORT, 3000).catch(() => {});
+        broadcast(`UPDATE_AVAILABLE_P2P:${version}`, UDP_PORT, 3000).catch(() => {});
     } catch (_) {}
 }
 function broadcastUpdateAvailable(version) { announceLocalUpdate(version); }
@@ -108,12 +108,15 @@ function startSyncServer() {
             if (e.code === 'EADDRINUSE') console.error(`[P2P] Porta ${PORT} occupata.`);
             else console.error('[P2P] Server error:', e.message);
         });
-        startUdpListener(UDP_PORT, getNodeId, getNetworkName, PROTOCOL_VERSION, null);
+        startUdpListener(UDP_PORT, getNodeId, getNetworkName, PROTOCOL_VERSION, (version, senderIp) => {
+            try { require('../core/updaterService').maybeAdoptLanUpdate(version, senderIp, PORT); } catch (_) {}
+        });
         const networkName = getNetworkName();
         publishMdns(networkName ? `${SERVICE_NAME}-${networkName}` : SERVICE_NAME, PORT).catch(() => {});
         startDiscovery();
         startAntiEntropy();
         startWatchdog();
+        try { const { app: electronApp } = require('electron'); announceLocalUpdate(electronApp.getVersion()); } catch (_) {}
         bus.subscribe('watchdog:stale', () => {
             const peers = getDetailedNodes().filter(p => p.ip !== '127.0.0.1');
             for (const peer of peers.slice(0, 3)) {
