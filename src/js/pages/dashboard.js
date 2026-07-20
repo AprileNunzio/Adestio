@@ -107,8 +107,8 @@ export default {
                 let installedApps = [];
                 try {
                     const storeRes = await window.electronAPI.store.getInstalled();
-                    if (storeRes.success) {
-                        installedApps = storeRes.apps.map(a => a.app_id);
+                    if (storeRes.success && storeRes.data) {
+                        installedApps = storeRes.data.map(a => a.app_id);
                     }
                 } catch(e) { console.warn("Impossibile recuperare le app installate", e); }
                 apps = allApps.filter(app => {

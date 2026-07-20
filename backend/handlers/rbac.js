@@ -28,48 +28,64 @@ function rowsToObjects(res) {
         return [];
     }
 }
-function syncPermissionsFromManifests(event) {
-    try {
-        const db = getDB();
-        if (!db) throw new Error('DB non inizializzato');
-        const appsPath = path.join(__dirname, '..', '..', 'src', 'apps');
-        if (!fs.existsSync(appsPath)) return true;
-        const ts = getTimestamp();
-        const dirs = fs.readdirSync(appsPath, { withFileTypes: true });
-        for (const d of dirs) {
-            try {
-                if (!d.isDirectory()) continue;
-                const manifestPath = path.join(appsPath, d.name, 'manifest.json');
-                if (fs.existsSync(manifestPath)) {
+function _processAppsDir(basePath, db, ts) {
+    if (!fs.existsSync(basePath)) return;
+    const dirs = fs.readdirSync(basePath, { withFileTypes: true });
+    for (const d of dirs) {
+        try {
+            if (!d.isDirectory()) continue;
+            const manifestPath = path.join(basePath, d.name, 'manifest.json');
+            if (fs.existsSync(manifestPath)) {
+                try {
+                    const m = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+                    if (m.permissions && Array.isArray(m.permissions)) {
+                        for (const p of m.permissions) {
+                            _upsertPermission(db, `${d.name}:${p.id}`, p, `Permesso ${p.id} per app ${d.name}`, ts);
+                        }
+                    }
+                } catch (e) {}
+            }
+            const subAppsPath = path.join(basePath, d.name, 'subapps');
+            if (fs.existsSync(subAppsPath)) {
+                const subdirs = fs.readdirSync(subAppsPath, { withFileTypes: true });
+                for (const sd of subdirs) {
                     try {
-                        const m = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-                        if (m.permissions && Array.isArray(m.permissions)) {
-                            for (const p of m.permissions) {
-                                _upsertPermission(db, `${d.name}:${p.id}`, p, `Permesso ${p.id} per app ${d.name}`, ts);
+                        if (!sd.isDirectory()) continue;
+                        const smPath = path.join(subAppsPath, sd.name, 'manifest.json');
+                        if (fs.existsSync(smPath)) {
+                            const sm = JSON.parse(fs.readFileSync(smPath, 'utf8'));
+                            if (sm.permissions && Array.isArray(sm.permissions)) {
+                                for (const p of sm.permissions) {
+                                    _upsertPermission(db, `${d.name}:${sd.name}:${p.id}`, p, `Permesso ${p.id} per subapp ${d.name}/${sd.name}`, ts);
+                                }
                             }
                         }
                     } catch (e) {}
                 }
-                const subAppsPath = path.join(appsPath, d.name, 'subapps');
-                if (fs.existsSync(subAppsPath)) {
-                    const subdirs = fs.readdirSync(subAppsPath, { withFileTypes: true });
-                    for (const sd of subdirs) {
-                        try {
-                            if (!sd.isDirectory()) continue;
-                            const smPath = path.join(subAppsPath, sd.name, 'manifest.json');
-                            if (fs.existsSync(smPath)) {
-                                const sm = JSON.parse(fs.readFileSync(smPath, 'utf8'));
-                                if (sm.permissions && Array.isArray(sm.permissions)) {
-                                    for (const p of sm.permissions) {
-                                        _upsertPermission(db, `${d.name}:${sd.name}:${p.id}`, p, `Permesso ${p.id} per subapp ${d.name}/${sd.name}`, ts);
-                                    }
-                                }
-                            }
-                        } catch (e) {}
-                    }
-                }
-            } catch (e) {}
-        }
+            }
+        } catch (e) {}
+    }
+}
+
+function syncPermissionsFromManifests(event) {
+    try {
+        const db = getDB();
+        if (!db) throw new Error('DB non inizializzato');
+        const ts = getTimestamp();
+        
+        // App predefinite
+        const appsPath = path.join(__dirname, '..', '..', 'src', 'apps');
+        _processAppsDir(appsPath, db, ts);
+        
+        // App di terze parti
+        try {
+            const { app } = require('electron');
+            if (app) {
+                const userAppsPath = path.join(app.getPath('userData'), 'installed_apps');
+                _processAppsDir(userAppsPath, db, ts);
+            }
+        } catch(e) {}
+        
         saveDB();
         return true;
     } catch (e) {
