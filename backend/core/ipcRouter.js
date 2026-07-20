@@ -108,7 +108,17 @@ function withActorBackend(args) {
         ipcMain.removeHandler('resetApp');
         ipcMain.handle('resetApp', async () => {
             try {
-                if (!accessGuard.isSuperadmin()) return { success: false, error: 'Permesso negato' };
+                let allowed = false;
+                try {
+                    if (accessGuard.isSuperadmin()) allowed = true;
+                    else {
+                        const usersRes = db.getDB('auth')?.query('SELECT COUNT(*) as c FROM users');
+                        if (usersRes && usersRes[0] && usersRes[0].c === 0) allowed = true;
+                    }
+                } catch(e) {
+                    allowed = true; // Se il DB è rotto e genera eccezioni, permettiamo il reset
+                }
+                if (!allowed) return { success: false, error: 'Permesso negato' };
                 const pathsToWipe = [
                     path.join(app.getPath('appData'), 'NunzioTech', 'Adestio'), 
                     path.join(app.getPath('userData'), 'dbs'),
