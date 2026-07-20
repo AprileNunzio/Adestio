@@ -351,6 +351,30 @@ async function getSystemLogs() {
     }
 }
 
+async function clearSystemLogs() {
+    try {
+        const { getDB, saveDB } = require('../db');
+        const db = getDB('store');
+        db.run('DELETE FROM app_install_log');
+        await saveDB('store');
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
+async function deleteSystemLog(id) {
+    try {
+        const { getDB, saveDB } = require('../db');
+        const db = getDB('store');
+        db.run('DELETE FROM app_install_log WHERE id = ?', [id]);
+        await saveDB('store');
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
 module.exports = {
     getAvailable,
     getInstalled,
@@ -359,6 +383,8 @@ module.exports = {
     uninstall,
     checkUpdates,
     getSystemLogs,
+    clearSystemLogs,
+    deleteSystemLog,
     preloadMarketplaceCache,
     syncNetworkApps
 };

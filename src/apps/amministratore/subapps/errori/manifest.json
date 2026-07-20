@@ -1,0 +1,14 @@
+{
+    "id": "errori",
+    "name": "Gestione Errori e Log",
+    "description": "Visualizza, svuota o elimina gli errori e i log di sistema",
+    "icon": "bug_report",
+    "main": "app.js",
+    "color": "#D32F2F",
+    "permissions": [
+        {
+            "id": "manage",
+            "label": "Gestisci e Svuota Log"
+        }
+    ]
+}
