@@ -114,7 +114,7 @@ export default {
                         const id = e.currentTarget.getAttribute('data-id');
                         if (confirm('Eliminare questo log?')) {
                             try {
-                                const res = await window.electronAPI.invoke('delete_system_log', parseInt(id));
+                                const res = await window.electronAPI.deleteSystemLog(parseInt(id));
                                 if (res.success) {
                                     loadLogs();
                                 } else {
@@ -131,7 +131,7 @@ export default {
             const loadLogs = async () => {
                 tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 2rem;">Caricamento log in corso...</td></tr>`;
                 try {
-                    const logs = await window.electronAPI.invoke('get_system_logs'); // we can reuse the existing endpoint
+                    const logs = await window.electronAPI.getSystemLogs();
                     renderLogs(logs);
                 } catch (e) {
                     console.error("Errore caricamento log:", e);
@@ -152,7 +152,7 @@ export default {
             btnConfirmClear.addEventListener('click', async () => {
                 modalConfirm.style.display = 'none';
                 try {
-                    const res = await window.electronAPI.invoke('clear_system_logs');
+                    const res = await window.electronAPI.clearSystemLogs();
                     if (res.success) {
                         loadLogs();
                     } else {
