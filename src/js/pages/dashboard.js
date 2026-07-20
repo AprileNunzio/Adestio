@@ -105,12 +105,18 @@ export default {
                     userPerms = await window.electronAPI.rbac.getEffectiveUserPermissions(userId);
                 }
                 let installedApps = [];
+                let installedAppsData = [];
                 try {
                     const storeRes = await window.electronAPI.store.getInstalled();
                     if (storeRes.success && storeRes.data) {
+                        installedAppsData = storeRes.data;
                         installedApps = storeRes.data.map(a => a.app_id);
                     }
                 } catch(e) { console.warn("Impossibile recuperare le app installate", e); }
+                
+                const now = Date.now();
+                const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
                 apps = allApps.filter(app => {
                     const appId = app.folder;
                     if (!app.core && !app.bundled && !installedApps.includes(appId)) {
@@ -121,7 +127,20 @@ export default {
                     if (userPerms.includes(viewPermId)) return true;
                     if (userPerms.some(p => p.startsWith(`${appId}:`))) return true;
                     return false;
+                }).map(app => {
+                    const appId = app.folder;
+                    const instData = installedAppsData.find(a => a.app_id === appId);
+                    if (instData && instData.installed_at) {
+                        const t = new Date(instData.installed_at).getTime();
+                        if (now - t < SEVEN_DAYS_MS) {
+                            app.__isNew = true;
+                        }
+                    }
+                    return app;
                 });
+                
+                apps.sort((a, b) => a.name.localeCompare(b.name));
+
                 apps.unshift({
                     __isStorePinned: true,
                     name: 'App Store',
@@ -141,6 +160,8 @@ export default {
                 filtered.forEach(app => {
                     const card = document.createElement('div');
                     card.className = 'app-card fade-in-up';
+                    card.style.position = 'relative';
+                    
                     if (app.__isStorePinned) {
                         card.innerHTML = `
                             <img src="icone/store.png" class="app-icon" onerror="this.src='icone/applicazione_generica.png'">
@@ -153,8 +174,12 @@ export default {
                         grid.appendChild(card);
                         return;
                     }
+                    
                     const iconPath = app.icon ? `apps/${app.folder}/${app.icon}` : `icone/applicazione_generica.png`;
+                    const newBadgeHtml = app.__isNew ? `<div style="position:absolute; top:10px; right:10px; background:var(--md-primary); color:white; font-size:0.7rem; font-weight:bold; padding:0.2rem 0.5rem; border-radius:12px; box-shadow:0 2px 4px rgba(0,0,0,0.2);">NUOVA</div>` : '';
+                    
                     card.innerHTML = `
+                        ${newBadgeHtml}
                         <img src="${iconPath}" class="app-icon" onerror="this.src='icone/applicazione_generica.png'">
                         <div class="app-title">${app.name}</div>
                         ${app.description ? `<div class="app-desc">${app.description}</div>` : ''}
