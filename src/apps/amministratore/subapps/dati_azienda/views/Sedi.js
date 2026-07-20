@@ -197,7 +197,7 @@ export default {
 
                             if (s.orari && typeof s.orari === 'object') {
                                 DAYS.forEach(day => {
-                                    const row = container.querySelector(\`.orario-row[data-day="\${day.id}"]\`);
+                                    const row = container.querySelector(`.orario-row[data-day="${day.id}"]`);
                                     const shifts = s.orari[day.id];
                                     if (shifts && shifts.length > 0) {
                                         row.querySelector('.chk-aperto').checked = true;
@@ -262,7 +262,7 @@ export default {
 
                 const orariObj = {};
                 DAYS.forEach(day => {
-                    const row = container.querySelector(\`.orario-row[data-day="\${day.id}"]\`);
+                    const row = container.querySelector(`.orario-row[data-day="${day.id}"]`);
                     const isAperto = row.querySelector('.chk-aperto').checked;
                     orariObj[day.id] = [];
                     if (isAperto) {

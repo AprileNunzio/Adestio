@@ -59,7 +59,7 @@ export default {
             const renderTab = async (target) => {
                 container.innerHTML = '<div style="text-align:center; padding:2rem;"><span class="material-symbols-rounded" style="animation:spin 1s linear infinite;">sync</span> Caricamento...</div>';
                 tabs.forEach(t => t.classList.remove('active'));
-                el.querySelector(\`.tab-btn[data-target="\${target}"]\`).classList.add('active');
+                el.querySelector(`.tab-btn[data-target="${target}"]`).classList.add('active');
 
                 try {
                     if (target === 'generali') {
@@ -74,7 +74,7 @@ export default {
                     }
                 } catch (e) {
                     console.error(e);
-                    container.innerHTML = \`<div style="color:var(--md-error);">Errore di rendering modulo: \${e.message}</div>\`;
+                    container.innerHTML = `<div style="color:var(--md-error);">Errore di rendering modulo: ${e.message}</div>`;
                 }
             };
 
