@@ -3,6 +3,8 @@ import GeneraliView from './views/Generali.js';
 import SediView from './views/Sedi.js';
 import FiscaliView from './views/Fiscali.js';
 import ResponsabiliView from './views/Responsabili.js';
+import BrandView from './views/Brand.js';
+import CertificazioniView from './views/Certificazioni.js';
 
 export default {
     render: async (el) => {
@@ -13,11 +15,13 @@ export default {
                         <h2 style="margin:0 0 0.4rem; font-size:2rem; color:var(--md-on-surface); font-weight:800; letter-spacing:-0.02em;">Dati Azienda</h2>
                         <p style="margin:0; color:var(--md-on-surface-variant); font-size:1.05rem; max-width:640px;">Gestione dei dati anagrafici, fiscali e sedi dell'ente o dell'azienda.</p>
                         
-                        <div class="tabs-header" style="display:flex; gap:1.5rem; margin-top:1.5rem; border-bottom:1px solid var(--md-outline-variant);">
+                        <div class="tabs-header" style="display:flex; gap:1.5rem; margin-top:1.5rem; border-bottom:1px solid var(--md-outline-variant); flex-wrap:wrap;">
                             <div class="tab-btn active" data-target="generali">Dati Generali</div>
                             <div class="tab-btn" data-target="fiscali">Dati Fiscali / Tesoreria</div>
                             <div class="tab-btn" data-target="responsabili">Organigramma & Responsabili</div>
                             <div class="tab-btn" data-target="sedi">Gestione Sedi</div>
+                            <div class="tab-btn" data-target="brand">Brand & Firme</div>
+                            <div class="tab-btn" data-target="certificazioni">Certificazioni / Qualità</div>
                         </div>
                     </div>
                     
@@ -76,6 +80,12 @@ export default {
                     } else if (target === 'sedi') {
                         currentView = SediView;
                         await currentView.render(container);
+                    } else if (target === 'brand') {
+                        currentView = BrandView;
+                        await currentView.render(container, configCache, saveConfig);
+                    } else if (target === 'certificazioni') {
+                        currentView = CertificazioniView;
+                        await currentView.render(container, configCache, saveConfig);
                     }
                 } catch (e) {
                     console.error(e);

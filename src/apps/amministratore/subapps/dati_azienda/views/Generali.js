@@ -107,6 +107,34 @@ export default {
                             </label>
                             <input type="text" id="da-istituto_pec" value="${configCache.istituto_pec || ''}" placeholder="Es. pec@pec.azienda.it" style="width:100%; padding:0.75rem; border-radius:8px; border:1px solid var(--md-outline); background:var(--md-surface); color:var(--md-on-surface); outline:none;">
                         </div>
+                        <!-- Social Media e Comunicazione -->
+                        <div style="grid-column:1 / -1; margin-top:1rem;">
+                            <h4 style="margin:0 0 0.5rem; color:var(--md-primary); border-bottom:1px solid var(--md-outline-variant); padding-bottom:0.3rem;">Social Media & Comunicazione</h4>
+                        </div>
+                        <div>
+                            <label style="display:flex; align-items:center; gap:0.4rem; margin-bottom:0.4rem; color:var(--md-on-surface-variant); font-weight:600; font-size:0.9rem;">
+                                LinkedIn
+                            </label>
+                            <input type="text" id="da-istituto_linkedin" value="${configCache.istituto_linkedin || ''}" placeholder="URL pagina LinkedIn" style="width:100%; padding:0.75rem; border-radius:8px; border:1px solid var(--md-outline); background:var(--md-surface); color:var(--md-on-surface); outline:none;">
+                        </div>
+                        <div>
+                            <label style="display:flex; align-items:center; gap:0.4rem; margin-bottom:0.4rem; color:var(--md-on-surface-variant); font-weight:600; font-size:0.9rem;">
+                                Facebook
+                            </label>
+                            <input type="text" id="da-istituto_facebook" value="${configCache.istituto_facebook || ''}" placeholder="URL pagina Facebook" style="width:100%; padding:0.75rem; border-radius:8px; border:1px solid var(--md-outline); background:var(--md-surface); color:var(--md-on-surface); outline:none;">
+                        </div>
+                        <div>
+                            <label style="display:flex; align-items:center; gap:0.4rem; margin-bottom:0.4rem; color:var(--md-on-surface-variant); font-weight:600; font-size:0.9rem;">
+                                Instagram
+                            </label>
+                            <input type="text" id="da-istituto_instagram" value="${configCache.istituto_instagram || ''}" placeholder="Username o URL Instagram" style="width:100%; padding:0.75rem; border-radius:8px; border:1px solid var(--md-outline); background:var(--md-surface); color:var(--md-on-surface); outline:none;">
+                        </div>
+                        <div>
+                            <label style="display:flex; align-items:center; gap:0.4rem; margin-bottom:0.4rem; color:var(--md-on-surface-variant); font-weight:600; font-size:0.9rem;">
+                                X (Twitter)
+                            </label>
+                            <input type="text" id="da-istituto_twitter" value="${configCache.istituto_twitter || ''}" placeholder="Username o URL Twitter" style="width:100%; padding:0.75rem; border-radius:8px; border:1px solid var(--md-outline); background:var(--md-surface); color:var(--md-on-surface); outline:none;">
+                        </div>
                     </div>
 
                     <div style="margin-top:2rem; display:flex; justify-content:flex-end;">
@@ -149,7 +177,11 @@ export default {
                         istituto_telefono: container.querySelector('#da-istituto_telefono').value.trim(),
                         istituto_web: container.querySelector('#da-istituto_web').value.trim(),
                         istituto_email: container.querySelector('#da-istituto_email').value.trim(),
-                        istituto_pec: container.querySelector('#da-istituto_pec').value.trim()
+                        istituto_pec: container.querySelector('#da-istituto_pec').value.trim(),
+                        istituto_linkedin: container.querySelector('#da-istituto_linkedin').value.trim(),
+                        istituto_facebook: container.querySelector('#da-istituto_facebook').value.trim(),
+                        istituto_instagram: container.querySelector('#da-istituto_instagram').value.trim(),
+                        istituto_twitter: container.querySelector('#da-istituto_twitter').value.trim()
                     };
                     const ok = await saveConfig(patch);
                     toast(ok ? 'Dati salvati con successo' : 'Errore nel salvataggio', ok ? 'success' : 'error');
