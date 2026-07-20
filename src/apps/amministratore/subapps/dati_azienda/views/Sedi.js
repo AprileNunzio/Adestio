@@ -53,9 +53,15 @@ export default {
                             <input type="hidden" id="da-sede-id">
                             
                             <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.2rem; margin-bottom:2rem;">
-                                <div style="grid-column:1/-1;">
-                                    <label style="display:block; margin-bottom:0.4rem; font-weight:600; font-size:0.9rem; color:var(--md-on-surface-variant);">Nome Sede *</label>
-                                    <input type="text" id="da-sede-nome" class="input" placeholder="Es. Sede Centrale" style="width:100%; padding:0.75rem; border-radius:8px; border:1px solid var(--md-outline); background:var(--md-surface);">
+                                <div style="grid-column:1/-1; display:flex; justify-content:space-between; align-items:flex-end;">
+                                    <div style="flex:1; padding-right:1rem;">
+                                        <label style="display:block; margin-bottom:0.4rem; font-weight:600; font-size:0.9rem; color:var(--md-on-surface-variant);">Nome Sede *</label>
+                                        <input type="text" id="da-sede-nome" class="input" placeholder="Es. Sede Centrale" style="width:100%; padding:0.75rem; border-radius:8px; border:1px solid var(--md-outline); background:var(--md-surface);">
+                                    </div>
+                                    <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; background:var(--md-primary-container); padding:0.75rem 1rem; border-radius:8px; border:1px dashed var(--md-primary);">
+                                        <input type="checkbox" id="da-sede-is-centrale" style="width:18px; height:18px; accent-color:var(--md-primary);"> 
+                                        <span style="font-weight:600; color:var(--md-on-primary-container);">Sede Principale</span>
+                                    </label>
                                 </div>
                                 <div style="grid-column:1/-1;">
                                     <label style="display:block; margin-bottom:0.4rem; font-weight:600; font-size:0.9rem; color:var(--md-on-surface-variant);">Indirizzo</label>
@@ -165,6 +171,7 @@ export default {
             const openModal = async (id = null) => {
                 container.querySelector('#da-sede-id').value = '';
                 container.querySelector('#da-sede-nome').value = '';
+                container.querySelector('#da-sede-is-centrale').checked = false;
                 container.querySelector('#da-sede-indirizzo').value = '';
                 container.querySelector('#da-sede-citta').value = '';
                 container.querySelector('#da-sede-cap').value = '';
@@ -188,6 +195,7 @@ export default {
                         if (s) {
                             container.querySelector('#da-sede-id').value = s.id;
                             container.querySelector('#da-sede-nome').value = s.nome;
+                            container.querySelector('#da-sede-is-centrale').checked = !!s.is_centrale;
                             container.querySelector('#da-sede-indirizzo').value = s.indirizzo;
                             container.querySelector('#da-sede-citta').value = s.citta;
                             container.querySelector('#da-sede-cap').value = s.cap;
@@ -279,6 +287,7 @@ export default {
                 const data = {
                     id: container.querySelector('#da-sede-id').value,
                     nome: nome,
+                    is_centrale: container.querySelector('#da-sede-is-centrale').checked,
                     indirizzo: container.querySelector('#da-sede-indirizzo').value.trim(),
                     citta: container.querySelector('#da-sede-citta').value.trim(),
                     cap: container.querySelector('#da-sede-cap').value.trim(),

@@ -57,6 +57,10 @@ async function saveSede(sede) {
         
         const orariStr = typeof sede.orari === 'object' ? JSON.stringify(sede.orari) : sede.orari || '{}';
 
+        if (sede.is_centrale) {
+            await aziendaDb.execute('UPDATE azienda_sedi SET is_centrale = 0');
+        }
+
         if (isUpdate) {
             await aziendaDb.execute(`
                 UPDATE azienda_sedi SET 
