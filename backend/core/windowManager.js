@@ -101,8 +101,8 @@ class WindowManager {
             if (loadUrl) {
                 this.mainWindow.loadURL(loadUrl);
             } else {
-                console.error('[WindowManager] Server locale non disponibile: caricamento da file:// (Passkey/WebAuthn disabilitati).');
-                this.mainWindow.loadFile(path.join(__dirname, '../../src/index.html'));
+                console.log('[WindowManager] Caricamento tramite protocollo adestio:// per abilitare WebAuthn/Passkey.');
+                this.mainWindow.loadURL('adestio://core/index.html');
             }
             return this.mainWindow;
         } catch (e) {

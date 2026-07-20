@@ -40,6 +40,8 @@ class DatabaseManager {
         if (!nodeCode) return;
         const activeNodeFile = path.join(app.getPath('userData'), 'active_node.json');
         const safeNode = nodeCode.replace(/[^a-zA-Z0-9_-]/g, '');
+        const dir = path.dirname(activeNodeFile);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(activeNodeFile, JSON.stringify({ node: safeNode }));
         const newBasePath = path.join(app.getPath('userData'), 'dbs', safeNode);
         if (this.basePath && this.basePath !== newBasePath) {

@@ -160,7 +160,32 @@ export default {
                     toast('Host e Porta sono obbligatori per il test.', 'warning');
                     return;
                 }
-                const testEmail = prompt("Inserisci l'indirizzo email a cui inviare il messaggio di test:");
+                const testEmail = await new Promise((resolve) => {
+                    const modal = document.createElement('div');
+                    modal.innerHTML = `
+                        <div style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; display:flex; align-items:center; justify-content:center;">
+                            <div style="background:var(--md-surface); padding:2rem; border-radius:12px; width:400px; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+                                <h3 style="margin-top:0;">Test SMTP</h3>
+                                <p>Inserisci l'indirizzo email a cui inviare il messaggio di test:</p>
+                                <input type="email" id="smtp-test-email-input" class="input-field" style="width:100%; box-sizing:border-box; padding:0.8rem; border-radius:8px; border:1px solid var(--md-outline); background:var(--md-surface); color:var(--md-on-surface); margin-bottom:1rem;">
+                                <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
+                                    <button id="smtp-test-email-cancel" class="btn secondary">Annulla</button>
+                                    <button id="smtp-test-email-ok" class="btn primary">Invia</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+                    document.getElementById('smtp-test-email-ok').onclick = () => {
+                        const val = document.getElementById('smtp-test-email-input').value;
+                        document.body.removeChild(modal);
+                        resolve(val);
+                    };
+                    document.getElementById('smtp-test-email-cancel').onclick = () => {
+                        document.body.removeChild(modal);
+                        resolve(null);
+                    };
+                });
                 if (!testEmail) return;
                 const btn = document.getElementById('btn-test-smtp');
                 const oldHTML = btn.innerHTML;

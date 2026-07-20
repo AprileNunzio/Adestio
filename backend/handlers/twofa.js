@@ -191,7 +191,8 @@ async function webauthnRegisterBegin(event, userId) {
         });
         _cleanupChallenges();
         _webauthnChallenges.set(userId, { challenge: options.challenge, type: 'registration', expiresAt: Date.now() + CHALLENGE_TTL_MS });
-        return { success: true, options };
+        const os = require('os');
+        return { success: true, options, defaultDeviceName: os.hostname() || 'Dispositivo' };
     } catch (e) {
         console.error('[2FA] webauthnRegisterBegin error:', e.message);
         return { success: false, error: e.message };

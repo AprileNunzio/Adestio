@@ -4,6 +4,36 @@ const path = require('path');
 const fs = require('fs');
 
 function registerCustomProtocol() {
+    protocol.handle('adestio', async (request) => {
+        try {
+            const url = new URL(request.url);
+            let filePath = decodeURIComponent(url.pathname);
+            if (filePath.startsWith('/')) {
+                filePath = filePath.substring(1);
+            }
+            if (!filePath) filePath = 'index.html';
+            
+            const coreSrcPath = app.isPackaged 
+                ? path.join(process.resourcesPath, 'app.asar', 'src')
+                : path.join(__dirname, '..', '..', 'src');
+                
+            const absolutePath = path.resolve(coreSrcPath, filePath);
+            
+            if (!absolutePath.startsWith(path.resolve(coreSrcPath))) {
+                return new Response('Accesso negato', { status: 403 });
+            }
+            
+            if (!fs.existsSync(absolutePath)) {
+                return new Response('File non trovato', { status: 404 });
+            }
+            const response = await net.fetch(`file:///${absolutePath.replace(/\\/g, '/')}`);
+            return response;
+        } catch (e) {
+            console.error('[CustomProtocol] Errore adestio:', e);
+            return new Response('Internal Server Error', { status: 500 });
+        }
+    });
+
     // Protocollo per servire le app di terze parti in modo sicuro
     protocol.handle('adestio-app', async (request) => {
         try {

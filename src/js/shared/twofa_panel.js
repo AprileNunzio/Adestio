@@ -136,10 +136,28 @@ async function render(el, userId) {
                     if (!begin || !begin.success) { toast((begin && begin.error) || 'Errore avvio registrazione passkey', 'error'); return; }
                     toast('Segui le istruzioni del tuo dispositivo per completare la registrazione…', 'info');
                     const response = await startRegistration(begin.options);
-                    const deviceName = prompt('Assegna un nome a questa passkey (es. "Portatile Ufficio")', navigator.platform || 'Passkey') || 'Passkey';
-                    const finish = await window.electronAPI.twofa.webauthnRegisterFinish({ userId, response, deviceName });
-                    if (finish && finish.success) { toast('Passkey registrata con successo', 'success'); loadPasskeys(); }
-                    else toast((finish && finish.error) || 'Registrazione passkey fallita', 'error');
+                    
+                    card.innerHTML = `
+                        <h2><span class="material-symbols-rounded">fingerprint</span> Nome Passkey</h2>
+                        <p class="tfp-desc">Assegna un nome per riconoscere questo dispositivo (es. "Portatile Ufficio").</p>
+                        <input type="text" id="tfp-passkey-name" class="tfp-input" value="${begin.defaultDeviceName || navigator.platform || 'Passkey'}">
+                        <div style="display:flex; gap:0.8rem;">
+                            <button id="tfp-passkey-name-confirm" class="tfp-btn"><span class="material-symbols-rounded">check</span> Salva</button>
+                        </div>
+                    `;
+                    
+                    card.querySelector('#tfp-passkey-name-confirm').addEventListener('click', async () => {
+                        try {
+                            const deviceName = card.querySelector('#tfp-passkey-name').value.trim() || 'Passkey';
+                            const finish = await window.electronAPI.twofa.webauthnRegisterFinish({ userId, response, deviceName });
+                            if (finish && finish.success) { toast('Passkey registrata con successo', 'success'); loadPasskeys(); }
+                            else { toast((finish && finish.error) || 'Registrazione passkey fallita', 'error'); loadPasskeys(); }
+                        } catch(e) {
+                            console.error(e);
+                            toast(e.message || 'Errore', 'error');
+                            loadPasskeys();
+                        }
+                    });
                 } catch (e) {
                     console.error(e);
                     toast(e.message || 'Registrazione passkey annullata', 'error');

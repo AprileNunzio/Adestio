@@ -33,6 +33,16 @@ const appsRegistry = require('./appsRegistry');
 const accessGuard = require('./access_guard');
 function registerAllIPCHandlers(windowManager) {
     try {
+
+function withActorBackend(args) {
+    const sessionManager = require('./session_manager');
+    const actorUserId = sessionManager.getCurrentUserId() || '';
+    if (args && typeof args === 'object') {
+        return Object.assign({}, args, { actorUserId });
+    }
+    return { actorUserId };
+}
+
         if (windowManager) {
             ipcMain.removeHandler('window-minimize');
             ipcMain.handle('window-minimize', () => {
@@ -789,11 +799,11 @@ function registerAllIPCHandlers(windowManager) {
         ipcMain.handle('runDiagnostics', (e) => diagnosticsHandlers.runDiagnostics(e));
         ipcMain.handle('fixDiagnostics', (e) => diagnosticsHandlers.fixDiagnostics(e));
         ipcMain.handle('usersGetAll', (e, args) => usersHandlers.getAll(e, args));
-        ipcMain.handle('usersCreate', (e, args) => usersHandlers.create(e, args));
-        ipcMain.handle('usersUpdate', (e, args) => usersHandlers.update(e, args));
-        ipcMain.handle('usersDelete', (e, args) => usersHandlers.remove(e, args));
-        ipcMain.handle('usersRestore', (e, args) => usersHandlers.restore(e, args));
-        ipcMain.handle('usersHardDelete', (e, args) => usersHandlers.hardDelete(e, args));
+        ipcMain.handle('usersCreate', (e, args) => usersHandlers.create(e, withActorBackend(args)));
+        ipcMain.handle('usersUpdate', (e, args) => usersHandlers.update(e, withActorBackend(args)));
+        ipcMain.handle('usersDelete', (e, args) => usersHandlers.remove(e, withActorBackend(args)));
+        ipcMain.handle('usersRestore', (e, args) => usersHandlers.restore(e, withActorBackend(args)));
+        ipcMain.handle('usersHardDelete', (e, args) => usersHandlers.hardDelete(e, withActorBackend(args)));
         ipcMain.handle('rbac:getAllUsers', (e) => rbacHandlers.getAllUsers(e));
         ipcMain.handle('rbac:getAllRoles', (e) => rbacHandlers.getAllRoles(e));
         ipcMain.handle('rbac:createRole', (e, name, desc) => rbacHandlers.createRole(e, name, desc));
@@ -828,44 +838,44 @@ function registerAllIPCHandlers(windowManager) {
         ipcMain.handle('anagrafica:persone:search', (e, args) => anagraficaPersoneHandlers.search(e, args));
         ipcMain.handle('anagrafica:persone:getById', (e, args) => anagraficaPersoneHandlers.getById(e, args));
         ipcMain.handle('anagrafica:persone:getByUserId', (e, args) => anagraficaPersoneHandlers.getByUserId(e, args));
-        ipcMain.handle('anagrafica:persone:create', (e, args) => anagraficaPersoneHandlers.create(e, args));
-        ipcMain.handle('anagrafica:persone:update', (e, args) => anagraficaPersoneHandlers.update(e, args));
-        ipcMain.handle('anagrafica:persone:remove', (e, args) => anagraficaPersoneHandlers.remove(e, args));
-        ipcMain.handle('anagrafica:persone:restore', (e, args) => anagraficaPersoneHandlers.restore(e, args));
-        ipcMain.handle('anagrafica:persone:hardDelete', (e, args) => anagraficaPersoneHandlers.hardDelete(e, args));
+        ipcMain.handle('anagrafica:persone:create', (e, args) => anagraficaPersoneHandlers.create(e, withActorBackend(args)));
+        ipcMain.handle('anagrafica:persone:update', (e, args) => anagraficaPersoneHandlers.update(e, withActorBackend(args)));
+        ipcMain.handle('anagrafica:persone:remove', (e, args) => anagraficaPersoneHandlers.remove(e, withActorBackend(args)));
+        ipcMain.handle('anagrafica:persone:restore', (e, args) => anagraficaPersoneHandlers.restore(e, withActorBackend(args)));
+        ipcMain.handle('anagrafica:persone:hardDelete', (e, args) => anagraficaPersoneHandlers.hardDelete(e, withActorBackend(args)));
         ipcMain.handle('anagrafica:persone:getScheda', (e, args) => anagraficaPersoneHandlers.getScheda(e, args));
         ipcMain.handle('anagrafica:documenti:getByPersona', (e, args) => anagraficaDocumentiHandlers.getByPersona(e, args));
-        ipcMain.handle('anagrafica:documenti:create', (e, args) => anagraficaDocumentiHandlers.create(e, args));
-        ipcMain.handle('anagrafica:documenti:update', (e, args) => anagraficaDocumentiHandlers.update(e, args));
-        ipcMain.handle('anagrafica:documenti:remove', (e, args) => anagraficaDocumentiHandlers.remove(e, args));
+        ipcMain.handle('anagrafica:documenti:create', (e, args) => anagraficaDocumentiHandlers.create(e, withActorBackend(args)));
+        ipcMain.handle('anagrafica:documenti:update', (e, args) => anagraficaDocumentiHandlers.update(e, withActorBackend(args)));
+        ipcMain.handle('anagrafica:documenti:remove', (e, args) => anagraficaDocumentiHandlers.remove(e, withActorBackend(args)));
         ipcMain.handle('anagrafica:residenza:getByPersona', (e, args) => anagraficaResidenzaHandlers.getByPersona(e, args));
-        ipcMain.handle('anagrafica:residenza:create', (e, args) => anagraficaResidenzaHandlers.create(e, args));
-        ipcMain.handle('anagrafica:residenza:update', (e, args) => anagraficaResidenzaHandlers.update(e, args));
-        ipcMain.handle('anagrafica:residenza:remove', (e, args) => anagraficaResidenzaHandlers.remove(e, args));
+        ipcMain.handle('anagrafica:residenza:create', (e, args) => anagraficaResidenzaHandlers.create(e, withActorBackend(args)));
+        ipcMain.handle('anagrafica:residenza:update', (e, args) => anagraficaResidenzaHandlers.update(e, withActorBackend(args)));
+        ipcMain.handle('anagrafica:residenza:remove', (e, args) => anagraficaResidenzaHandlers.remove(e, withActorBackend(args)));
         ipcMain.handle('anagrafica:contatti:getByPersona', (e, args) => anagraficaContattiHandlers.getByPersona(e, args));
-        ipcMain.handle('anagrafica:contatti:create', (e, args) => anagraficaContattiHandlers.create(e, args));
-        ipcMain.handle('anagrafica:contatti:update', (e, args) => anagraficaContattiHandlers.update(e, args));
-        ipcMain.handle('anagrafica:contatti:remove', (e, args) => anagraficaContattiHandlers.remove(e, args));
+        ipcMain.handle('anagrafica:contatti:create', (e, args) => anagraficaContattiHandlers.create(e, withActorBackend(args)));
+        ipcMain.handle('anagrafica:contatti:update', (e, args) => anagraficaContattiHandlers.update(e, withActorBackend(args)));
+        ipcMain.handle('anagrafica:contatti:remove', (e, args) => anagraficaContattiHandlers.remove(e, withActorBackend(args)));
         ipcMain.removeHandler('anagrafica:familiari:getByPersona');
         ipcMain.removeHandler('anagrafica:familiari:create');
         ipcMain.removeHandler('anagrafica:familiari:update');
         ipcMain.removeHandler('anagrafica:familiari:remove');
         ipcMain.handle('anagrafica:familiari:getByPersona', (e, args) => anagraficaFamiliariHandlers.getByPersona(e, args));
-        ipcMain.handle('anagrafica:familiari:create', (e, args) => anagraficaFamiliariHandlers.create(e, args));
-        ipcMain.handle('anagrafica:familiari:update', (e, args) => anagraficaFamiliariHandlers.update(e, args));
-        ipcMain.handle('anagrafica:familiari:remove', (e, args) => anagraficaFamiliariHandlers.remove(e, args));
+        ipcMain.handle('anagrafica:familiari:create', (e, args) => anagraficaFamiliariHandlers.create(e, withActorBackend(args)));
+        ipcMain.handle('anagrafica:familiari:update', (e, args) => anagraficaFamiliariHandlers.update(e, withActorBackend(args)));
+        ipcMain.handle('anagrafica:familiari:remove', (e, args) => anagraficaFamiliariHandlers.remove(e, withActorBackend(args)));
         ipcMain.handle('anagrafica:lavoro:getByPersona', (e, args) => anagraficaLavoroHandlers.getByPersona(e, args));
-        ipcMain.handle('anagrafica:lavoro:create', (e, args) => anagraficaLavoroHandlers.create(e, args));
-        ipcMain.handle('anagrafica:lavoro:update', (e, args) => anagraficaLavoroHandlers.update(e, args));
-        ipcMain.handle('anagrafica:lavoro:remove', (e, args) => anagraficaLavoroHandlers.remove(e, args));
+        ipcMain.handle('anagrafica:lavoro:create', (e, args) => anagraficaLavoroHandlers.create(e, withActorBackend(args)));
+        ipcMain.handle('anagrafica:lavoro:update', (e, args) => anagraficaLavoroHandlers.update(e, withActorBackend(args)));
+        ipcMain.handle('anagrafica:lavoro:remove', (e, args) => anagraficaLavoroHandlers.remove(e, withActorBackend(args)));
         ipcMain.handle('anagrafica:titoliStudio:getByPersona', (e, args) => anagraficaTitoliStudioHandlers.getByPersona(e, args));
-        ipcMain.handle('anagrafica:titoliStudio:create', (e, args) => anagraficaTitoliStudioHandlers.create(e, args));
-        ipcMain.handle('anagrafica:titoliStudio:update', (e, args) => anagraficaTitoliStudioHandlers.update(e, args));
-        ipcMain.handle('anagrafica:titoliStudio:remove', (e, args) => anagraficaTitoliStudioHandlers.remove(e, args));
+        ipcMain.handle('anagrafica:titoliStudio:create', (e, args) => anagraficaTitoliStudioHandlers.create(e, withActorBackend(args)));
+        ipcMain.handle('anagrafica:titoliStudio:update', (e, args) => anagraficaTitoliStudioHandlers.update(e, withActorBackend(args)));
+        ipcMain.handle('anagrafica:titoliStudio:remove', (e, args) => anagraficaTitoliStudioHandlers.remove(e, withActorBackend(args)));
         ipcMain.handle('anagrafica:datiBancari:getByPersona', (e, args) => anagraficaDatiBancariHandlers.getByPersona(e, args));
-        ipcMain.handle('anagrafica:datiBancari:create', (e, args) => anagraficaDatiBancariHandlers.create(e, args));
-        ipcMain.handle('anagrafica:datiBancari:update', (e, args) => anagraficaDatiBancariHandlers.update(e, args));
-        ipcMain.handle('anagrafica:datiBancari:remove', (e, args) => anagraficaDatiBancariHandlers.remove(e, args));
+        ipcMain.handle('anagrafica:datiBancari:create', (e, args) => anagraficaDatiBancariHandlers.create(e, withActorBackend(args)));
+        ipcMain.handle('anagrafica:datiBancari:update', (e, args) => anagraficaDatiBancariHandlers.update(e, withActorBackend(args)));
+        ipcMain.handle('anagrafica:datiBancari:remove', (e, args) => anagraficaDatiBancariHandlers.remove(e, withActorBackend(args)));
         ipcMain.handle('anagrafica:audit:getHistory', async (_, args) => anagraficaAuditHandlers.getHistory(args));
 
         ipcMain.handle('datiAzienda:getSedi', async () => datiAziendaHandlers.getSedi());

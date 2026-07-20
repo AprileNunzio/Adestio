@@ -1,23 +1,26 @@
 const IDatabaseAdapter = require('./IDatabaseAdapter');
-const initSqlJs = require('sql.js');
+const Database = require('better-sqlite3');
+
 class SqlJsAdapter extends IDatabaseAdapter {
     constructor() {
         super();
         this.db = null;
     }
+
     async connect(config) {
         try {
-            const SQL = await initSqlJs();
             if (config && config.buffer) {
-                this.db = new SQL.Database(config.buffer);
+                this.db = new Database(config.buffer);
             } else {
-                this.db = new SQL.Database();
+                this.db = new Database(':memory:');
             }
             return true;
         } catch (e) {
+            console.error('[SqlJsAdapter] connect error:', e);
             return false;
         }
     }
+
     disconnect() {
         try {
             if (this.db) {
@@ -29,65 +32,68 @@ class SqlJsAdapter extends IDatabaseAdapter {
             return false;
         }
     }
+
     execute(sql, params = []) {
         try {
             if (!this.db) throw new Error('DB_NOT_INITIALIZED');
-            this.db.run(sql, params);
+            this.db.prepare(sql).run(...params);
             return true;
         } catch (e) {
             throw e;
         }
     }
+
     query(sql, params = []) {
         try {
             if (!this.db) throw new Error('DB_NOT_INITIALIZED');
             const stmt = this.db.prepare(sql);
-            if (params.length > 0) stmt.bind(params);
-            const rows = [];
-            while (stmt.step()) {
-                rows.push(stmt.getAsObject());
-            }
-            stmt.free();
-            return rows;
+            const bindParams = Array.isArray(params) ? params : [params];
+            return stmt.all(...bindParams);
         } catch (e) {
             throw e;
         }
     }
+
     exec(sql) {
         if (!this.db) throw new Error('DB_NOT_INITIALIZED');
         return this.db.exec(sql);
     }
+
     run(sql, params) {
         if (!this.db) throw new Error('DB_NOT_INITIALIZED');
-        return this.db.run(sql, params);
+        const bindParams = Array.isArray(params) ? params : [params];
+        return this.db.prepare(sql).run(...bindParams);
     }
+
     prepare(sql) {
         if (!this.db) throw new Error('DB_NOT_INITIALIZED');
         return this.db.prepare(sql);
     }
+
     runMigrations(migrations) {
         try {
             if (!this.db) throw new Error('DB_NOT_INITIALIZED');
-            const versionRes = this.exec('PRAGMA user_version;');
+            const versionRes = this.query('PRAGMA user_version;');
             let currentVersion = 0;
-            if (versionRes.length > 0 && versionRes[0].values.length > 0) {
-                currentVersion = versionRes[0].values[0][0];
+            if (versionRes.length > 0) {
+                currentVersion = versionRes[0].user_version;
             }
             const pendingMigrations = migrations
                 .filter(m => m.version > currentVersion)
                 .sort((a, b) => a.version - b.version);
+            
             if (pendingMigrations.length > 0) {
-                this.execute('BEGIN TRANSACTION;');
+                this.exec('BEGIN TRANSACTION;');
                 try {
                     let lastVersion = currentVersion;
                     for (const m of pendingMigrations) {
                         this.exec(m.sql);
                         lastVersion = m.version;
                     }
-                    this.execute(`PRAGMA user_version = ${lastVersion};`);
-                    this.execute('COMMIT;');
+                    this.exec(`PRAGMA user_version = ${lastVersion};`);
+                    this.exec('COMMIT;');
                 } catch (e) {
-                    try { this.execute('ROLLBACK;'); } catch (_) {}
+                    try { this.exec('ROLLBACK;'); } catch (_) {}
                     throw e;
                 }
             }
@@ -96,14 +102,15 @@ class SqlJsAdapter extends IDatabaseAdapter {
             throw e;
         }
     }
+
     exportData() {
         try {
             if (!this.db) throw new Error('DB_NOT_INITIALIZED');
-            const data = this.db.export();
-            return Buffer.from(data);
+            return this.db.serialize();
         } catch (e) {
             throw e;
         }
     }
 }
+
 module.exports = SqlJsAdapter;

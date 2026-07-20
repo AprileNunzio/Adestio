@@ -17,7 +17,8 @@ if (!gotTheLock) {
     
     const { protocol } = require('electron');
     protocol.registerSchemesAsPrivileged([
-        { scheme: 'adestio-app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }
+        { scheme: 'adestio-app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } },
+        { scheme: 'adestio', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }
     ]);
     
     try {
@@ -29,7 +30,7 @@ if (!gotTheLock) {
                     win.show();
                     win.focus();
                 }
-            } catch (e) {}
+            } catch (e) { console.error('[Second-instance Error]', e); }
         });
         app.whenReady().then(async () => {
             try {
@@ -37,11 +38,25 @@ if (!gotTheLock) {
                 CustomProtocol.registerCustomProtocol();
                 
                 ipcRouter.registerAllIPCHandlers(windowManager);
-                try { require('./backend/security/developer_vault').rotateVault(); } catch(e) {}
+                try { require('./backend/security/developer_vault').rotateVault(); } catch(e) { console.error('[Vault Rotation Error]', e); }
+                
+                const { session } = require('electron');
+                session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+                    callback({
+                        responseHeaders: {
+                            ...details.responseHeaders,
+                            'Content-Security-Policy': ["default-src 'self' 'unsafe-inline' 'unsafe-eval' data: adestio-app: adestio: http: ws: wss:"]
+                        }
+                    });
+                });
                 const BootManager = require('./backend/core/BootManager');
                 await BootManager.runStartupSequence();
                 BootManager.runBackgroundTasks();
-                await windowManager.createWindow();
+                
+                const localAppServer = require('./backend/core/localAppServer');
+                const appUrl = await localAppServer.startLocalAppServer();
+                
+                await windowManager.createWindow(appUrl);
                 windowManager.createMenu();
                 updaterService.setupUpdaterService(windowManager);
                 windowManager.createTray();
@@ -52,7 +67,8 @@ if (!gotTheLock) {
                 app.on('activate', () => {
                     try {
                         if (BrowserWindow.getAllWindows().length === 0) {
-                            windowManager.createWindow();
+                            const url = localAppServer.getLocalAppUrl();
+                            windowManager.createWindow(url);
                         } else {
                             const win = windowManager.getMainWindow();
                             if (win) win.show();

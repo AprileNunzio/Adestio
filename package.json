@@ -1,7 +1,7 @@
 {
   "name": "adestio",
   "productName": "Adestio",
-  "version": "1.0.23",
+  "version": "1.0.34",
   "description": "Architettura Dinamica per l'Espansione e lo Sviluppo Tecnologico di Imprese e Organizzazioni",
   "author": "NunzioTech",
   "main": "main.js",
@@ -22,6 +22,7 @@
     "adm-zip": "^0.6.0",
     "basic-ftp": "^6.0.1",
     "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.11.1",
     "bonjour-service": "^1.4.2",
     "cors": "^2.8.6",
     "docx-templates": "^4.15.0",
@@ -31,7 +32,6 @@
     "nodemailer": "^9.0.3",
     "otplib": "^12.0.1",
     "qrcode": "^1.5.4",
-    "sql.js": "^1.10.2",
     "uuid": "^14.0.1",
     "ws": "^8.21.0",
     "xlsx": "^0.18.5"
