@@ -13,7 +13,7 @@ let marketplaceCache = null;
 async function preloadMarketplaceCache() {
     try {
         console.log('[Store] Preloading marketplace cache in background...');
-        const response = await fetch(MARKETPLACE_URL);
+        const response = await fetch(`${MARKETPLACE_URL}?t=${Date.now()}`);
         if (response.ok) {
             marketplaceCache = await response.json();
             console.log('[Store] Marketplace cache loaded successfully.');
@@ -59,7 +59,7 @@ async function syncNetworkApps() {
         console.log(`[Store] Trovate ${missingApps.length} app da sincronizzare. Avvio download...`);
         let remoteManifests = marketplaceCache;
         if (!remoteManifests) {
-            const response = await fetch(MARKETPLACE_URL);
+            const response = await fetch(`${MARKETPLACE_URL}?t=${Date.now()}`);
             if (response.ok) {
                 remoteManifests = await response.json();
                 marketplaceCache = remoteManifests;
@@ -104,7 +104,7 @@ async function getAvailable() {
             if (marketplaceCache) {
                 remoteManifests = marketplaceCache;
             } else {
-                const response = await fetch(MARKETPLACE_URL);
+                const response = await fetch(`${MARKETPLACE_URL}?t=${Date.now()}`);
                 if (response.ok) {
                     remoteManifests = await response.json();
                     marketplaceCache = remoteManifests;
@@ -199,7 +199,7 @@ async function install(event, appId) {
         let targetManifest = localManifests.find(m => m.id === appId);
         if (!targetManifest) {
             try {
-                const response = await fetch(MARKETPLACE_URL);
+                const response = await fetch(`${MARKETPLACE_URL}?t=${Date.now()}`);
                 if (response.ok) {
                     const remoteManifests = await response.json();
                     targetManifest = remoteManifests.find(m => m.id === appId);
@@ -314,7 +314,7 @@ async function checkUpdates() {
         const updates = [];
         let remoteManifests = [];
         try {
-            const response = await fetch(MARKETPLACE_URL);
+            const response = await fetch(`${MARKETPLACE_URL}?t=${Date.now()}`);
             if (response.ok) {
                 remoteManifests = await response.json();
             }
