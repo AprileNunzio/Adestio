@@ -14,6 +14,12 @@ if (!gotTheLock) {
     const windowManager = require('./backend/core/windowManager');
     const ipcRouter = require('./backend/core/ipcRouter');
     const updaterService = require('./backend/core/updaterService');
+    
+    const { protocol } = require('electron');
+    protocol.registerSchemesAsPrivileged([
+        { scheme: 'adestio-app', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }
+    ]);
+    
     try {
         app.on('second-instance', (event, commandLine, workingDirectory) => {
             try {

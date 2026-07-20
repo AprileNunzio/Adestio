@@ -42,7 +42,15 @@ export default {
                 }
             }
             try {
-                const appModule = await import(`../../apps/${appId}/app.js`);
+                let modulePath = `../../apps/${appId}/app.js`;
+                if (window.electronAPI) {
+                    const allApps = await window.electronAPI.getAppsRegistry();
+                    const appManifest = allApps.find(a => a.folder === appId || a.id === appId);
+                    if (appManifest && !appManifest.core && !appManifest.bundled) {
+                        modulePath = `adestio-app://${appId}/app.js`;
+                    }
+                }
+                const appModule = await import(modulePath);
                 if (appModule && appModule.default && typeof appModule.default.render === 'function') {
                     await appModule.default.render(mountPoint, params);
                 } else {

@@ -5,7 +5,7 @@ const fs = require('fs');
 
 function registerCustomProtocol() {
     // Protocollo per servire le app di terze parti in modo sicuro
-    protocol.handle('adestio-app', (request) => {
+    protocol.handle('adestio-app', async (request) => {
         try {
             const url = new URL(request.url);
             // Il formato atteso è adestio-app://<app_id>/<file_path>
@@ -32,9 +32,27 @@ function registerCustomProtocol() {
                 return new Response('File non trovato', { status: 404 });
             }
 
+            if (request.method === 'OPTIONS') {
+                return new Response(null, {
+                    status: 204,
+                    headers: {
+                        'Access-Control-Allow-Origin': '*',
+                        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+                        'Access-Control-Allow-Headers': '*'
+                    }
+                });
+            }
+
             // Otteniamo il file usando net.fetch (che gestisce automaticamente il MIME type)
-            // Se file:// non fosse sufficiente in futuro, si potrebbe usare lo stream nativo.
-            return net.fetch(`file:///${absolutePath.replace(/\\/g, '/')}`);
+            const response = await net.fetch(`file:///${absolutePath.replace(/\\/g, '/')}`);
+            const newHeaders = new Headers(response.headers);
+            newHeaders.set('Access-Control-Allow-Origin', '*');
+            
+            return new Response(response.body, {
+                status: response.status,
+                statusText: response.statusText,
+                headers: newHeaders
+            });
         } catch (e) {
             console.error('[CustomProtocol] Errore:', e);
             return new Response('Internal Server Error', { status: 500 });
