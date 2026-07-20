@@ -55,12 +55,14 @@ async function initEmptyDB(networkName) {
         const mApp = require('./migrations/app_data');
         const mStore = require('./migrations/store');
         const mAnagrafica = require('./migrations/anagrafica');
+        const mAzienda = require('./migrations/azienda');
         await dbManager.loadDatabase('auth', mAuth);
         await dbManager.loadDatabase('config', mConfig);
         await dbManager.loadDatabase('ledger', mLedger);
         await dbManager.loadDatabase('app', mApp);
         await dbManager.loadDatabase('store', mStore);
         await dbManager.loadDatabase('app_anagrafica', mAnagrafica);
+        await dbManager.loadDatabase('app_azienda', mAzienda);
         const hashedCode = hashNetworkCode(networkCode);
         const nodeId = crypto.randomBytes(16).toString('hex');
         const configDb = dbManager.getDB('config');

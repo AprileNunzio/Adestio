@@ -28,6 +28,7 @@ const anagraficaRiferimentiHandlers = require('../handlers/anagrafica_riferiment
 const twofaHandlers = require('../handlers/twofa');
 const notificationsHandlers = require('../handlers/notifications');
 const storeHandlers = require('../handlers/store');
+const datiAziendaHandlers = require('../handlers/dati_azienda');
 const appsRegistry = require('./appsRegistry');
 const accessGuard = require('./access_guard');
 function registerAllIPCHandlers(windowManager) {
@@ -865,7 +866,12 @@ function registerAllIPCHandlers(windowManager) {
         ipcMain.handle('anagrafica:datiBancari:create', (e, args) => anagraficaDatiBancariHandlers.create(e, args));
         ipcMain.handle('anagrafica:datiBancari:update', (e, args) => anagraficaDatiBancariHandlers.update(e, args));
         ipcMain.handle('anagrafica:datiBancari:remove', (e, args) => anagraficaDatiBancariHandlers.remove(e, args));
-        ipcMain.handle('anagrafica:audit:getHistory', (e, args) => anagraficaAuditHandlers.getHistory(e, args));
+        ipcMain.handle('anagrafica:audit:getHistory', async (_, args) => anagraficaAuditHandlers.getHistory(args));
+
+        ipcMain.handle('datiAzienda:getSedi', async () => datiAziendaHandlers.getSedi());
+        ipcMain.handle('datiAzienda:getSedeById', async (_, id) => datiAziendaHandlers.getSedeById(id));
+        ipcMain.handle('datiAzienda:saveSede', async (_, sede) => datiAziendaHandlers.saveSede(sede));
+        ipcMain.handle('datiAzienda:deleteSede', async (_, id) => datiAziendaHandlers.deleteSede(id));
         ipcMain.handle('anagrafica:riferimenti:getProvince', (e) => anagraficaRiferimentiHandlers.getProvince());
         ipcMain.handle('anagrafica:riferimenti:getNazioni', (e) => anagraficaRiferimentiHandlers.getNazioni());
         ipcMain.handle('anagrafica:riferimenti:getAllComuni', async () => {

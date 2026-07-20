@@ -1,0 +1,17 @@
+{
+    "id": "dati_azienda",
+    "name": "Dati Azienda",
+    "description": "Gestione centralizzata dei dati master dell'ente, contatti fiscali e sedi aziendali.",
+    "icon": "corporate_fare",
+    "main": "app.js",
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza Azienda"
+        },
+        {
+            "id": "edit",
+            "label": "Modifica Azienda"
+        }
+    ]
+}

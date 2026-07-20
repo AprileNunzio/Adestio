@@ -230,12 +230,14 @@ class DatabaseManager {
             const mApp = require('../migrations/app_data');
             const mStore = require('../migrations/store');
             const mAnagrafica = require('../migrations/anagrafica');
+            const mAzienda = require('../migrations/azienda');
             await this.loadDatabase('auth', mAuth);
             await this.loadDatabase('config', mConfig);
             await this.loadDatabase('ledger', mLedger);
             await this.loadDatabase('app', mApp);
             await this.loadDatabase('store', mStore);
             await this.loadDatabase('app_anagrafica', mAnagrafica);
+            await this.loadDatabase('app_azienda', mAzienda);
             if (this.databases['config']) {
                 const res = this.databases['config'].query("SELECT key_value FROM network_config WHERE key_name = 'network_code'");
                 if (res && res.length > 0) {
