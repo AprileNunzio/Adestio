@@ -2,6 +2,7 @@ import { toast } from '../../../../js/utils.js';
 import GeneraliView from './views/Generali.js';
 import SediView from './views/Sedi.js';
 import FiscaliView from './views/Fiscali.js';
+import ResponsabiliView from './views/Responsabili.js';
 
 export default {
     render: async (el) => {
@@ -15,6 +16,7 @@ export default {
                         <div class="tabs-header" style="display:flex; gap:1.5rem; margin-top:1.5rem; border-bottom:1px solid var(--md-outline-variant);">
                             <div class="tab-btn active" data-target="generali">Dati Generali</div>
                             <div class="tab-btn" data-target="fiscali">Dati Fiscali / Tesoreria</div>
+                            <div class="tab-btn" data-target="responsabili">Organigramma & Responsabili</div>
                             <div class="tab-btn" data-target="sedi">Gestione Sedi</div>
                         </div>
                     </div>
@@ -67,6 +69,9 @@ export default {
                         await currentView.render(container, configCache, saveConfig);
                     } else if (target === 'fiscali') {
                         currentView = FiscaliView;
+                        await currentView.render(container, configCache, saveConfig);
+                    } else if (target === 'responsabili') {
+                        currentView = ResponsabiliView;
                         await currentView.render(container, configCache, saveConfig);
                     } else if (target === 'sedi') {
                         currentView = SediView;
