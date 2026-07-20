@@ -23,9 +23,19 @@ function registerCustomProtocol() {
             }
 
             // Evita directory traversal attacks (es. ../../)
-            const absolutePath = path.resolve(targetAppDir, filePath);
-            if (!absolutePath.startsWith(path.resolve(targetAppDir))) {
-                return new Response('Accesso negato', { status: 403 });
+            let absolutePath = path.resolve(targetAppDir, filePath);
+            
+            // Permetti alle app esterne di importare utility core (es. ../../js/utils.js)
+            // che il browser risolve in adestio-app://<app_id>/js/utils.js
+            if (filePath.startsWith('js/') || filePath.startsWith('css/') || filePath.startsWith('assets/')) {
+                const coreSrcPath = app.isPackaged 
+                    ? path.join(process.resourcesPath, 'app.asar', 'src')
+                    : path.join(__dirname, '..', '..', 'src');
+                absolutePath = path.resolve(coreSrcPath, filePath);
+            } else {
+                if (!absolutePath.startsWith(path.resolve(targetAppDir))) {
+                    return new Response('Accesso negato', { status: 403 });
+                }
             }
 
             if (!fs.existsSync(absolutePath)) {

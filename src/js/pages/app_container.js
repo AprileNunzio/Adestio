@@ -47,7 +47,8 @@ export default {
                     const allApps = await window.electronAPI.getAppsRegistry();
                     const appManifest = allApps.find(a => a.folder === appId || a.id === appId);
                     if (appManifest && !appManifest.core && !appManifest.bundled) {
-                        modulePath = `adestio-app://${appId}/app.js`;
+                        const mainFile = appManifest.main || 'app.js';
+                        modulePath = `adestio-app://${appId}/${mainFile}`;
                     }
                 }
                 const appModule = await import(modulePath);
