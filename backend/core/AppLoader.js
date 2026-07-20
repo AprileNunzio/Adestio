@@ -1,6 +1,47 @@
 'use strict';
 const path = require('path');
 const fs = require('fs');
+const Module = require('module');
+
+// --- HACK PER RISOLUZIONE MODULI APP TERZE PARTI ---
+// Le app installate in %APPDATA% non trovano i moduli dell'app principale (es. xlsx).
+// Quando un modulo non viene trovato localmente, aggiungiamo il path di Adestio ai paths.
+// Inoltre, reindirizziamo eventuali require('../../../backend/...') verso la directory reale.
+const originalResolve = Module._resolveFilename;
+Module._resolveFilename = function(request, parent, isMain, options) {
+    if (request.includes('/backend/') || request.includes('\\backend\\')) {
+        const parts = request.split(/[\/\\]/);
+        const backendIndex = parts.indexOf('backend');
+        if (backendIndex !== -1) {
+            const relPath = parts.slice(backendIndex).join(path.sep);
+            const adestioBackendPath = path.join(__dirname, '../../', relPath);
+            if (fs.existsSync(adestioBackendPath) || fs.existsSync(adestioBackendPath + '.js') || fs.existsSync(path.join(adestioBackendPath, 'index.js'))) {
+                request = adestioBackendPath;
+            }
+        }
+    }
+    
+    try {
+        return originalResolve(request, parent, isMain, options);
+    } catch (e) {
+        if (e.code === 'MODULE_NOT_FOUND' && parent && parent.paths) {
+            const adestioNodeModules = path.join(__dirname, '../../node_modules');
+            // Cerca in resources/app.asar/node_modules in produzione
+            const asarNodeModules = path.join(__dirname, '../../../../node_modules');
+            
+            let patched = false;
+            if (!parent.paths.includes(adestioNodeModules)) { parent.paths.push(adestioNodeModules); patched = true; }
+            if (!parent.paths.includes(asarNodeModules)) { parent.paths.push(asarNodeModules); patched = true; }
+            
+            if (patched) {
+                return originalResolve(request, parent, isMain, options);
+            }
+        }
+        throw e;
+    }
+};
+// ---------------------------------------------------
+
 const PlatformContext = require('./PlatformContext');
 const AppIpcBridge = require('./AppIpcBridge');
 const AppDbManager = require('./AppDbManager');
