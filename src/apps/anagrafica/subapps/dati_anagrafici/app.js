@@ -8,7 +8,7 @@ const subapp = {
     render: async (el) => {
         const userId = getCurrentUserId();
         if (!userId) {
-            el.innerHTML = '<p style="text-align:center; color:var(--md-error); padding:2rem;">Devi effettuare l\'accesso per gestire la tua anagrafica personale.</p>';
+            el.innerHTML = '<p style="text-align:center; color:var(--md-error); padding:2rem;">Devi effettuare l\'accesso per gestire il tuo profilo personale.</p>';
             return;
         }
         let persona = null;
@@ -34,7 +34,7 @@ const subapp = {
             <div class="fade-in-up ak-root">
                 ${heroHtml({
                     title: 'I Miei Dati',
-                    subtitle: persona ? 'Gestisci e tieni aggiornati i tuoi dati anagrafici.' : 'Benvenuto! Completa la tua anagrafica personale.',
+                    subtitle: persona ? 'Gestisci e tieni aggiornati i tuoi dati personali.' : 'Benvenuto! Completa il tuo profilo personale.',
                     icon: 'badge',
                     tone: 'blue',
                     auditMountId: 'scheda-audit-mount'
@@ -48,7 +48,7 @@ const subapp = {
                         'Inserisci <strong>Cognome</strong>, <strong>Nome</strong> e <strong>Codice Fiscale</strong> (obbligatori).',
                         'Aggiungi sesso, stato civile e i dati di nascita e cittadinanza.',
                         'Scrivendo il <strong>Comune di nascita</strong>, la Provincia viene suggerita automaticamente.',
-                        persona ? 'Premi “Salva Modifiche” per aggiornare i dati.' : 'Premi “Crea Anagrafica” per salvare: il Codice Fiscale non sarà più modificabile.'
+                        persona ? 'Premi “Salva Modifiche” per aggiornare i dati.' : 'Premi “Crea Profilo” per salvare: il Codice Fiscale non sarà più modificabile.'
                     ]
                 })}
                 <div class="ak-panel">
@@ -59,7 +59,7 @@ const subapp = {
                             <div class="ak-actions">
                                 <button type="submit" id="btn-save-persona" class="ak-btn ak-btn-primary">
                                     <span class="material-symbols-rounded">${persona ? 'save' : 'person_add'}</span>
-                                    ${persona ? 'Salva Modifiche' : 'Crea Anagrafica'}
+                                    ${persona ? 'Salva Modifiche' : 'Crea Profilo'}
                                 </button>
                             </div>
                         </form>
@@ -96,7 +96,7 @@ const subapp = {
                     }
                     data.user_id = userId;
                     const res = await window.electronAPI.anagrafica.persone.create(data);
-                    toast(res && res.claimed ? 'Anagrafica personale recuperata e collegata al tuo account' : 'Anagrafica personale creata con successo', 'success');
+                    toast(res && res.claimed ? 'Profilo personale recuperato e collegato al tuo account' : 'Profilo personale creato con successo', 'success');
                 }
                 await subapp.render(el);
             } catch (err) {

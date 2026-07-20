@@ -10,8 +10,8 @@ export default {
                     <div class="fade-in-up anagrafica-home" style="width: 100%; height: 100%; flex: 1; display: flex; flex-direction: column;">
                         <div class="anagrafica-home-header" style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1.5rem; margin-bottom: 3rem; width: 100%;">
                             <div style="flex: 1; min-width: 300px;">
-                                <h1 class="text-title" style="font-size: 2.4rem; color: var(--md-primary); margin-bottom: 0.2rem; letter-spacing: -0.02em; text-align: left;">Anagrafica</h1>
-                                <p class="text-body" style="color: var(--md-on-surface-variant); font-size: 1.1rem; text-align: left;">La tua anagrafica personale</p>
+                                <h1 class="text-title" style="font-size: 2.4rem; color: var(--md-primary); margin-bottom: 0.2rem; letter-spacing: -0.02em; text-align: left;">Profilo Personale</h1>
+                                <p class="text-body" style="color: var(--md-on-surface-variant); font-size: 1.1rem; text-align: left;">Il tuo profilo personale</p>
                             </div>
                             <div class="anagrafica-home-search" style="position: relative; flex-shrink: 0; width: 100%; max-width: 350px;">
                                 <span class="material-symbols-rounded" style="position: absolute; left: 1rem; top: 0.9rem; color: var(--md-on-surface-variant);">search</span>
@@ -141,7 +141,7 @@ export default {
             }
         } catch (e) {
             console.error(e);
-            el.innerHTML = '<p>Errore critico caricamento Anagrafica</p>';
+            el.innerHTML = '<p>Errore critico caricamento Profilo Personale</p>';
         }
     }
 };

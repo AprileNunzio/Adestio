@@ -156,7 +156,7 @@ const subapp = {
         if (!persona) {
             el.innerHTML = `<div class="ak-empty" style="margin-top:2rem;">
                 <span class="material-symbols-rounded">person_off</span>
-                <h4>Anagrafica non ancora configurata</h4>
+                <h4>Profilo Personale non ancora configurato</h4>
                 <p>Vai su "I Miei Dati" per creare la tua scheda, poi torna qui per aggiungere i contatti.</p>
             </div>`;
             return;

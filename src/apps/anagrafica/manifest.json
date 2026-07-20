@@ -1,7 +1,7 @@
 {
     "id": "anagrafica",
-    "name": "Anagrafica",
-    "description": "La tua anagrafica personale: dati anagrafici, documenti, residenza/domicilio e lavoro",
+    "name": "Profilo Personale",
+    "description": "Il tuo profilo personale: dati anagrafici, documenti, residenza/domicilio e lavoro",
     "icon": "icon.png",
     "main": "app.js",
     "color": "#00897B",
