@@ -1,5 +1,4 @@
 import { dtFormat } from '../utils.js';
-
 const EVENT_LABELS = {
     login_success: 'Accesso riuscito',
     login_failed: 'Accesso fallito',
@@ -14,12 +13,10 @@ const EVENT_ICONS = {
     '2fa_admin_reset': 'restart_alt',
     logout: 'logout'
 };
-
 export default {
     render: async () => {
         const currentUserId = sessionStorage.getItem('currentUserId');
         if (!currentUserId) return `<div class="error-msg">Errore: Utente non identificato</div>`;
-
         let logs = [];
         try {
             const res = await window.electronAPI.getAccessLogs(currentUserId);
@@ -29,11 +26,9 @@ export default {
         } catch (e) {
             console.error(e);
         }
-
         const successCount = logs.filter(l => (l.event_type || 'login_success') === 'login_success').length;
         const failedCount = logs.filter(l => l.success === 0 || l.success === false).length;
         const distinctDevices = new Set(logs.map(l => l.device_info).filter(Boolean)).size;
-
         return `
             <div class="page-container fade-in-up" style="max-width: 1000px; margin: 0 auto;">
                 <div class="page-header" style="margin-bottom: 1.5rem; border-bottom: 1px solid rgba(var(--md-primary-rgb), 0.1); padding-bottom: 1.5rem;">
@@ -47,7 +42,6 @@ export default {
                         </div>
                     </div>
                 </div>
-
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
                     <div style="background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant); border-radius: 16px; padding: 1rem 1.3rem;">
                         <div style="font-size: 1.7rem; font-weight: 800; color: var(--md-success);">${successCount}</div>
@@ -62,7 +56,6 @@ export default {
                         <div style="font-size: 0.82rem; color: var(--md-on-surface-variant); font-weight: 600;">Dispositivi distinti</div>
                     </div>
                 </div>
-
                 <div class="card p-0 glass-panel" style="overflow: hidden; border-radius: 20px; border: 1px solid rgba(var(--md-primary-rgb), 0.15); box-shadow: 0 10px 30px rgba(0,0,0,0.05); background: var(--md-surface);">
                     ${logs.length === 0 ? `
                         <div style="padding: 5rem 2rem; text-align: center; color: var(--md-on-surface-variant);">

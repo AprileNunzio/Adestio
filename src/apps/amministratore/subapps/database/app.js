@@ -1,12 +1,9 @@
 import { Router, toast } from '../../../../js/utils.js';
-
 export default {
     render: async (el) => {
         try {
             el.innerHTML = `
                 <div class="fade-in-up" style="width: 100%; margin: 0 auto; padding-top: 1rem; display: flex; flex-direction: column; gap: 2rem;">
-
-
                     <div style="display: flex; flex-wrap: wrap; gap: 2rem; align-items: flex-start;">
                         <!-- Colonna Sinistra (Locale e Globale) -->
                         <div style="flex: 1; min-width: 350px; display: flex; flex-direction: column; gap: 2rem;">
@@ -19,7 +16,6 @@ export default {
                                     Pannello di controllo avanzato per il monitoraggio e la riparazione dell'infrastruttura P2P.
                                 </p>
                             </div>
-
                             <div style="background: var(--md-surface); border-radius: 16px; padding: 1.5rem; border: 1px solid var(--md-outline-variant); box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
                                 <h2 class="text-title" style="font-size: 1.2rem; color: var(--md-on-surface); display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
                                     <span class="material-symbols-rounded" style="color: var(--md-primary);">computer</span> Nodo Locale
@@ -37,7 +33,6 @@ export default {
                                     </div>
                                 </div>
                             </div>
-
                             <div style="background: rgba(179, 38, 30, 0.05); border-radius: 16px; padding: 1.5rem; border: 1px solid rgba(179, 38, 30, 0.2);">
                                 <h2 class="text-title" style="font-size: 1.2rem; color: var(--md-error); display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                                     <span class="material-symbols-rounded">warning</span> Opzione Nucleare Globale
@@ -50,7 +45,6 @@ export default {
                                 </button>
                             </div>
                         </div>
-
                         <!-- Colonna Destra (Nodi Connessi) -->
                         <div style="flex: 2; min-width: 400px; display: flex; flex-direction: column; gap: 1rem;">
                             <div style="display: flex; justify-content: space-between; align-items: flex-end;">
@@ -66,7 +60,6 @@ export default {
                             </div>
                         </div>
                     </div>
-
                     <!-- Modal di conferma Globale -->
                     <div id="nuke-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center;">
                         <div style="background: var(--md-surface); padding: 2rem; border-radius: 16px; max-width: 500px; width: 90%;">
@@ -94,8 +87,6 @@ export default {
                     .action-btn.danger:hover { background: rgba(179, 38, 30, 0.05); }
                 </style>
             `;
-
-            // Gestione Nuke Globale
             const modal = el.querySelector('#nuke-modal');
             el.querySelector('#btn-nuke').addEventListener('click', () => modal.style.display = 'flex');
             el.querySelector('#btn-cancel-nuke').addEventListener('click', () => modal.style.display = 'none');
@@ -109,12 +100,9 @@ export default {
                 } catch (e) { toast('Eccezione: ' + e.message, 'error'); } 
                 finally { modal.style.display = 'none'; confirmBtn.disabled = false; confirmBtn.innerHTML = 'Procedi'; }
             });
-
-            // Gestione Polling Nodi
             let pollTimer = null;
             const nodesContainer = el.querySelector('#nodes-container');
             const localBlocksEl = el.querySelector('#local-blocks');
-            
             const renderNodes = (localBlocks, nodes) => {
                 if (!nodes || nodes.length === 0) {
                     nodesContainer.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--md-on-surface-variant); background: var(--md-surface); border-radius: 16px; border: 1px dashed var(--md-outline-variant);">Nessun nodo connesso al momento.</div>';
@@ -124,9 +112,8 @@ export default {
                 nodes.forEach(n => {
                     const pct = n.syncPercentage;
                     let color = 'var(--md-error)';
-                    if (pct >= 99) color = '#2e7d32'; // Verde
-                    else if (pct >= 80) color = '#f57f17'; // Arancio
-                    
+                    if (pct >= 99) color = '#2e7d32'; 
+                    else if (pct >= 80) color = '#f57f17'; 
                     const card = document.createElement('div');
                     card.className = 'node-card fade-in-up';
                     card.innerHTML = `
@@ -163,7 +150,6 @@ export default {
                     nodesContainer.appendChild(card);
                 });
             };
-
             const poll = async () => {
                 if (!document.body.contains(el)) { clearInterval(pollTimer); return; }
                 try {
@@ -174,7 +160,6 @@ export default {
                     }
                 } catch(e) { console.error('Polling error', e); }
             };
-            
             window.triggerNodeAction = async (action, ip, port) => {
                 toast('Invio comando in corso...', 'info');
                 try {
@@ -184,10 +169,8 @@ export default {
                 } catch (e) { toast('Errore IPC: ' + e.message, 'error'); }
                 poll();
             };
-
             poll();
             pollTimer = setInterval(poll, 3000);
-
         } catch (e) {
             el.innerHTML = `<div style="padding: 2rem; color: var(--md-error);">Errore rendering modulo Database: ${e.message}</div>`;
         }

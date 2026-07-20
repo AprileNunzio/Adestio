@@ -1,4 +1,3 @@
-
 export default {
     render: async (el, params = {}) => {
         try {
@@ -80,11 +79,9 @@ export default {
                             // È un'icona Material
                             iconHtml = `<span class="material-symbols-rounded app-icon" style="font-size: 64px; color: var(--md-primary); display: flex; align-items: center; justify-content: center;">${app.icon}</span>`;
                         } else {
-                            // È un file immagine
                             const iconPath = app.icon ? `apps/impostazioni/subapps/${app.folder}/${app.icon}` : `icone/applicazione_generica.png`;
                             iconHtml = `<img src="${iconPath}" class="app-icon" onerror="this.src='icone/applicazione_generica.png'">`;
                         }
-                        
                         card.innerHTML = `
                             ${iconHtml}
                             <div class="app-title">${app.name}</div>

@@ -2,7 +2,6 @@ export class StatsCards {
     constructor(container) {
         this.container = container;
     }
-
     update(stats) {
         try {
             this.container.innerHTML = `

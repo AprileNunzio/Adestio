@@ -55,7 +55,6 @@ export default {
                                     </div>
                                 </div>
                             </div>
-                            
                             <!-- Card Firewall Enterprise -->
                             <div class="card" style="padding: 1.5rem; background: var(--md-surface); border-radius: 16px; border: 1px solid var(--md-surface-variant); box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
                                 <div style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1.5rem;">
@@ -71,7 +70,6 @@ export default {
                                     </button>
                                 </div>
                             </div>
-                            
                         </div>
                     </div>
                 </div>
@@ -124,7 +122,6 @@ export default {
                 const k = 1024, dm = 2, sizes = ['Bytes', 'KB', 'MB', 'GB'], i = Math.floor(Math.log(bytes) / Math.log(k));
                 return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
             };
-            
             const btnFwOpen = document.getElementById('btn-firewall-open');
             const btnFwForce = document.getElementById('btn-firewall-force');
             if (btnFwOpen) {

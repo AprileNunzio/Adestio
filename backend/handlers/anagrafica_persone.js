@@ -96,31 +96,22 @@ async function create(event, args) {
         const coreDb = getDB('auth');
         const userId = (args.user_id || '').trim();
         const now = Date.now();
-
         // Una persona con questo CF potrebbe già esistere in uno stato "non recuperabile"
         // dalla UI (eliminata logicamente, non collegata, oppure collegata a un utente
         // non più attivo). In tutti questi casi la adottiamo per l'utente corrente invece
-        // di lasciare l'anagrafica in un vicolo cieco. La chiave primaria è il CF (id).
         const existingRows = db.query('SELECT * FROM persone WHERE id = ?', [codiceFiscale]);
         if (existingRows.length > 0) {
             const existing = existingRows[0];
-            // Blocco reale solo se il CF appartiene a un ALTRO utente ancora attivo.
             if (existing.user_id && existing.user_id !== userId) {
                 const otherUser = coreDb.query('SELECT is_deleted FROM users WHERE id = ?', [existing.user_id]);
                 if (otherUser.length > 0 && otherUser[0].is_deleted === 0) {
                     throw new Error("Il Codice Fiscale inserito è già associato a un altro utente attivo del sistema.");
                 }
             }
-            // L'utente corrente non deve avere già un'ALTRA anagrafica attiva collegata.
             if (userId) {
                 const userCheck = db.query('SELECT id FROM persone WHERE user_id = ? AND is_deleted = 0 AND id != ?', [userId, codiceFiscale]);
                 if (userCheck.length > 0) throw new Error("Questo utente ha già una persona collegata");
             }
-            // Adozione: ricollego la scheda all'utente, la ripristino se eliminata e
-            // aggiorno i dati anagrafici. Per non distruggere dati esistenti, ogni campo
-            // opzionale viene sovrascritto solo se effettivamente fornito, altrimenti si
-            // mantiene il valore già presente (i campi non gestiti dal form — email,
-            // telefono, foto, note — e la data di creazione restano intatti).
             const keep = (nv, ov) => { const s = String(nv || '').trim(); return s !== '' ? s : (ov || ''); };
             const nextUserId = userId || existing.user_id || '';
             db.run(
@@ -133,7 +124,6 @@ async function create(event, args) {
             notifyDataChanged('persone', [codiceFiscale]);
             return { success: true, id: codiceFiscale, claimed: true };
         }
-
         if (userId) {
             const userCheck = db.query('SELECT id FROM persone WHERE user_id = ? AND is_deleted = 0', [userId]);
             if (userCheck.length > 0) throw new Error("Questo utente ha già una persona collegata");
@@ -349,7 +339,6 @@ function linkOrCreateForUser(userId, codiceFiscale, nome, cognome, email, actorU
         [payload.id, payload.codice_fiscale, payload.user_id, payload.nome, payload.cognome, payload.sesso, payload.data_nascita, payload.luogo_nascita, payload.provincia_nascita, payload.cittadinanza, payload.stato_civile, payload.email_principale, payload.telefono_principale, payload.foto_path, payload.note, payload.created_at, payload.last_modified]
     );
     wrapMutationWithEvent('INSERT', 'persone', cf, { ...payload, _actor_user_id: actorUserId || '' });
-
     if (email && email.trim() !== '') {
         const contactId = crypto.randomUUID();
         db.run(
@@ -361,7 +350,6 @@ function linkOrCreateForUser(userId, codiceFiscale, nome, cognome, email, actorU
         });
         notifyDataChanged('contatti', [contactId]);
     }
-
     return payload;
 }
 module.exports = { getAll, search, getById, getByUserId, create, update, remove, restore, hardDelete, getScheda, linkOrCreateForUser };

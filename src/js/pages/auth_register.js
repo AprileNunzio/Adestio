@@ -132,7 +132,6 @@ export default {
             const pinConfirmInputs = Array.from(el.querySelectorAll('#register-pin-confirm-container .pin-box-confirm'));
             setupPinInputs(pinInputs);
             setupPinInputs(pinConfirmInputs);
-
             const pwdInput = el.querySelector('#password');
             const bars = [
                 el.querySelector('#pwd-bar-1'),
@@ -141,7 +140,6 @@ export default {
                 el.querySelector('#pwd-bar-4')
             ];
             const pwdText = el.querySelector('#pwd-strength-text');
-
             pwdInput.addEventListener('input', (e) => {
                 const val = e.target.value;
                 let score = 0;
@@ -149,9 +147,7 @@ export default {
                 if(val.length > 8) score++;
                 if(/[A-Z]/.test(val) && /[a-z]/.test(val)) score++;
                 if(/[0-9]/.test(val) && /[^A-Za-z0-9]/.test(val)) score++;
-                
                 bars.forEach(b => b.style.background = 'var(--md-outline-variant)');
-                
                 if(val.length === 0) {
                     pwdText.textContent = "Efficacia password";
                     pwdText.style.color = 'var(--md-on-surface-variant)';

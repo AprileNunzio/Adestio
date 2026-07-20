@@ -431,7 +431,6 @@ module.exports = [
         `
     },
     {
-        // Presa di Servizio: dati aggiuntivi anagrafici + servizio scolastico
         version: 14,
         sql: `
             CREATE TABLE IF NOT EXISTS titoli_studio (
@@ -466,7 +465,6 @@ module.exports = [
         `
     },
     {
-        // Presa di Servizio: campi servizio su rapporti_lavoro + dati aggiuntivi su persone
         version: 15,
         sql: `
             ALTER TABLE rapporti_lavoro ADD COLUMN categoria_personale TEXT DEFAULT '';
@@ -483,10 +481,6 @@ module.exports = [
         `
     },
     {
-        // Fase 4: le tabelle del dominio personale si spostano in app_anagrafica.enc
-        // (vedi backend/migrations/anagrafica.js). Vengono droppate da qui: i dati
-        // vengono ricostruiti nel nuovo dominio tramite replay del DAG (ledger.enc),
-        // che è la fonte di verità per tutte le tabelle sincronizzate.
         version: 16,
         sql: `
             DROP TABLE IF EXISTS documenti_identita;

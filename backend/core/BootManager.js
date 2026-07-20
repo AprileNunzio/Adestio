@@ -5,40 +5,29 @@ const syncEngine = require('../sync_engine');
 const blockchain = require('../blockchain');
 const AppLoader = require('./AppLoader');
 const store = require('../handlers/store');
-
 class BootManager {
     static async runStartupSequence() {
         console.log('[BootManager] Inizio sequenza di avvio...');
-        
-        // Fase 1: Sblocco Database Locale
         const unlocked = await db.autoUnlockDB();
-        
-        // Fase 2: Rete e Sincronizzazione (Indipendente dal DB per il firewall)
         sync.ensureFirewallRule();
         sync.startSyncServer();
-        
         try { 
             require('../diagnostics_api').startDiagnosticsServer(); 
         } catch(e) { 
             console.error('[BootManager] Diagnostica fallita:', e); 
         }
-
         if (unlocked) {
-            // Fase 3: Ricostruzione Stato (Blockchain)
             try {
                 blockchain.rebuildStateFromLog();
             } catch(rbErr) { 
                 console.error('[BootManager] Errore rebuildStateFromLog:', rbErr); 
             }
-            
-            // Fase 4: Caricamento App
             try {
                 await AppLoader.loadAllInstalledApps();
             } catch(alErr) { 
                 console.error('[BootManager] Errore AppLoader:', alErr); 
             }
         } else {
-            // Tentativo di recupero DB da rete
             const registered = db.checkIsRegistered();
             if (registered) {
                 console.error('[BootManager] DB irrecuperabile localmente, avvio full resync automatico...');
@@ -49,7 +38,6 @@ class BootManager {
         }
         console.log('[BootManager] Sequenza di avvio completata.');
     }
-
     static async attemptDatabaseRecovery() {
         try {
             const nodes = sync.getDetailedNodes().filter(n => n.ip !== '127.0.0.1');
@@ -70,19 +58,13 @@ class BootManager {
             console.error('[BootManager] Errore Auto recovery:', recErr); 
         }
     }
-
     static runBackgroundTasks() {
         console.log('[BootManager] Avvio task in background...');
-        
-        // 1. Aggiornamento Store Marketplace
         setTimeout(() => {
             store.preloadMarketplaceCache()
                 .then(() => store.syncNetworkApps())
                 .catch(e => console.error('[BootManager] Errore preload/sync Marketplace:', e));
-        }, 5000); // 5 secondi dopo l'avvio
-        
-        // Altri futuri task periodici (pulizia log, backup, ecc.)
+        }, 5000); 
     }
 }
-
 module.exports = BootManager;

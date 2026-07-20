@@ -3,16 +3,12 @@ import { DataService } from './data_service.js';
 import { StatsCards } from './stats_cards.js';
 import { PreferencesPanel } from './preferences_panel.js';
 import { HistoryTable } from './history_table.js';
-
 export default {
     render: async (el) => {
         try {
-            // Append styles
             const styleTag = document.createElement('style');
             styleTag.textContent = STYLES;
             document.head.appendChild(styleTag);
-
-            // Layout base
             el.innerHTML = `
                 <div class="not-page">
                     <div class="not-header">
@@ -26,9 +22,7 @@ export default {
                             </button>
                         </div>
                     </div>
-                    
                     <div class="not-stats-row" id="not-stats-mount"></div>
-                    
                     <div class="not-main-grid">
                         <div class="not-panel">
                             <div class="not-panel-header">
@@ -38,33 +32,24 @@ export default {
                             <div id="not-prefs-mount" class="not-prefs-list"></div>
                         </div>
                     </div>
-                    
                     <div class="not-table-section">
                         <div id="not-table-mount" class="not-table-card"></div>
                     </div>
                 </div>
             `;
-
-            // Instantiate services and components
             const dataService = new DataService();
             const statsCards = new StatsCards(document.getElementById('not-stats-mount'));
             const preferencesPanel = new PreferencesPanel(document.getElementById('not-prefs-mount'), dataService);
             const historyTable = new HistoryTable(document.getElementById('not-table-mount'), dataService);
-
-            // Bind data updates to UI components
             dataService.onStatsChange = (stats) => {
                 try { statsCards.update(stats); } catch (e) { console.error(e); }
             };
-            
             dataService.onPrefsChange = (prefs) => {
                 try { preferencesPanel.render(prefs); } catch (e) { console.error(e); }
             };
-            
             dataService.onHistoryChange = (history) => {
                 try { historyTable.update(history); } catch (e) { console.error(e); }
             };
-
-            // Setup refresh button
             const btnRefresh = document.getElementById('not-btn-refresh');
             const syncIcon = document.getElementById('not-refresh-icon');
             btnRefresh.addEventListener('click', async () => {
@@ -82,12 +67,8 @@ export default {
                     console.error('Refresh error:', e);
                 }
             });
-
-            // Initial load
             await dataService.loadPreferences();
             await dataService.loadHistory();
-
-            // Setup a cleanup observer to remove the style tag when the component is unmounted
             const observer = new MutationObserver((mutations) => {
                 mutations.forEach((mutation) => {
                     mutation.removedNodes.forEach((node) => {
@@ -104,11 +85,9 @@ export default {
                     });
                 });
             });
-            
             if (el.parentNode) {
                 observer.observe(el.parentNode, { childList: true });
             }
-
         } catch (e) {
             console.error('[NotificationsPage] render error:', e);
             el.innerHTML = `

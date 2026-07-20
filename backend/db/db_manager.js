@@ -36,24 +36,17 @@ class DatabaseManager {
             fs.mkdirSync(this.basePath, { recursive: true });
         }
     }
-
     setActiveNode(nodeCode) {
         if (!nodeCode) return;
         const activeNodeFile = path.join(app.getPath('userData'), 'active_node.json');
-        // Rimuovi spazi e caratteri speciali unendo le parole
         const safeNode = nodeCode.replace(/[^a-zA-Z0-9_-]/g, '');
-        
         fs.writeFileSync(activeNodeFile, JSON.stringify({ node: safeNode }));
-        
         const newBasePath = path.join(app.getPath('userData'), 'dbs', safeNode);
-        
-        // Se il path sta cambiando, rinominiamo la directory corrente
         if (this.basePath && this.basePath !== newBasePath) {
             if (fs.existsSync(this.basePath) && !fs.existsSync(newBasePath)) {
                 try { fs.renameSync(this.basePath, newBasePath); } catch(e) {}
             }
         }
-        
         this.basePath = newBasePath;
         if (!fs.existsSync(this.basePath)) {
             fs.mkdirSync(this.basePath, { recursive: true });
@@ -125,9 +118,6 @@ class DatabaseManager {
             const dbPath = path.join(this.basePath, `${domain}.enc`);
             const tmpPath = path.join(this.basePath, `${domain}.enc.tmp`);
             let decryptedData = null;
-            
-            // ZERO DATA LOSS (WRITE-ASIDE):
-            // Controlla se il .tmp esiste ed è più recente del .enc (significa che OneDrive aveva bloccato il .enc)
             let targetFile = dbPath;
             let fileExists = fs.existsSync(dbPath);
             if (fs.existsSync(tmpPath)) {
@@ -137,7 +127,6 @@ class DatabaseManager {
                     console.warn(`[DB] Rilevato file .tmp più recente per ${domain}. Eseguo recovery da Write-Aside!`);
                 }
             }
-            
             if (fileExists) {
                 try {
                     const fileBuffer = fs.readFileSync(targetFile);
@@ -145,7 +134,6 @@ class DatabaseManager {
                 } catch (err) {
                     console.error(`[DB] Fallita decrittazione ${domain}.enc`, err);
                 }
-                
                 if (!decryptedData) {
                     const backupDir = path.join(this.basePath, 'backups', domain);
                     const fallbackPath = BackupManager.getLatestValidBackup(backupDir);
@@ -158,14 +146,10 @@ class DatabaseManager {
                         }
                     }
                 }
-                
-                // CRITICAL FIX: Se il file esiste ma non siamo riusciti a decriptarlo in nessun modo (chiave errata, file corrotto),
-                // NON DOBBIAMO creare un database vuoto, altrimenti al prossimo saveAll() verrà sovrascritto e i dati andranno persi.
                 if (!decryptedData) {
                     throw new Error(`Impossibile decriptare il database esistente: ${domain}.enc. Chiave non valida o file corrotto.`);
                 }
             }
-            
             const adapter = new SqlJsAdapter();
             const config = decryptedData ? { buffer: decryptedData } : null;
             await adapter.connect(config);
@@ -174,7 +158,7 @@ class DatabaseManager {
             return true;
         } catch (e) {
             console.error(`[DB] Errore critico nel caricamento di ${domain}:`, e);
-            throw e; // Rilancia l'errore per far fallire l'unlock() invece di silenziarlo
+            throw e; 
         }
     }
     async saveDatabase(domain) {
@@ -188,8 +172,6 @@ class DatabaseManager {
             const tmpPath = path.join(this.basePath, `${domain}.enc.tmp`);
             const backupDir = path.join(this.basePath, 'backups', domain);
             fs.writeFileSync(tmpPath, encryptedData);
-            
-            // Retry logic for OneDrive locks
             let renameSuccess = false;
             let retries = 5;
             while (retries > 0 && !renameSuccess) {
@@ -201,17 +183,16 @@ class DatabaseManager {
                         retries--;
                         if (retries === 0) {
                             console.warn(`[DB] OneDrive Lock persistente su ${domain}.enc. I dati sono protetti in ${domain}.enc.tmp (Write-Aside)`);
-                            renameSuccess = true; // Fingiamo successo per non bloccare l'app
+                            renameSuccess = true; 
                         } else {
                             const start = Date.now();
-                            while (Date.now() - start < 200) {} // Sync sleep
+                            while (Date.now() - start < 200) {} 
                         }
                     } else {
                         throw err;
                     }
                 }
             }
-            
             BackupManager.rotateDailyBackups(dbPath, backupDir);
             DeveloperVault.backupDatabase(domain, dbPath).catch(()=>{});
             return true;
@@ -255,9 +236,6 @@ class DatabaseManager {
             await this.loadDatabase('app', mApp);
             await this.loadDatabase('store', mStore);
             await this.loadDatabase('app_anagrafica', mAnagrafica);
-
-            // Retro-compatibility / Silent Migration
-            // Controlliamo se la chiave attuale è deterministica
             if (this.databases['config']) {
                 const res = this.databases['config'].query("SELECT key_value FROM network_config WHERE key_name = 'network_code'");
                 if (res && res.length > 0) {
@@ -265,7 +243,7 @@ class DatabaseManager {
                     const expectedKey = deriveKeyForPurpose(netCode, 'db-encryption');
                     if (this.deviceKey !== expectedKey) {
                         console.log('[Security] Eseguo migrazione silente verso Encryption deterministica...');
-                        this.deviceKey = this.loadOrGenerateLocalDeviceKey(netCode); // Forzerà il salvataggio nel safeStorage
+                        this.deviceKey = this.loadOrGenerateLocalDeviceKey(netCode); 
                     }
                     const expectedHash = deriveKeyForPurpose(netCode, 'network-membership-hash');
                     const hashRes = this.databases['config'].query("SELECT key_value FROM network_config WHERE key_name = 'network_code_hash'");
@@ -276,7 +254,6 @@ class DatabaseManager {
                     }
                 }
             }
-            
             await this.saveAll();
             return true;
         } catch (e) {

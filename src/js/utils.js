@@ -126,7 +126,6 @@ export const fmt = {
         }
     }
 };
-
 export const dtFormat = (date) => {
     try {
         return new Intl.DateTimeFormat('it-IT', { 

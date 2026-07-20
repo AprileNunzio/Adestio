@@ -26,10 +26,6 @@ const SCHEMAS = {
     notifications:             { required: ['id', 'user_id', 'category'] }
 };
 function getSchema(tableName) { return SCHEMAS[tableName] || null; }
-
-// Instradamento tabella → dominio DB. Ogni tabella sincronizzata dal DAG vive in
-// un solo dominio; il default 'auth' copre RBAC/utenti/sicurezza/notifiche.
-// Le tabelle del dominio personale vivono in app_anagrafica.enc (vedi Fase 4).
 const TABLE_DOMAINS = {
     persone: 'app_anagrafica',
     documenti_identita: 'app_anagrafica',
@@ -41,5 +37,4 @@ const TABLE_DOMAINS = {
     familiari: 'app_anagrafica'
 };
 function getDomainForTable(tableName) { return TABLE_DOMAINS[tableName] || 'auth'; }
-
 module.exports = { CURRENT_PAYLOAD_VERSION, SYNC_TABLES, getSchema, getDomainForTable };

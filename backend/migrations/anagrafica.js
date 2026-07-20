@@ -1,7 +1,3 @@
-// Dominio app_anagrafica.enc — dati personali (persone + entità collegate).
-// Schema finale equivalente al risultato cumulativo delle migrazioni auth.js
-// v5, v6, v11, v12, v13, v14, v15, prima che quelle tabelle venissero spostate
-// qui fuori dal dominio auth/core (vedi auth.js v16 che le droppa).
 module.exports = [
     {
         version: 1,
@@ -32,7 +28,6 @@ module.exports = [
             CREATE UNIQUE INDEX IF NOT EXISTS idx_persone_codice_fiscale ON persone(codice_fiscale) WHERE codice_fiscale != '' AND is_deleted = 0;
             CREATE INDEX IF NOT EXISTS idx_persone_cognome_nome ON persone(cognome, nome);
             CREATE UNIQUE INDEX IF NOT EXISTS idx_persone_user_id ON persone(user_id) WHERE user_id != '' AND is_deleted = 0;
-
             CREATE TABLE IF NOT EXISTS documenti_identita (
                 id TEXT PRIMARY KEY,
                 persona_id TEXT NOT NULL,
@@ -48,7 +43,6 @@ module.exports = [
                 FOREIGN KEY(persona_id) REFERENCES persone(id) ON DELETE CASCADE
             );
             CREATE INDEX IF NOT EXISTS idx_documenti_persona ON documenti_identita(persona_id);
-
             CREATE TABLE IF NOT EXISTS indirizzi (
                 id TEXT PRIMARY KEY,
                 persona_id TEXT NOT NULL,
@@ -68,7 +62,6 @@ module.exports = [
                 FOREIGN KEY(persona_id) REFERENCES persone(id) ON DELETE CASCADE
             );
             CREATE INDEX IF NOT EXISTS idx_indirizzi_persona ON indirizzi(persona_id);
-
             CREATE TABLE IF NOT EXISTS rapporti_lavoro (
                 id TEXT PRIMARY KEY,
                 persona_id TEXT NOT NULL,
@@ -94,7 +87,6 @@ module.exports = [
                 FOREIGN KEY(persona_id) REFERENCES persone(id) ON DELETE CASCADE
             );
             CREATE INDEX IF NOT EXISTS idx_rapporti_lavoro_persona ON rapporti_lavoro(persona_id);
-
             CREATE TABLE IF NOT EXISTS contatti (
                 id TEXT PRIMARY KEY,
                 persona_id TEXT NOT NULL,
@@ -108,7 +100,6 @@ module.exports = [
                 FOREIGN KEY(persona_id) REFERENCES persone(id) ON DELETE CASCADE
             );
             CREATE INDEX IF NOT EXISTS idx_contatti_persona_id ON contatti(persona_id);
-
             CREATE TABLE IF NOT EXISTS familiari (
                 id TEXT PRIMARY KEY,
                 persona_id TEXT NOT NULL,
@@ -125,7 +116,6 @@ module.exports = [
                 FOREIGN KEY(persona_id) REFERENCES persone(id) ON DELETE CASCADE
             );
             CREATE INDEX IF NOT EXISTS idx_familiari_persona_id ON familiari(persona_id);
-
             CREATE TABLE IF NOT EXISTS titoli_studio (
                 id TEXT PRIMARY KEY,
                 persona_id TEXT NOT NULL,
@@ -142,7 +132,6 @@ module.exports = [
                 FOREIGN KEY(persona_id) REFERENCES persone(id) ON DELETE CASCADE
             );
             CREATE INDEX IF NOT EXISTS idx_titoli_studio_persona_id ON titoli_studio(persona_id);
-
             CREATE TABLE IF NOT EXISTS dati_bancari (
                 id TEXT PRIMARY KEY,
                 persona_id TEXT NOT NULL,

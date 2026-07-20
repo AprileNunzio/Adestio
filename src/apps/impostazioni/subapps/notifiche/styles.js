@@ -18,7 +18,6 @@ export const STYLES = `
 .not-page::-webkit-scrollbar { width: 6px; }
 .not-page::-webkit-scrollbar-track { background: transparent; }
 .not-page::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 3px; }
-
 .not-header {
     display: flex;
     justify-content: space-between;
@@ -43,7 +42,6 @@ export const STYLES = `
     margin: 0;
     font-family: var(--font-body);
 }
-
 .not-header-actions {
     display: flex;
     gap: 0.6rem;
@@ -74,7 +72,6 @@ export const STYLES = `
     box-shadow: 0 4px 12px rgba(0,0,0,0.06);
     transform: translateY(-1px);
 }
-
 .not-stats-row {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -133,14 +130,12 @@ export const STYLES = `
     font-family: var(--font-heading);
     line-height: 1.2;
 }
-
 .not-main-grid {
     display: grid;
     grid-template-columns: 1fr;
     gap: 1rem;
     flex-shrink: 0;
 }
-
 /* Preferences Panel */
 .not-panel {
     background: var(--md-surface);
@@ -257,7 +252,6 @@ export const STYLES = `
 }
 .not-switch input:checked + .not-switch-track { background: var(--md-primary); }
 .not-switch input:checked + .not-switch-track::before { transform: translateX(16px); }
-
 /* History Table Section */
 .not-table-section {
     flex-shrink: 0;
@@ -314,7 +308,6 @@ export const STYLES = `
     cursor: pointer;
     font-weight: 600;
 }
-
 .not-table-wrap { overflow-x: auto; min-height: 200px; }
 .not-table {
     width: 100%;
@@ -357,7 +350,6 @@ export const STYLES = `
 .not-badge.info { background: rgba(59, 130, 246, 0.1); color: var(--md-primary); }
 .not-badge.warning { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
 .not-badge.error { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-
 .not-item-content {
     display: flex;
     flex-direction: column;
@@ -381,7 +373,6 @@ export const STYLES = `
     display: inline-block;
 }
 .not-action-link:hover { text-decoration: underline; }
-
 .not-btn-mark {
     background: transparent;
     border: 1px solid var(--md-outline);
@@ -398,7 +389,6 @@ export const STYLES = `
     color: white;
     border-color: var(--md-primary);
 }
-
 .not-empty {
     text-align: center;
     padding: 4rem 1rem;
@@ -408,7 +398,6 @@ export const STYLES = `
     align-items: center;
     gap: 0.5rem;
 }
-
 @media (max-width: 900px) {
     .not-stats-row { grid-template-columns: repeat(2, 1fr); }
 }

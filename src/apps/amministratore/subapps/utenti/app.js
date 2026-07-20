@@ -323,7 +323,6 @@ export default {
                         return;
                     }
                     try {
-                        // Verifica se è l'ultimo Super Admin
                         const rolesData = await window.electronAPI.rbac.getAllUsers();
                         const userRoles = rolesData.find(r => r.id === id);
                         if (userRoles && userRoles.roles && userRoles.roles.some(r => r.name === 'Super Admin')) {

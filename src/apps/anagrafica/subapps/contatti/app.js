@@ -1,7 +1,6 @@
 import { toast } from '../../../../js/utils.js';
 import { getCurrentUserId, resolveCurrentPersona } from '../../shared/current_persona.js';
 import { heroHtml, guidaHtml, AK_STYLES, TONI } from '../../shared/ui_kit.js';
-
 const CATEGORIE = ['Telefono', 'Email', 'Social', 'Web', 'VoIP', 'Emergenza', 'Altro'];
 const TIPI_PER_CATEGORIA = {
     'Telefono': ['Cellulare', 'Lavoro', 'Fisso', 'Aziendale', 'Fax'],
@@ -22,11 +21,9 @@ const ICONS = {
     'Altro': 'contact_mail'
 };
 const TONE = TONI.violet;
-
 function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
-
 function getContattiHtml() {
     return `
         <div class="fade-in-up ak-root">
@@ -51,7 +48,6 @@ function getContattiHtml() {
                 <div class="ak-panel-body" id="contatti-list-container"></div>
             </div>
         </div>
-
         <div id="contatto-modal" class="ak-modal" style="--ak-accent:${TONE.accent}; --ak-soft:${TONE.soft};" role="dialog" aria-modal="true" aria-labelledby="modal-title-text">
             <div class="ak-modal-card">
                 <div class="ak-modal-head">
@@ -115,7 +111,6 @@ function getContattiHtml() {
                 </div>
             </div>
         </div>
-
         ${AK_STYLES}
         <style>
             .contatti-group { margin-bottom: 1.6rem; }
@@ -144,7 +139,6 @@ function getContattiHtml() {
         </style>
     `;
 }
-
 const subapp = {
     render: async (el) => {
         const userId = getCurrentUserId();
@@ -152,7 +146,6 @@ const subapp = {
             el.innerHTML = '<p style="text-align:center; color:var(--md-error); padding:2rem;">Devi effettuare l\'accesso per gestire l\'agenda contatti.</p>';
             return;
         }
-
         let persona = null;
         try {
             persona = await resolveCurrentPersona();
@@ -160,7 +153,6 @@ const subapp = {
             el.innerHTML = `<p style="text-align:center; color:var(--md-error); padding:2rem;">Errore caricamento: ${e.message}</p>`;
             return;
         }
-
         if (!persona) {
             el.innerHTML = `<div class="ak-empty" style="margin-top:2rem;">
                 <span class="material-symbols-rounded">person_off</span>
@@ -169,9 +161,7 @@ const subapp = {
             </div>`;
             return;
         }
-
         el.innerHTML = getContattiHtml();
-
         const listContainer = el.querySelector('#contatti-list-container');
         const modal = el.querySelector('#contatto-modal');
         const form = el.querySelector('#contatto-form');
@@ -181,7 +171,6 @@ const subapp = {
         const btnDelete = el.querySelector('#btn-delete');
         const modalError = el.querySelector('#modal-error');
         const modalTitleText = el.querySelector('#modal-title-text');
-
         const inputId = el.querySelector('#contatto-id');
         const inputCategoria = el.querySelector('#contatto-categoria');
         const inputTipo = el.querySelector('#contatto-tipo');
@@ -189,9 +178,7 @@ const subapp = {
         const inputPrincipale = el.querySelector('#contatto-principale');
         const inputNote = el.querySelector('#contatto-note');
         const datalistTipi = el.querySelector('#tipi-list');
-
         let contattiList = [];
-
         async function loadContatti() {
             try {
                 contattiList = await window.electronAPI.anagrafica.contatti.getByPersona({ personaId: persona.id });
@@ -200,7 +187,6 @@ const subapp = {
                 listContainer.innerHTML = `<p style="color:var(--md-error); padding:1rem;">Errore: ${e.message}</p>`;
             }
         }
-
         function cardHtml(c, icon) {
             const star = c.is_principale === 1 ? `<span class="material-symbols-rounded c-star" title="Contatto principale" style="font-variation-settings:'FILL' 1;">star</span>` : '';
             const noteHtml = c.note ? `<div class="c-note">${esc(c.note)}</div>` : '';
@@ -216,7 +202,6 @@ const subapp = {
                 </div>
             `;
         }
-
         function renderContatti() {
             if (contattiList.length === 0) {
                 listContainer.innerHTML = `<div class="ak-empty">
@@ -226,14 +211,12 @@ const subapp = {
                 </div>`;
                 return;
             }
-
             const gruppi = {};
             contattiList.forEach(c => {
                 const cat = c.categoria || 'Altro';
                 if (!gruppi[cat]) gruppi[cat] = [];
                 gruppi[cat].push(c);
             });
-
             const ordine = [...CATEGORIE, ...Object.keys(gruppi).filter(c => !CATEGORIE.includes(c))];
             let html = '';
             for (const cat of ordine) {
@@ -248,7 +231,6 @@ const subapp = {
                 </div>`;
             }
             listContainer.innerHTML = html;
-
             listContainer.querySelectorAll('.contatto-card').forEach(card => {
                 const open = () => {
                     const c = contattiList.find(x => x.id === card.getAttribute('data-id'));
@@ -258,7 +240,6 @@ const subapp = {
                 card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
             });
         }
-
         function openModal(contatto = null) {
             modalError.style.display = 'none';
             if (contatto) {
@@ -286,13 +267,11 @@ const subapp = {
                 inputCategoria.focus();
             });
         }
-
         function closeModal() {
             modal.style.opacity = '0';
             modal.querySelector('.ak-modal-card').style.transform = 'scale(0.95) translateY(10px)';
             setTimeout(() => { modal.style.display = 'none'; }, 250);
         }
-
         function updateDatalist(cat) {
             const list = TIPI_PER_CATEGORIA[cat] || [];
             datalistTipi.innerHTML = list.map(t => `<option value="${t}"></option>`).join('');
@@ -301,18 +280,15 @@ const subapp = {
             else if (cat === 'Web') inputValore.type = 'url';
             else inputValore.type = 'text';
         }
-
         inputCategoria.addEventListener('change', (e) => {
             updateDatalist(e.target.value);
             inputTipo.value = '';
         });
-
         btnAdd.addEventListener('click', () => openModal());
         btnCancel.addEventListener('click', closeModal);
         btnCancelX.addEventListener('click', closeModal);
         modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.style.display === 'flex') closeModal(); });
-
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             modalError.style.display = 'none';
@@ -344,7 +320,6 @@ const subapp = {
                 btnSave.disabled = false;
             }
         });
-
         btnDelete.addEventListener('click', async () => {
             if (!confirm('Sei sicuro di voler eliminare questo contatto?')) return;
             try {
@@ -360,9 +335,7 @@ const subapp = {
                 btnDelete.disabled = false;
             }
         });
-
         await loadContatti();
     }
 };
-
 export default subapp;

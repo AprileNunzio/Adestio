@@ -33,11 +33,9 @@ const AuthStatusViews = {
                 </div>
                 ${AuthStyles.getStyles()}
             `;
-            
             const btnUnlock = el.querySelector('#btn-unlock-db');
             const inputCode = el.querySelector('#input-network-code');
             const errorText = el.querySelector('#unlock-error');
-            
             if (btnUnlock && inputCode) {
                 btnUnlock.addEventListener('click', async () => {
                     const code = inputCode.value.trim();
@@ -58,7 +56,6 @@ const AuthStatusViews = {
                     }
                 });
             }
-
             const btnReset = el.querySelector('#btn-reset-node');
             if (btnReset) {
                 btnReset.addEventListener('click', async () => {

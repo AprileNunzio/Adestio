@@ -1,11 +1,9 @@
 import { toast } from '../utils.js';
 import { startRegistration, isWebauthnSupported } from '../webauthn_client.js';
-
 function fmtDate(ts) {
     if (!ts) return '—';
     try { return new Date(Number(ts)).toLocaleString('it-IT'); } catch (e) { return '—'; }
 }
-
 const STYLES = `
     <style>
         .tfp-card { background: var(--md-surface); border: 1px solid var(--md-outline-variant); border-radius: 20px; padding: 1.8rem; margin-bottom: 1.5rem; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
@@ -22,17 +20,12 @@ const STYLES = `
         .tfp-backup-codes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; background: var(--md-surface-variant); border-radius: 12px; padding: 1.2rem; margin: 1rem 0; font-family: monospace; font-size: 1rem; }
     </style>
 `;
-
-// Renderizza le card personali TOTP + Passkey (autogestione del proprio 2FA) dentro `el`.
-// Riutilizzato sia da "Sicurezza Account" (accessibile a tutti dal menu della title bar)
-// sia dal subapp "Sicurezza" di Impostazioni Sistema: stesso contenuto, stesso utente (se stessi).
 async function render(el, userId) {
     el.innerHTML = `
         <div id="tfp-totp-card" class="tfp-card"></div>
         <div id="tfp-passkey-card" class="tfp-card"></div>
         ${STYLES}
     `;
-
     async function loadTotp() {
         const card = el.querySelector('#tfp-totp-card');
         card.innerHTML = `<div style="text-align:center; padding:1rem;"><span class="material-symbols-rounded" style="animation: spin 2s linear infinite;">sync</span></div>`;
@@ -57,7 +50,6 @@ async function render(el, userId) {
             card.querySelector('#tfp-totp-enable').addEventListener('click', () => renderTotpEnrollment(card));
         }
     }
-
     function renderTotpDisableForm(card) {
         card.insertAdjacentHTML('beforeend', `
             <div id="tfp-totp-disable-form" style="margin-top:1rem;">
@@ -72,7 +64,6 @@ async function render(el, userId) {
             else toast((r && r.error) || 'Errore disattivazione', 'error');
         });
     }
-
     async function renderTotpEnrollment(card) {
         card.innerHTML = `<div style="text-align:center; padding:1rem;"><span class="material-symbols-rounded" style="animation: spin 2s linear infinite;">sync</span></div>`;
         const begin = await window.electronAPI.twofa.totpSetupBegin(userId);
@@ -107,7 +98,6 @@ async function render(el, userId) {
             }
         });
     }
-
     async function loadPasskeys() {
         const card = el.querySelector('#tfp-passkey-card');
         card.innerHTML = `<div style="text-align:center; padding:1rem;"><span class="material-symbols-rounded" style="animation: spin 2s linear infinite;">sync</span></div>`;
@@ -157,9 +147,7 @@ async function render(el, userId) {
             });
         }
     }
-
     loadTotp();
     loadPasskeys();
 }
-
 export default { render };

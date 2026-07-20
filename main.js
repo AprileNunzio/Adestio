@@ -29,13 +29,9 @@ if (!gotTheLock) {
             try {
                 ipcRouter.registerAllIPCHandlers(windowManager);
                 try { require('./backend/security/developer_vault').rotateVault(); } catch(e) {}
-                
-                // --- BOOTMANAGER STARTUP ---
                 const BootManager = require('./backend/core/BootManager');
                 await BootManager.runStartupSequence();
                 BootManager.runBackgroundTasks();
-                // ---------------------------
-
                 await windowManager.createWindow();
                 windowManager.createMenu();
                 updaterService.setupUpdaterService(windowManager);

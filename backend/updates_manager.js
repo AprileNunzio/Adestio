@@ -43,7 +43,6 @@ class UpdatesManager {
             const systemDir = path.join(path.dirname(process.execPath), 'updates');
             const dirsToCheck = [this.updatesDir, systemDir];
             let highest = null;
-            
             for (const dir of dirsToCheck) {
                 if (!fs.existsSync(dir)) continue;
                 const files = fs.readdirSync(dir).filter(f => f.startsWith('Adestio-Setup-') && f.endsWith('.exe'));
@@ -116,12 +115,9 @@ class UpdatesManager {
                 const file = `Adestio-Setup-${version}.exe`;
                 const destPath = path.join(this.updatesDir, file);
                 const tempPath = destPath + '.tmp';
-                
                 try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); } catch(_) {}
-
                 const writeStream = fs.createWriteStream(tempPath);
                 readStream.pipe(writeStream);
-                
                 writeStream.on('close', () => {
                     let renameSuccess = false;
                     try {
@@ -131,20 +127,17 @@ class UpdatesManager {
                     } catch(err) {
                         return reject(new Error('Impossibile rinominare il file temp (lock di sistema): ' + err.message));
                     }
-                    
                     if (renameSuccess) {
                         setTimeout(() => {
                             this.cleanOldUpdates(); 
                             resolve(destPath);
-                        }, 800); // 800ms delay to let Windows Defender release the lock after rename
+                        }, 800); 
                     }
                 });
-                
                 writeStream.on('error', (err) => {
                     fs.unlink(tempPath, () => {});
                     reject(err);
                 });
-                
                 readStream.on('error', (err) => {
                     fs.unlink(tempPath, () => {});
                     reject(err);

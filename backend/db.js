@@ -143,8 +143,7 @@ async function importClonedDB(buffer, networkCode, networkName) {
         await dbManager.saveAll();
         const { rebuildStateFromLog } = require('./blockchain');
         rebuildStateFromLog();
-        
-        let finalNetworkName = networkName; // Fallback
+        let finalNetworkName = networkName; 
         try {
             const configDb = dbManager.getDB('config');
             const res = await configDb.query("SELECT key_value FROM network_config WHERE key_name = 'network_name'");
@@ -152,7 +151,6 @@ async function importClonedDB(buffer, networkCode, networkName) {
                 finalNetworkName = res[0].key_value;
             }
         } catch (e) {}
-        
         dbManager.setActiveNode(finalNetworkName);
         return true;
     } catch(e) {
@@ -242,7 +240,6 @@ function notifyDataChanged(tableName, modifiedRows) {
                 if (!w.isDestroyed()) w.webContents.send('sync-updated', { table: tableName });
             });
         }
-        
         if (tableName === 'installed_apps') {
             const store = require('./handlers/store');
             if (typeof store.syncNetworkApps === 'function') {

@@ -2,48 +2,26 @@
 const { BrowserWindow } = require('electron');
 const sessionManager = require('./session_manager');
 const accessGuard = require('./access_guard');
-
-/**
- * PlatformContext — iniettato in ogni app backend via AppLoader.
- * È il contratto tra la piattaforma e le app: nessuna app accede
- * direttamente a db_manager o session_manager.
- */
 class PlatformContext {
     constructor(appId) {
         this._appId = appId;
     }
-
-    // ── Database ──────────────────────────────────────────────
-
-    /** DB privato dell'app (app_<namespace>.enc). */
-    getDB() {
+        getDB() {
         return require('./AppDbManager').get(this._appId);
     }
-
-    /** DB di un dominio core (auth, config, ledger). */
-    getCoreDB(domain) {
+        getCoreDB(domain) {
         return require('../db').getDB(domain);
     }
-
-    // ── Sessione / Accesso ────────────────────────────────────
-
     getCurrentUserId() {
         return sessionManager.getCurrentUserId();
     }
-
     isLoggedIn() {
         return accessGuard.isLoggedIn();
     }
-
     isSuperadmin() {
         return accessGuard.isSuperadmin();
     }
-
-    /**
-     * Verifica se l'utente corrente ha un permesso specifico.
-     * Usa l'ID completo del permesso: "<appId>:<permId>" oppure solo "<permId>".
-     */
-    hasPermission(permId) {
+        hasPermission(permId) {
         try {
             if (this.isSuperadmin()) return true;
             const userId = this.getCurrentUserId();
@@ -57,39 +35,23 @@ class PlatformContext {
             return false;
         }
     }
-
-    // ── Logging ───────────────────────────────────────────────
-
     log(...args) {
         console.log(`[App:${this._appId}]`, ...args);
     }
-
     warn(...args) {
         console.warn(`[App:${this._appId}]`, ...args);
     }
-
     error(...args) {
         console.error(`[App:${this._appId}]`, ...args);
     }
-
-    // ── Push events → Renderer ────────────────────────────────
-
-    /** Invia un evento push a tutte le finestre aperte. */
-    emit(channel, data) {
+        emit(channel, data) {
         try {
             for (const win of BrowserWindow.getAllWindows()) {
                 if (!win.isDestroyed()) win.webContents.send(channel, data);
             }
         } catch (e) {}
     }
-
-    // ── Utility ───────────────────────────────────────────────
-
-    /**
-     * Wrappa un handler IPC con auth check e error handling standard.
-     * Uso: handlers['persone:getAll'] = ctx.handler(async (ctx, event, payload) => { ... })
-     */
-    handler(fn) {
+        handler(fn) {
         const self = this;
         return async (event, payload) => {
             try {
@@ -103,5 +65,4 @@ class PlatformContext {
         };
     }
 }
-
 module.exports = PlatformContext;

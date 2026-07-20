@@ -2,15 +2,11 @@
 const bus = require('../core/event_bus');
 const { getDB } = require('../db');
 const crypto = require('crypto');
-// rimosso crypto duplicato
-
 let _isInitialized = false;
 let _nodeId = 'unknown';
-
 function init() {
     if (_isInitialized) return;
     _isInitialized = true;
-
     try {
         const configDb = getDB('config');
         if (configDb) {
@@ -20,7 +16,6 @@ function init() {
             }
         }
     } catch(e) {}
-
     bus.subscribe('logger:distributed-error', (payload) => {
         try {
             if (_nodeId === 'unknown') {
@@ -30,11 +25,9 @@ function init() {
                     if (row && row.length > 0) _nodeId = row[0].key_value;
                 }
             }
-
             const { getNetworkName } = require('../core/node_identity');
             let finalMeta = payload.meta ? { ...payload.meta } : {};
             finalMeta.node_name = getNetworkName();
-
             const record = {
                 id: crypto.randomUUID(),
                 node_id: _nodeId,
@@ -44,7 +37,6 @@ function init() {
                 created_at: Date.now(),
                 is_deleted: 0
             };
-
             const authDb = getDB('auth');
             if (authDb) {
                 authDb.run('INSERT INTO distributed_logs (id, node_id, level, message, meta, created_at, is_deleted) VALUES (?, ?, ?, ?, ?, ?, 0)', [
@@ -57,5 +49,4 @@ function init() {
         } catch(e) {}
     });
 }
-
 module.exports = { init };

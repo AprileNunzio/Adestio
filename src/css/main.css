@@ -3,7 +3,6 @@
     margin: 0;
     padding: 0;
 }
-
 body {
     font-family: var(--font-body);
     background-color: var(--md-bg-color);
@@ -15,7 +14,6 @@ body {
     overflow: hidden;
     position: relative;
 }
-
 .animated-background {
     position: fixed;
     top: 0; left: 0; width: 100vw; height: 100vh;
@@ -23,7 +21,6 @@ body {
     overflow: hidden;
     background: radial-gradient(circle at center, #ffffff 0%, #f1f5f9 100%);
 }
-
 .blob {
     position: absolute;
     filter: blur(80px);
@@ -31,21 +28,18 @@ body {
     opacity: 0.8;
     animation: float 20s infinite alternate ease-in-out;
 }
-
 .blob-1 {
     top: -10%; left: -10%;
     width: 50vw; height: 50vw;
     background: radial-gradient(circle, rgba(59,130,246,0.3) 0%, rgba(255,255,255,0) 70%);
     animation-delay: 0s;
 }
-
 .blob-2 {
     bottom: -20%; right: -10%;
     width: 60vw; height: 60vw;
     background: radial-gradient(circle, rgba(139,92,246,0.2) 0%, rgba(255,255,255,0) 70%);
     animation-delay: -5s;
 }
-
 .blob-3 {
     top: 40%; left: 50%;
     transform: translate(-50%, -50%);
@@ -53,13 +47,11 @@ body {
     background: radial-gradient(circle, rgba(16,185,129,0.15) 0%, rgba(255,255,255,0) 70%);
     animation-delay: -10s;
 }
-
 @keyframes float {
     0% { transform: translate(0, 0) scale(1); }
     50% { transform: translate(10%, 15%) scale(1.1); }
     100% { transform: translate(-10%, -5%) scale(0.9); }
 }
-
 #main-content {
     flex: 1;
     display: flex;
@@ -67,26 +59,22 @@ body {
     padding: clamp(1rem, 2.2vw, 2.5rem);
     z-index: 1;
 }
-
 h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);
     font-weight: 800;
     letter-spacing: -0.03em;
 }
-
 .fade-in-up {
     animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     opacity: 0;
     transform: translateY(20px);
 }
-
 @keyframes fadeInUp {
     to {
         opacity: 1;
         transform: translateY(0);
     }
 }
-
 .status-bar {
     position: fixed;
     bottom: 2rem;
@@ -107,7 +95,6 @@ h1, h2, h3, h4, h5, h6 {
     min-width: 300px;
     max-width: 90vw;
 }
-
 .status-item {
     display: flex;
     align-items: center;
@@ -116,7 +103,6 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--md-on-surface-variant);
     white-space: nowrap;
 }
-
 .status-icon {
     font-size: clamp(1.2rem, 1.5vw, 1.8rem);
     color: var(--md-primary);

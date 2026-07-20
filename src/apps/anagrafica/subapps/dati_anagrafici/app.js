@@ -4,7 +4,6 @@ import { isValidCodiceFiscale } from '../../shared/validators.js';
 import { getCurrentUserId, resolveCurrentPersona } from '../../shared/current_persona.js';
 import { mountAuditButton } from '../../shared/audit_trail_button.js';
 import { heroHtml, guidaHtml, AK_STYLES } from '../../shared/ui_kit.js';
-
 const subapp = {
     render: async (el) => {
         const userId = getCurrentUserId();

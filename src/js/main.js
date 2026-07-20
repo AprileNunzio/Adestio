@@ -55,7 +55,6 @@ try {
                         sessionStorage.removeItem('currentUserId');
                         sessionStorage.removeItem('currentUser');
                         window.currentUser = null;
-                        
                         const msg = `Sei stato disconnesso perché hai effettuato l'accesso presso il nodo '${data.nodeName || 'Sconosciuto'}' (IP: ${data.ipAddress || 'Sconosciuto'}) in data ${new Date().toLocaleString('it-IT')}.`;
                         toast(msg, 'error');
                         Router.navigate('auth_login');
@@ -237,7 +236,6 @@ try {
                     }
                     const stat = document.getElementById('p2p-update-status');
                     if (stat) stat.innerText = statusData.status;
-                    
                     if (statusData.waitingConsensus && overlay) {
                         let forceBtn = document.getElementById('p2p-force-update-btn');
                         if (!forceBtn) {
@@ -256,7 +254,6 @@ try {
                             stat.parentNode.insertBefore(forceBtn, stat.nextSibling);
                         }
                     }
-                    
                     if (statusData.finished) {
                         const bar = document.getElementById('p2p-update-progress-bar');
                         if (bar) bar.style.width = '100%';
@@ -281,17 +278,14 @@ try {
                         versionText.innerText = `L'aggiornamento ${data.version}`;
                         modal.style.display = 'flex';
                     }
-
                     const btnLater = document.getElementById('update-consent-later');
                     const btnNow = document.getElementById('update-consent-now');
-
                     if (btnLater) {
                         btnLater.onclick = () => {
                             modal.style.display = 'none';
                             toast('Aggiornamento posticipato. Verrà installato al prossimo avvio.', 'info');
                         };
                     }
-
                     if (btnNow) {
                         btnNow.onclick = async () => {
                             btnNow.innerText = 'Riavvio in corso...';
@@ -348,7 +342,6 @@ try {
                                 }
                             }
                             if (nodesEl) nodesEl.innerText = `Nodi Connessi: ${status.connectedNodes}`;
-                            
                             const ipEl = document.getElementById('sb-ip');
                             if (ipEl) {
                                 if (isOffline) {
@@ -359,7 +352,6 @@ try {
                                     ipEl.previousElementSibling.style.color = 'var(--md-secondary)';
                                 }
                             }
-                            
                             const errContainer = document.getElementById('sb-errors-container');
                             const errEl = document.getElementById('sb-errors');
                             if (errContainer && errEl) {
@@ -370,7 +362,6 @@ try {
                                     errContainer.style.display = 'none';
                                 }
                             }
-                            
                             const syncEl = document.getElementById('sb-sync');
                             const syncIcon = document.getElementById('sb-sync-icon');
                             if (syncEl && status.syncState) {
@@ -390,8 +381,6 @@ try {
                     } catch(e) {}
                 }
             }, 3000);
-
-            // Poll for distributed logs
             setInterval(async () => {
                 if (window.electronAPI && window.electronAPI.rbac) {
                     try {
@@ -418,7 +407,6 @@ try {
                     }
                 }
             }, 10000);
-
         } catch (e) {
             console.error(e);
         }

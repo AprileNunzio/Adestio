@@ -21,7 +21,6 @@ const anagraficaResidenzaHandlers = require('../handlers/anagrafica_residenza');
 const anagraficaLavoroHandlers = require('../handlers/anagrafica_lavoro');
 const anagraficaTitoliStudioHandlers = require('../handlers/anagrafica_titoli_studio');
 const anagraficaDatiBancariHandlers = require('../handlers/anagrafica_dati_bancari');
-
 const anagraficaContattiHandlers = require('../handlers/anagrafica_contatti');
 const anagraficaFamiliariHandlers = require('../handlers/anagrafica_familiari');
 const anagraficaAuditHandlers = require('../handlers/anagrafica_audit');
@@ -100,7 +99,7 @@ function registerAllIPCHandlers(windowManager) {
             try {
                 if (!accessGuard.isSuperadmin()) return { success: false, error: 'Permesso negato' };
                 const pathsToWipe = [
-                    path.join(app.getPath('appData'), 'NunzioTech', 'Adestio'), // Legacy
+                    path.join(app.getPath('appData'), 'NunzioTech', 'Adestio'), 
                     path.join(app.getPath('userData'), 'dbs'),
                     path.join(app.getPath('userData'), 'Log'),
                     path.join(app.getPath('userData'), 'backups')
@@ -122,7 +121,6 @@ function registerAllIPCHandlers(windowManager) {
         ipcMain.handle('dbGetBackupStatus', () => {
             try {
                 const dbBasePath = path.join(app.getPath('userData'), 'dbs');
-                
                 const getInfo = (dir) => {
                     if (!fs.existsSync(dir)) return [];
                     return fs.readdirSync(dir)
@@ -132,17 +130,14 @@ function registerAllIPCHandlers(windowManager) {
                             return { name: f, size: stat.size };
                         }).filter(Boolean);
                 };
-
                 let totalMainSize = 0;
                 let totalBackupsCount = 0;
-                
                 if (fs.existsSync(dbBasePath)) {
                     const domains = ['config.enc', 'auth.enc', 'ledger.enc', 'app.enc', 'store.enc', 'app_anagrafica.enc'];
                     for (const d of domains) {
                         const p = path.join(dbBasePath, d);
                         if (fs.existsSync(p)) totalMainSize += fs.statSync(p).size;
                     }
-                    
                     const backupsPath = path.join(dbBasePath, 'backups');
                     if (fs.existsSync(backupsPath)) {
                         const domainsDirs = fs.readdirSync(backupsPath);
@@ -155,7 +150,6 @@ function registerAllIPCHandlers(windowManager) {
                         }
                     }
                 }
-
                 return {
                     primary: {
                         appData: totalMainSize,
@@ -168,13 +162,11 @@ function registerAllIPCHandlers(windowManager) {
         ipcMain.handle('hasConfig', configHandlers.hasConfig);
         ipcMain.handle('readConfig', configHandlers.readConfig);
         ipcMain.handle('saveConfig', configHandlers.saveConfig);
-        
         ipcMain.handle('testSmtpConnection', async (event, smtpConfig, testEmail) => {
             try {
                 const nodemailer = require('nodemailer');
                 let secure = false;
                 if (smtpConfig.smtp_security === 'ssl' || smtpConfig.smtp_port == 465) secure = true;
-                
                 const transportOpts = {
                     host: smtpConfig.smtp_host,
                     port: parseInt(smtpConfig.smtp_port) || 587,
@@ -190,8 +182,6 @@ function registerAllIPCHandlers(windowManager) {
                     debug: true,
                     logger: true
                 };
-
-                // Per STARTTLS (porta 587) o standard (porta 25), secure deve essere false. Nodemailer usa STARTTLS automaticamente se disponibile.
                 if (smtpConfig.smtp_security === 'starttls') {
                     transportOpts.secure = false;
                     transportOpts.requireTLS = true;
@@ -199,18 +189,14 @@ function registerAllIPCHandlers(windowManager) {
                     transportOpts.secure = false;
                     transportOpts.ignoreTLS = true;
                 }
-
                 let logs = [];
                 const transporter = nodemailer.createTransport(transportOpts);
-                
                 transporter.on('log', (log) => {
                     logs.push(`[${log.name}] ${log.msg}`);
                 });
-
                 const fromStr = smtpConfig.smtp_sender_name 
                     ? `"${smtpConfig.smtp_sender_name}" <${smtpConfig.smtp_sender_email}>` 
                     : smtpConfig.smtp_sender_email;
-
                 await transporter.sendMail({
                     from: fromStr,
                     to: testEmail,
@@ -218,15 +204,12 @@ function registerAllIPCHandlers(windowManager) {
                     text: 'Se stai leggendo questo messaggio, la configurazione del server SMTP in Adestio è funzionante.',
                     html: '<div style="font-family: sans-serif; padding: 20px;"><h2>Adestio Enterprise</h2><p>Se stai leggendo questo messaggio, la configurazione del server SMTP in Adestio è funzionante e attiva.</p></div>'
                 });
-
                 return { success: true, logs: logs.join('\\n') };
             } catch(e) {
                 console.error('[SMTP Test Error]', e);
                 return { success: false, error: e.message };
             }
         });
-        // Invio email generico con allegati, riusa la configurazione SMTP salvata.
-        // attachments: [{ filename, contentBase64 }]. Ritorna { success, error }.
         ipcMain.handle('sendMail', async (event, mail) => {
             try {
                 if (!mail || !mail.to) return { success: false, error: 'Destinatario mancante' };
@@ -278,8 +261,6 @@ function registerAllIPCHandlers(windowManager) {
         });
         ipcMain.handle('getAppsRegistry', appsRegistry.getAppsRegistry);
         ipcMain.handle('getSubAppsRegistry', appsRegistry.getSubAppsRegistry);
-
-        // --- App Store (v4) ---
         ipcMain.handle('store:getAvailable', () => storeHandlers.getAvailable());
         ipcMain.handle('store:getInstalled', () => storeHandlers.getInstalled());
         ipcMain.handle('store:getCoreApps', () => storeHandlers.getCoreApps());
@@ -291,7 +272,6 @@ function registerAllIPCHandlers(windowManager) {
                 if (!accessGuard.isSuperadmin()) return { success: false, error: 'Permesso negato' };
                 const { broadcastForceResync } = require('../p2p');
                 broadcastForceResync();
-
                 const { getDetailedNodes } = require('../sync');
                 const { getNetworkCodeHash } = require('../db');
                 const nodes = getDetailedNodes().filter(n => n.ip !== '127.0.0.1');
@@ -300,7 +280,6 @@ function registerAllIPCHandlers(windowManager) {
                 const myIps = getLocalIPs();
                 const myIp = myIps.length > 0 ? myIps[0] : '127.0.0.1';
                 const networkHash = await getNetworkCodeHash();
-
                 nodes.forEach(node => {
                     const req = http.request(`http://${node.ip}:${node.port || 34567}/sync/force-nuke`, {
                         method: 'POST',
@@ -311,7 +290,6 @@ function registerAllIPCHandlers(windowManager) {
                     req.write(JSON.stringify({ senderIp: myIp }));
                     req.end();
                 });
-
                 return { success: true };
             } catch(e) {
                 return { success: false, error: e.message };
@@ -386,10 +364,8 @@ function registerAllIPCHandlers(windowManager) {
                 const mApp = require('../migrations/app_data');
                 const mStore = require('../migrations/store');
                 const mAnagrafica = require('../migrations/anagrafica');
-
                 dbManager.deviceKey = dbManager.loadOrGenerateLocalDeviceKey(networkCode);
                 if (!dbManager.deviceKey) return { success: false, error: 'Errore crittografico locale' };
-
                 await dbManager.loadDatabase('auth', mAuth);
                 await dbManager.loadDatabase('config', mConfig);
                 await dbManager.loadDatabase('ledger', mLedger);
@@ -397,11 +373,9 @@ function registerAllIPCHandlers(windowManager) {
                 await dbManager.loadDatabase('store', mStore);
                 await dbManager.loadDatabase('app_anagrafica', mAnagrafica);
                 await dbManager.saveAll();
-                
                 setTimeout(() => {
                     try { require('../sync').loadPeerCache(); } catch(_) {}
                 }, 500);
-                
                 return { success: true };
             } catch (e) {
                 return { success: false, error: 'Codice di rete errato o database corrotto.' };
@@ -420,7 +394,6 @@ function registerAllIPCHandlers(windowManager) {
                 return true;
             } catch(e) { console.error(e); return false; }
         });
-
         ipcMain.handle('openFirewallSettings', async () => {
             try {
                 const { exec } = require('child_process');
@@ -428,13 +401,11 @@ function registerAllIPCHandlers(windowManager) {
                 return true;
             } catch(e) { console.error(e); return false; }
         });
-
         ipcMain.handle('forceFirewallRules', async () => {
             try {
                 const { exec } = require('child_process');
                 const path = require('path');
                 const exePath = process.execPath;
-                // Script PowerShell per eliminare regole Adestio vecchie e aggiungere nuove per TCP/UDP, in e out
                 const psScript = `
                     Remove-NetFirewallRule -DisplayName "Adestio*" -ErrorAction SilentlyContinue;
                     New-NetFirewallRule -DisplayName "Adestio" -Direction Inbound -Program "${exePath}" -Action Allow -Profile Any -Protocol TCP;
@@ -442,9 +413,7 @@ function registerAllIPCHandlers(windowManager) {
                     New-NetFirewallRule -DisplayName "Adestio Out" -Direction Outbound -Program "${exePath}" -Action Allow -Profile Any -Protocol TCP;
                     New-NetFirewallRule -DisplayName "Adestio UDP Out" -Direction Outbound -Program "${exePath}" -Action Allow -Profile Any -Protocol UDP;
                 `.replace(/\n/g, ' ');
-                // Usa powershell.exe -WindowStyle Hidden -Command Start-Process -Verb RunAs per UAC
                 const command = `powershell.exe -WindowStyle Hidden -Command "Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "${psScript}"' -Verb RunAs -Wait"`;
-                
                 await new Promise((resolve, reject) => {
                     exec(command, (error, stdout, stderr) => {
                         if (error) reject(error);
@@ -462,7 +431,6 @@ function registerAllIPCHandlers(windowManager) {
                 return getDetailedNodes();
             } catch(e) { return []; }
         });
-        
         ipcMain.removeHandler('getNetworkSyncStatus');
         ipcMain.handle('getNetworkSyncStatus', async () => {
             try {
@@ -471,7 +439,6 @@ function registerAllIPCHandlers(windowManager) {
                 const http = require('http');
                 const localBlocks = getTotalBlocksCount();
                 const nodes = getDetailedNodes().filter(n => n.ip !== '127.0.0.1');
-                
                 const fetchNodePing = (ip, port) => new Promise((resolve) => {
                     const req = http.get(`http://${ip}:${port}/ping`, { timeout: 2000 }, (res) => {
                         let data = '';
@@ -483,7 +450,6 @@ function registerAllIPCHandlers(windowManager) {
                     req.on('error', () => resolve(null));
                     req.on('timeout', () => { req.destroy(); resolve(null); });
                 });
-
                 const enrichedNodes = await Promise.all(nodes.map(async (node) => {
                     const pingData = await fetchNodePing(node.ip, node.port || 34567);
                     const remoteBlocks = pingData && pingData.blockCount ? pingData.blockCount : 0;
@@ -493,7 +459,6 @@ function registerAllIPCHandlers(windowManager) {
                 return { localBlocks, nodes: enrichedNodes };
             } catch(e) { return { localBlocks: 0, nodes: [] }; }
         });
-
         ipcMain.removeHandler('executeNodeAction');
         ipcMain.handle('executeNodeAction', async (event, { action, ip, port }) => {
             try {
@@ -515,7 +480,6 @@ function registerAllIPCHandlers(windowManager) {
                     const myIps = getLocalIPs();
                     const myIp = myIps.length > 0 ? myIps[0] : '127.0.0.1';
                     const networkHash = await getNetworkCodeHash();
-
                     return new Promise((resolve) => {
                         const req = http.request(`http://${ip}:${p}/sync/force-nuke`, {
                             method: 'POST',
@@ -598,8 +562,6 @@ function registerAllIPCHandlers(windowManager) {
                          expectedSha512 = checkResult.updateInfo.sha512;
                     }
                 } catch(err) {}
-
-                // Se non c'è update da GitHub, cerchiamo un peer LAN con file disponibile (sha512 != null)
                 if (!expectedSha512) {
                     const updatesManager = require('../updates_manager');
                     const { getDetailedNodes } = require('../sync');
@@ -607,7 +569,6 @@ function registerAllIPCHandlers(windowManager) {
                     const http = require('http');
                     let bestPeer = null;
                     let bestVersion = app.getVersion();
-
                     for (const node of nodes) {
                         try {
                             const p2pRes = await new Promise((resolve) => {
@@ -621,14 +582,12 @@ function registerAllIPCHandlers(windowManager) {
                                 req.on('error', () => resolve(null));
                                 req.on('timeout', () => { req.destroy(); resolve(null); });
                             });
-                            
                             if (p2pRes && p2pRes.version && updatesManager.compareVersions(p2pRes.version, bestVersion) > 0 && p2pRes.sha512) {
                                 bestVersion = p2pRes.version;
                                 bestPeer = node;
                             }
                         } catch(e) {}
                     }
-
                     if (bestPeer) {
                         if (win) win.webContents.send('update-status', { status: `Trovata v${bestVersion} su LAN. Download...` });
                         require('./updaterService').maybeAdoptLanUpdate(bestVersion, bestPeer.ip, bestPeer.port || 34567);
@@ -718,7 +677,6 @@ function registerAllIPCHandlers(windowManager) {
                 return typeof updaterService.installPendingUpdateNow === 'function' ? updaterService.installPendingUpdateNow() : false;
             } catch (e) { return false; }
         });
-        
         ipcMain.handle('forceUpdateConsensus', async () => {
             try {
                 const updaterService = require('./updaterService');
@@ -729,7 +687,6 @@ function registerAllIPCHandlers(windowManager) {
                 return false;
             } catch (e) { return false; }
         });
-
         ipcMain.handle('announce-local-update', async () => {
             try {
                 const currentVersion = app.getVersion();
@@ -781,22 +738,18 @@ function registerAllIPCHandlers(windowManager) {
                 const win = BrowserWindow.getFocusedWindow();
                 const logDir = path.join(app.getPath('userData'), 'Log');
                 if (!fs.existsSync(logDir)) return { success: false, error: 'Nessun log disponibile.' };
-                
                 const { canceled, filePath } = await dialog.showSaveDialog(win, {
                     title: 'Esporta Log di Sistema',
                     defaultPath: path.join(app.getPath('documents'), `Adestio_Logs_${Date.now()}.txt`),
                     filters: [{ name: 'Text Document', extensions: ['txt'] }]
                 });
-                
                 if (canceled || !filePath) return { success: false, canceled: true };
-                
                 const logFiles = fs.readdirSync(logDir).filter(f => f.endsWith('.txt'));
                 let combinedLogs = `--- ADESTIO ENTERPRISE LOGS (${new Date().toLocaleString()}) ---\n\n`;
                 for (const file of logFiles) {
                     combinedLogs += `\n--- FILE: ${file} ---\n`;
                     combinedLogs += fs.readFileSync(path.join(logDir, file), 'utf8');
                 }
-                
                 fs.writeFileSync(filePath, combinedLogs);
                 return { success: true, path: filePath };
             } catch(e) {
@@ -826,8 +779,6 @@ function registerAllIPCHandlers(windowManager) {
         ipcMain.handle('rbac:setUserPermission', (e, userId, permId, val) => rbacHandlers.setUserPermission(e, userId, permId, val));
         ipcMain.handle('rbac:getGroupUsers', (e, groupId) => rbacHandlers.getGroupUsers(e, groupId));
         ipcMain.handle('rbac:updateGroupUsers', (e, groupId, userIds) => rbacHandlers.updateGroupUsers(e, groupId, userIds));
-
-        // --- 2FA (TOTP + Passkey/WebAuthn) ---
         ipcMain.handle('twofa:getStatus', (e, userId) => twofaHandlers.getStatus(e, userId));
         ipcMain.handle('twofa:totpSetupBegin', (e, userId) => twofaHandlers.totpSetupBegin(e, userId));
         ipcMain.handle('twofa:totpSetupConfirm', (e, data) => twofaHandlers.totpSetupConfirm(e, data));
@@ -838,8 +789,6 @@ function registerAllIPCHandlers(windowManager) {
         ipcMain.handle('twofa:adminReset', (e, data) => twofaHandlers.adminReset(e, data));
         ipcMain.handle('twofa:setPolicy', (e, data) => twofaHandlers.setTwofaPolicy(e, data));
         ipcMain.handle('twofa:adminListStatus', (e, actorUserId) => twofaHandlers.adminListStatus(e, actorUserId));
-
-        // --- Notifiche ---
         ipcMain.handle('notifications:getPreferences', (e, userId) => notificationsHandlers.getPreferences(e, userId));
         ipcMain.handle('notifications:setPreference', (e, data) => notificationsHandlers.setPreference(e, data));
         ipcMain.handle('notifications:list', (e, data) => notificationsHandlers.list(e, data));
@@ -863,12 +812,10 @@ function registerAllIPCHandlers(windowManager) {
         ipcMain.handle('anagrafica:residenza:create', (e, args) => anagraficaResidenzaHandlers.create(e, args));
         ipcMain.handle('anagrafica:residenza:update', (e, args) => anagraficaResidenzaHandlers.update(e, args));
         ipcMain.handle('anagrafica:residenza:remove', (e, args) => anagraficaResidenzaHandlers.remove(e, args));
-        
         ipcMain.handle('anagrafica:contatti:getByPersona', (e, args) => anagraficaContattiHandlers.getByPersona(e, args));
         ipcMain.handle('anagrafica:contatti:create', (e, args) => anagraficaContattiHandlers.create(e, args));
         ipcMain.handle('anagrafica:contatti:update', (e, args) => anagraficaContattiHandlers.update(e, args));
         ipcMain.handle('anagrafica:contatti:remove', (e, args) => anagraficaContattiHandlers.remove(e, args));
-
         ipcMain.removeHandler('anagrafica:familiari:getByPersona');
         ipcMain.removeHandler('anagrafica:familiari:create');
         ipcMain.removeHandler('anagrafica:familiari:update');
@@ -877,23 +824,18 @@ function registerAllIPCHandlers(windowManager) {
         ipcMain.handle('anagrafica:familiari:create', (e, args) => anagraficaFamiliariHandlers.create(e, args));
         ipcMain.handle('anagrafica:familiari:update', (e, args) => anagraficaFamiliariHandlers.update(e, args));
         ipcMain.handle('anagrafica:familiari:remove', (e, args) => anagraficaFamiliariHandlers.remove(e, args));
-
         ipcMain.handle('anagrafica:lavoro:getByPersona', (e, args) => anagraficaLavoroHandlers.getByPersona(e, args));
         ipcMain.handle('anagrafica:lavoro:create', (e, args) => anagraficaLavoroHandlers.create(e, args));
         ipcMain.handle('anagrafica:lavoro:update', (e, args) => anagraficaLavoroHandlers.update(e, args));
         ipcMain.handle('anagrafica:lavoro:remove', (e, args) => anagraficaLavoroHandlers.remove(e, args));
-
         ipcMain.handle('anagrafica:titoliStudio:getByPersona', (e, args) => anagraficaTitoliStudioHandlers.getByPersona(e, args));
         ipcMain.handle('anagrafica:titoliStudio:create', (e, args) => anagraficaTitoliStudioHandlers.create(e, args));
         ipcMain.handle('anagrafica:titoliStudio:update', (e, args) => anagraficaTitoliStudioHandlers.update(e, args));
         ipcMain.handle('anagrafica:titoliStudio:remove', (e, args) => anagraficaTitoliStudioHandlers.remove(e, args));
-
         ipcMain.handle('anagrafica:datiBancari:getByPersona', (e, args) => anagraficaDatiBancariHandlers.getByPersona(e, args));
         ipcMain.handle('anagrafica:datiBancari:create', (e, args) => anagraficaDatiBancariHandlers.create(e, args));
         ipcMain.handle('anagrafica:datiBancari:update', (e, args) => anagraficaDatiBancariHandlers.update(e, args));
         ipcMain.handle('anagrafica:datiBancari:remove', (e, args) => anagraficaDatiBancariHandlers.remove(e, args));
-
-
         ipcMain.handle('anagrafica:audit:getHistory', (e, args) => anagraficaAuditHandlers.getHistory(e, args));
         ipcMain.handle('anagrafica:riferimenti:getProvince', (e) => anagraficaRiferimentiHandlers.getProvince());
         ipcMain.handle('anagrafica:riferimenti:getNazioni', (e) => anagraficaRiferimentiHandlers.getNazioni());
@@ -910,7 +852,6 @@ function registerAllIPCHandlers(windowManager) {
             }
         });
         ipcMain.handle('anagrafica:riferimenti:getSuggestions', (e, args) => anagraficaRiferimentiHandlers.getSuggestions(e, args));
-
         ipcMain.handle('getDistributedLogs', (e) => {
             try {
                 const db = require('../db').getDB('auth');
@@ -920,7 +861,6 @@ function registerAllIPCHandlers(windowManager) {
                 return { success: false, error: err.message };
             }
         });
-        
         ipcMain.handle('deleteDistributedLog', (e, id) => {
             try {
                 const db = require('../db').getDB('auth');
@@ -933,22 +873,15 @@ function registerAllIPCHandlers(windowManager) {
                 return { success: false, error: err.message };
             }
         });
-
         ipcMain.handle('clearDistributedLogs', (e) => {
             try {
                 const db = require('../db').getDB('auth');
-                
-                // Get all logs to broadcast DELETE to P2P network before deleting locally
                 const allLogs = db.query('SELECT id FROM distributed_logs');
                 if (allLogs && allLogs.length > 0) {
                     const { wrapMutationWithEvent, saveDB } = require('../db');
-                    
-                    // Broadcast DELETE mutations so that other nodes also permanently delete their logs
                     for (const row of allLogs) {
                         wrapMutationWithEvent('DELETE', 'distributed_logs', row.id, null);
                     }
-                    
-                    // Actually delete all records from the local database
                     db.run('DELETE FROM distributed_logs');
                     saveDB();
                 }

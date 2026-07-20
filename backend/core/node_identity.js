@@ -18,11 +18,9 @@ function getNodeId() {
         return _nodeId;
     }
 }
-
 function getNetworkName() {
     return os.hostname() || 'Unknown-PC';
 }
-
 function _generate() {
     try { return require('uuid').v4(); } catch (_) { return crypto.randomBytes(16).toString('hex'); }
 }

@@ -7,15 +7,11 @@ const { localAppUrlIfAny } = (() => {
     const { getLocalAppUrl } = require('../core/localAppServer');
     return { localAppUrlIfAny: getLocalAppUrl };
 })();
-
 const RP_NAME = 'Adestio';
 const RP_ID = 'localhost';
 const BACKUP_CODES_COUNT = 10;
 const CHALLENGE_TTL_MS = 5 * 60 * 1000;
-
-// challenge WebAuthn effimero per (userId -> { challenge, type, expiresAt })
 const _webauthnChallenges = new Map();
-
 function _rpOrigin() {
     const url = localAppUrlIfAny();
     if (url) {
@@ -23,20 +19,17 @@ function _rpOrigin() {
     }
     return `http://${RP_ID}:34570`;
 }
-
 function _cleanupChallenges() {
     const now = Date.now();
     for (const [key, val] of _webauthnChallenges.entries()) {
         if (val.expiresAt < now) _webauthnChallenges.delete(key);
     }
 }
-
 function _getUserRow(userId) {
     const db = getDB('auth');
     const rows = db.query('SELECT * FROM users WHERE id = ?', [userId]);
     return rows && rows.length > 0 ? rows[0] : null;
 }
-
 const _TOUCH_ALLOWED = new Set(['totp_enabled', 'totp_secret', 'twofa_required', 'passkey', 'must_change_password', 'last_login']);
 function _touchUser(userId, patch) {
     const db = getDB('auth');
@@ -50,7 +43,6 @@ function _touchUser(userId, patch) {
         wrapMutationWithEvent('UPDATE', 'users', userId, updated[0]);
     }
 }
-
 async function getStatus(event, userId) {
     try {
         const user = _getUserRow(userId);
@@ -77,7 +69,6 @@ async function getStatus(event, userId) {
         return { success: false, error: e.message };
     }
 }
-
 async function totpSetupBegin(event, userId) {
     try {
         const user = _getUserRow(userId);
@@ -91,7 +82,6 @@ async function totpSetupBegin(event, userId) {
         return { success: false, error: e.message };
     }
 }
-
 function _generateBackupCodes() {
     const codes = [];
     for (let i = 0; i < BACKUP_CODES_COUNT; i++) {
@@ -100,7 +90,6 @@ function _generateBackupCodes() {
     }
     return codes;
 }
-
 async function totpSetupConfirm(event, { userId, secret, code }) {
     try {
         const user = _getUserRow(userId);
@@ -130,7 +119,6 @@ async function totpSetupConfirm(event, { userId, secret, code }) {
         return { success: false, error: e.message };
     }
 }
-
 function _softDeleteBackupCodes(userId, ts) {
     const db = getDB('auth');
     const rows = db.query('SELECT * FROM totp_backup_codes WHERE user_id = ? AND is_deleted = 0', [userId]);
@@ -138,7 +126,6 @@ function _softDeleteBackupCodes(userId, ts) {
     db.run('UPDATE totp_backup_codes SET is_deleted = 1, last_modified = ? WHERE user_id = ? AND is_deleted = 0', [ts, userId]);
     rows.forEach(row => wrapMutationWithEvent('UPDATE', 'totp_backup_codes', row.id, { ...row, is_deleted: 1, last_modified: ts }));
 }
-
 async function totpDisable(event, { userId, password }) {
     try {
         const user = _getUserRow(userId);
@@ -154,7 +141,6 @@ async function totpDisable(event, { userId, password }) {
         return { success: false, error: e.message };
     }
 }
-
 function totpVerifyCode(userId, code) {
     try {
         const user = _getUserRow(userId);
@@ -165,7 +151,6 @@ function totpVerifyCode(userId, code) {
         return false;
     }
 }
-
 async function backupCodeVerify(userId, code) {
     try {
         const db = getDB('auth');
@@ -187,7 +172,6 @@ async function backupCodeVerify(userId, code) {
         return false;
     }
 }
-
 async function webauthnRegisterBegin(event, userId) {
     try {
         const { generateRegistrationOptions } = await import('@simplewebauthn/server');
@@ -213,7 +197,6 @@ async function webauthnRegisterBegin(event, userId) {
         return { success: false, error: e.message };
     }
 }
-
 async function webauthnRegisterFinish(event, { userId, response, deviceName }) {
     try {
         const { verifyRegistrationResponse } = await import('@simplewebauthn/server');
@@ -254,7 +237,6 @@ async function webauthnRegisterFinish(event, { userId, response, deviceName }) {
         return { success: false, error: e.message };
     }
 }
-
 async function webauthnRemove(event, { userId, credentialRowId }) {
     try {
         const db = getDB('auth');
@@ -270,7 +252,6 @@ async function webauthnRemove(event, { userId, credentialRowId }) {
         return { success: false, error: e.message };
     }
 }
-
 async function webauthnAuthBegin(userId) {
     try {
         const { generateAuthenticationOptions } = await import('@simplewebauthn/server');
@@ -290,7 +271,6 @@ async function webauthnAuthBegin(userId) {
         return { success: false, error: e.message };
     }
 }
-
 async function webauthnAuthVerify(userId, response) {
     try {
         const { verifyAuthenticationResponse } = await import('@simplewebauthn/server');
@@ -326,7 +306,6 @@ async function webauthnAuthVerify(userId, response) {
         return false;
     }
 }
-
 function hasPermission(actorUserId, permId) {
     try {
         const rbacHandlers = require('./rbac');
@@ -336,7 +315,6 @@ function hasPermission(actorUserId, permId) {
         return false;
     }
 }
-
 async function adminReset(event, { actorUserId, targetUserId }) {
     try {
         if (!hasPermission(actorUserId, 'impostazioni:edit')) {
@@ -371,7 +349,6 @@ async function adminReset(event, { actorUserId, targetUserId }) {
         return { success: false, error: e.message };
     }
 }
-
 async function setTwofaPolicy(event, { actorUserId, required }) {
     try {
         if (!hasPermission(actorUserId, 'impostazioni:edit')) {
@@ -391,7 +368,6 @@ async function setTwofaPolicy(event, { actorUserId, required }) {
         return { success: false, error: e.message };
     }
 }
-
 async function adminListStatus(event, actorUserId) {
     try {
         if (!hasPermission(actorUserId, 'impostazioni:view')) {
@@ -419,7 +395,6 @@ async function adminListStatus(event, actorUserId) {
         return { success: false, error: e.message };
     }
 }
-
 module.exports = {
     getStatus,
     totpSetupBegin,

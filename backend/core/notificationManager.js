@@ -5,69 +5,46 @@ const { BrowserWindow } = require('electron');
 function _esc(s) {
     return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
-
 const CATEGORIES = ['security', 'sync', 'system', 'network'];
-
 class NotificationManager {
-    /**
-     * Dispatch a new notification through the appropriate channels.
-     * @param {Object} payload 
-     * @param {string} payload.userId
-     * @param {string} payload.category - Must be one of CATEGORIES
-     * @param {string} payload.title
-     * @param {string} payload.message
-     * @param {string} [payload.severity='info'] - 'info', 'warning', 'error'
-     * @param {Object} [payload.metadata=null] - Extra JSON payload for rich UI (buttons, deep links)
-     */
-    static async dispatch({ userId, category, title, message, severity = 'info', metadata = null }) {
+        static async dispatch({ userId, category, title, message, severity = 'info', metadata = null }) {
         if (!CATEGORIES.includes(category)) {
             console.error('[NotificationManager] Categoria non valida:', category);
             return { success: false, error: 'Categoria non valida' };
         }
-
         try {
             const db = getDB();
             const ts = Date.now();
             const id = crypto.randomUUID();
             const metadataStr = metadata ? JSON.stringify(metadata) : null;
-            
             const payloadDb = { 
                 id, user_id: userId, category, title, 
                 message: message || '', severity, is_read: 0, 
                 created_at: ts, is_deleted: 0, last_modified: ts,
                 metadata: metadataStr
             };
-            
             db.run(
                 'INSERT INTO notifications (id, user_id, category, title, message, severity, is_read, created_at, is_deleted, last_modified, metadata) VALUES (?, ?, ?, ?, ?, ?, 0, ?, 0, ?, ?)',
                 [id, userId, category, title, message || '', severity, ts, ts, metadataStr]
             );
             wrapMutationWithEvent('INSERT', 'notifications', id, payloadDb);
             await saveDB();
-
-            // Check preferences for channels
             const prefRows = db.query('SELECT * FROM notification_preferences WHERE user_id = ? AND category = ? AND is_deleted = 0', [userId, category]);
-            const inAppEnabled = prefRows.length > 0 ? !!prefRows[0].in_app : true; // Default 1
-            const emailEnabled = prefRows.length > 0 ? !!prefRows[0].email : false; // Default 0
-            const soundEnabled = prefRows.length > 0 ? !!prefRows[0].sound : true;  // Default 1
-
-            // In-App channel (IPC)
+            const inAppEnabled = prefRows.length > 0 ? !!prefRows[0].in_app : true; 
+            const emailEnabled = prefRows.length > 0 ? !!prefRows[0].email : false; 
+            const soundEnabled = prefRows.length > 0 ? !!prefRows[0].sound : true;  
             if (inAppEnabled) {
                 this.sendInApp(userId, { ...payloadDb, metadata }, soundEnabled);
             }
-
-            // Email channel
             if (emailEnabled && (severity === 'error' || severity === 'warning')) {
                 this.sendEmail(userId, title, message || '');
             }
-
             return { success: true, id };
         } catch (e) {
             console.error('[NotificationManager] Dispatch error:', e.message);
             return { success: false, error: e.message };
         }
     }
-
     static sendInApp(userId, payload, soundEnabled) {
         // Broadcast via IPC to all windows to show a real-time toast
         const windows = BrowserWindow.getAllWindows();
@@ -77,7 +54,6 @@ class NotificationManager {
             }
         });
     }
-
     static async sendEmail(userId, title, message) {
         try {
             const configHandlers = require('../handlers/config');
@@ -117,5 +93,4 @@ class NotificationManager {
         }
     }
 }
-
 module.exports = NotificationManager;

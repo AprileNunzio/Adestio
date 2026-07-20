@@ -12,17 +12,14 @@ const EVENT_COLORS = {
     '2fa_admin_reset': 'var(--md-secondary)',
     logout: 'var(--md-on-surface-variant)'
 };
-
 function fmtDate(ts) {
     if (!ts) return '—';
     try { return new Date(Number(ts)).toLocaleString('it-IT'); } catch (e) { return '—'; }
 }
-
 export default {
     render: async (el) => {
         const actorUserId = sessionStorage.getItem('currentUserId');
         let state = { page: 1, pageSize: 25, filters: {} };
-
         el.innerHTML = `
             <div class="ra-root">
                 <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.3rem;">
@@ -53,7 +50,6 @@ export default {
                 .ra-btn-export { display: inline-flex; align-items: center; gap: 0.4rem; background: var(--md-primary); color: white; border: none; padding: 0.6rem 1.1rem; border-radius: var(--shape-sm); font-weight: 600; cursor: pointer; }
             </style>
         `;
-
         async function renderAccessi() {
             const container = el.querySelector('#ra-content');
             container.innerHTML = `<div style="text-align:center; padding:3rem;"><span class="material-symbols-rounded" style="font-size:2rem; animation: spin 2s linear infinite;">sync</span></div>`;
@@ -149,7 +145,6 @@ export default {
             if (prevBtn) prevBtn.addEventListener('click', () => { state.page = Math.max(state.page - 1, 1); renderAccessi(); });
             if (nextBtn) nextBtn.addEventListener('click', () => { state.page = state.page + 1; renderAccessi(); });
         }
-
         renderAccessi();
     }
 };

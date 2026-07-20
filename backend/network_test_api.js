@@ -80,22 +80,16 @@ function createRouter() {
         try {
             const { ip, port } = req.body || {};
             if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip || '')) return res.status(400).json({ error: 'Invalid ip format' });
-            
             const pPort = parseInt(port) || 34567;
             const bus = require('./core/event_bus');
-            
-            // 1. Forziamo la registrazione nel Peer Registry emettendo l'evento di discovery
             bus.publish('peer:discovered', { 
                 ip, 
                 name: 'Nodo Manuale', 
                 port: pPort, 
                 source: 'manual' 
             });
-            
-            // 2. Lanciamo un sync immediato per verificare e attivare il PEX
             const { syncWithPeer } = require('./dag/sync/sync_coordinator');
             const ok = await syncWithPeer(ip, pPort);
-            
             res.json({ success: true, synced: ok, message: ok ? 'Connesso e Sincronizzato' : 'Aggiunto alla coda, tentativo di connessione in background' });
         } catch (e) {
             res.status(500).json({ error: e.message });

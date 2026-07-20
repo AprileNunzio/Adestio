@@ -1,7 +1,6 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 const fs = require('fs');
-
 let _adoptingLanUpdate = false;
 let pendingUpdateVersion = null;
 let isDownloadingUpdate = false;
@@ -20,25 +19,20 @@ function _recordPeerHashReport(version, sha512, peerIp) {
         return 0;
     }
 }
-
 function isUpdateInProgress() {
     return isDownloadingUpdate || _adoptingLanUpdate || pendingUpdateVersion !== null;
 }
-
 function getPendingUpdateVersion() {
     return pendingUpdateVersion;
 }
-
 function installPendingUpdateNow() {
     if (!pendingUpdateVersion) return false;
     const updatesManager = require('../updates_manager');
     updatesManager.runInstaller(pendingUpdateVersion);
     return true;
 }
-
 let _consensusInterval = null;
 let _consensusAttempts = 0;
-
 function checkUpdateConsensus() {
     if (!pendingUpdateVersion) return;
     if (!_consensusInterval) {
@@ -58,7 +52,6 @@ function checkUpdateConsensus() {
         if (win) win.webContents.send('update-ready-for-install', { version: pendingUpdateVersion });
     }
 }
-
 function forceUpdateConsensus() {
     if (!pendingUpdateVersion) return;
     if (_consensusInterval) {
@@ -68,7 +61,6 @@ function forceUpdateConsensus() {
     const win = BrowserWindow.getAllWindows()[0];
     if (win) win.webContents.send('update-ready-for-install', { version: pendingUpdateVersion });
 }
-
 function _downloadUpdateSafe(autoUpdater, win) {
     autoUpdater.downloadUpdate().catch((err) => {
         console.error('[Updater] downloadUpdate error:', err.message);
@@ -78,7 +70,6 @@ function _downloadUpdateSafe(autoUpdater, win) {
         }
     });
 }
-
 function setupUpdaterService(windowManager) {
     try {
         const { autoUpdater } = require('electron-updater');
@@ -107,8 +98,6 @@ function setupUpdaterService(windowManager) {
                 const { getDetailedNodes } = require('../sync');
                 const nodes = getDetailedNodes().filter(n => n.ip !== '127.0.0.1');
                 const http = require('http');
-                
-                // Trova tutti i nodi (Seeder) che hanno l'update
                 const p2pSources = nodes.filter(n => n.updateReadyVersion === targetVersion);
                 if (p2pSources.length === 0) {
                     for (const node of nodes) {
@@ -128,10 +117,8 @@ function setupUpdaterService(windowManager) {
                         } catch(e) {}
                     }
                 }
-
                 if (p2pSources.length > 0) {
                     if (win) win.webContents.send('update-status', { status: `Download a Sciame (Swarm) v${targetVersion} da ${p2pSources.length} nodi...` });
-                    
                     try {
                         let totalSize = 0;
                         for(const src of p2pSources) {
@@ -150,29 +137,22 @@ function setupUpdaterService(windowManager) {
                                 if(totalSize > 0) break;
                             } catch(e) {}
                         }
-                        
                         if(totalSize === 0) throw new Error("Impossibile ottenere la dimensione del file");
-
                         const destPath = updatesManager.getInstallerPath(targetVersion);
                         const updatesDir = path.dirname(destPath);
                         if (!fs.existsSync(updatesDir)) fs.mkdirSync(updatesDir, { recursive: true });
-
                         const fd = fs.openSync(destPath, 'w');
                         fs.ftruncateSync(fd, totalSize);
                         fs.closeSync(fd);
-
                         const chunkSize = Math.ceil(totalSize / p2pSources.length);
                         let downloaded = 0;
-                        
                         const downloadPromises = p2pSources.map((src, index) => {
                             return new Promise((resolve, reject) => {
                                 const start = index * chunkSize;
                                 const end = Math.min(start + chunkSize - 1, totalSize - 1);
                                 if (start > end) return resolve();
-                                
                                 const req = http.get(`http://${src.ip}:${src.port}/sync/update/download/${targetVersion}`, { headers: { 'Range': `bytes=${start}-${end}` } }, (res) => {
                                     if(res.statusCode !== 206 && res.statusCode !== 200) return reject(new Error('Bad status ' + res.statusCode));
-                                    
                                     const stream = fs.createWriteStream(destPath, { flags: 'r+', start });
                                     res.on('data', chunk => {
                                         downloaded += chunk.length;
@@ -191,26 +171,20 @@ function setupUpdaterService(windowManager) {
                                 req.on('error', reject);
                             });
                         });
-                        
                         await Promise.all(downloadPromises);
-
                         await new Promise(r => setTimeout(r, 800));
                         updatesManager.cleanOldUpdates();
-                        
                         if (!updatesManager.verifyChecksum(targetVersion, info.sha512)) {
                             console.error('[Updater] Checksum P2P non valido per', targetVersion);
                             try { fs.unlinkSync(destPath); } catch(_) {}
                             throw new Error('Checksum fallito');
                         }
-                        
                         if (win) win.webContents.send('update-status', { status: 'Aggiornamento scaricato. In attesa del completamento su tutti i nodi...', finished: false, waitingConsensus: true });
                         const { broadcastUpdateAvailable } = require('../sync');
                         if (typeof broadcastUpdateAvailable === 'function') broadcastUpdateAvailable(targetVersion);
-
                         pendingUpdateVersion = targetVersion;
                         isDownloadingUpdate = false;
                         checkUpdateConsensus();
-
                     } catch(e) {
                         console.error('[Updater] Swarm download failed:', e.message);
                         if (win) win.webContents.send('update-status', { status: 'Errore download sciame. Fallback su GitHub...' });
@@ -270,7 +244,6 @@ function setupUpdaterService(windowManager) {
         console.error('[UpdaterService] Error setting up updater:', e);
     }
 }
-
 async function maybeAdoptLanUpdate(version, peerIp, peerPort) {
     if (isUpdateInProgress() || !version || !peerIp) return;
     try {
@@ -278,16 +251,13 @@ async function maybeAdoptLanUpdate(version, peerIp, peerPort) {
         if (updatesManager.compareVersions(version, app.getVersion()) <= 0) return;
         _adoptingLanUpdate = true;
         const { autoUpdater } = require('electron-updater');
-        
         let expectedSha512 = null;
         try {
             const checkResult = await autoUpdater.checkForUpdates();
             const info = checkResult && checkResult.updateInfo;
             if (info && info.version === version) expectedSha512 = info.sha512;
         } catch (_) {}
-
         const http = require('http');
-
         if (!expectedSha512) {
             try {
                 const p2pRes = await new Promise((resolve) => {
@@ -319,13 +289,10 @@ async function maybeAdoptLanUpdate(version, peerIp, peerPort) {
                 }
             } catch (_) {}
         }
-
         if (!expectedSha512) {
             console.error('[Updater] Impossibile recuperare il checksum per la versione LAN:', version);
             return;
         }
-
-        // Pre-check: se abbiamo già l'installer corretto, saltiamo il download
         let needDownload = true;
         if (fs.existsSync(updatesManager.getInstallerPath(version))) {
             if (updatesManager.verifyChecksum(version, expectedSha512)) {
@@ -333,7 +300,6 @@ async function maybeAdoptLanUpdate(version, peerIp, peerPort) {
                 console.log(`[Updater] Installer v${version} già presente e valido localmente, salto il download via LAN.`);
             }
         }
-
         if (needDownload) {
             await new Promise((resolve, reject) => {
                 const req = http.get(`http://${peerIp}:${peerPort}/sync/update/download/${version}`, (res) => {
@@ -343,7 +309,6 @@ async function maybeAdoptLanUpdate(version, peerIp, peerPort) {
                 req.on('error', reject);
             });
         }
-        
         if (!updatesManager.verifyChecksum(version, expectedSha512)) {
             try { fs.unlinkSync(updatesManager.getInstallerPath(version)); } catch (_) {}
             console.error('[Updater] Checksum non valido per aggiornamento annunciato via LAN:', version);
@@ -351,10 +316,8 @@ async function maybeAdoptLanUpdate(version, peerIp, peerPort) {
         }
         const win = BrowserWindow.getAllWindows()[0];
         if (win) win.webContents.send('update-status', { status: `Aggiornamento ricevuto. In attesa del completamento su tutti i nodi...`, finished: false, waitingConsensus: true });
-        
         const { broadcastUpdateAvailable } = require('../sync');
         if (typeof broadcastUpdateAvailable === 'function') broadcastUpdateAvailable(version);
-        
         pendingUpdateVersion = version;
         checkUpdateConsensus();
     } catch (e) {
@@ -365,5 +328,4 @@ async function maybeAdoptLanUpdate(version, peerIp, peerPort) {
         _adoptingLanUpdate = false;
     }
 }
-
 module.exports = { setupUpdaterService, maybeAdoptLanUpdate, getPendingUpdateVersion, checkUpdateConsensus, installPendingUpdateNow, isUpdateInProgress, forceUpdateConsensus };

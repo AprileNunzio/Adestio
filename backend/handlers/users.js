@@ -1,217 +1,1 @@
-const crypto = require('crypto');
-const passwordHasher = require('../security/password_hasher');
-const { getDB, saveDB, wrapMutationWithEvent, notifyDataChanged } = require('../db');
-const anagraficaPersone = require('./anagrafica_persone');
-async function getAll(event, args) {
-    try {
-        const db = getDB();
-        const res = db.exec("SELECT id, username, email, pin, last_modified, is_deleted, nome, cognome, is_superadmin, last_login FROM users");
-        if (res.length === 0) return [];
-        
-        let persone = [];
-        try {
-            const anagraficaDb = getDB('anagrafica');
-            if (anagraficaDb) {
-                persone = anagraficaDb.query("SELECT id, codice_fiscale, user_id FROM persone WHERE user_id != '' AND is_deleted = 0");
-            }
-        } catch(e) {
-            console.warn('[UsersHandler] Anagrafica DB not available or missing persone table', e.message);
-        }
-
-        const cfByUserId = {};
-        persone.forEach(p => { cfByUserId[p.user_id] = p.codice_fiscale; });
-        
-        return res[0].values.map(row => ({
-            id: row[0],
-            username: row[1],
-            email: row[2] || '',
-            pin: row[3] || '',
-            last_modified: row[4],
-            is_deleted: row[5],
-            nome: row[6] || '',
-            cognome: row[7] || '',
-            is_superadmin: row[8] || 0,
-            last_login: row[9] || 0,
-            codice_fiscale: cfByUserId[row[0]] || ''
-        }));
-    } catch (e) {
-        console.error('[UsersHandler] getAll error:', e);
-        throw new Error('Impossibile recuperare gli utenti');
-    }
-}
-async function create(event, args) {
-    try {
-        const { nome, cognome, password, email, pin, codice_fiscale } = args;
-        const username = `${cognome || ''} ${nome || ''}`.trim() || args.username;
-        if (!username || !password) throw new Error('Nome, Cognome e Password sono obbligatori');
-        if (!codice_fiscale || !codice_fiscale.trim()) throw new Error('Il Codice Fiscale è obbligatorio: verrà associato all\'anagrafica personale dell\'utente');
-        const db = getDB();
-        const check = db.query('SELECT id FROM users WHERE username = ?', [username]);
-        if (check.length > 0) {
-            throw new Error('Attenzione: Il Nome Utente specificato è già presente a sistema. Si prega di sceglierne uno differente.');
-        }
-        const id = crypto.randomUUID();
-        anagraficaPersone.linkOrCreateForUser(id, codice_fiscale, nome, cognome, email, args.actorUserId);
-        const hashedPassword = await passwordHasher.hash(password);
-        const hashedPin = pin ? await passwordHasher.hash(pin) : '';
-        const now = Date.now();
-        const passkey = '';
-        db.run(
-            'INSERT INTO users (id, username, password, passkey, email, pin, last_modified, is_deleted, must_change_password, nome, cognome) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?)',
-            [id, username, hashedPassword, passkey, email || '', hashedPin, now, nome || '', cognome || '']
-        );
-        const payload = { id, username, password: hashedPassword, passkey, email: email || '', pin: hashedPin, last_modified: now, is_deleted: 0, must_change_password: 1, nome: nome || '', cognome: cognome || '', is_superadmin: 0, last_login: 0 };
-        wrapMutationWithEvent('INSERT', 'users', id, payload);
-        saveDB();
-        notifyDataChanged('users', [id]);
-        notifyDataChanged('persone', [codice_fiscale.trim().toUpperCase()]);
-        return { success: true, id };
-    } catch (e) {
-        console.error('[UsersHandler] create error:', e);
-        throw new Error(e.message || 'Impossibile creare utente');
-    }
-}
-async function update(event, args) {
-    try {
-        const { id, nome, cognome, password, email, pin } = args;
-        const username = `${cognome || ''} ${nome || ''}`.trim() || args.username;
-        if (!id || !username) throw new Error('ID e Nome/Cognome sono obbligatori');
-        const db = getDB();
-        const check = db.query('SELECT id FROM users WHERE username = ? AND id != ?', [username, id]);
-        if (check.length > 0) {
-            throw new Error('Nome e Cognome generano un username già in uso da un altro account');
-        }
-        let updateSql = 'UPDATE users SET username = ?, email = ?, last_modified = ?, nome = ?, cognome = ?';
-        const params = [username, email || '', Date.now(), nome || '', cognome || ''];
-        if (password && password.trim() !== '') {
-            const newHashedPassword = await passwordHasher.hash(password);
-            updateSql += ', password = ?';
-            params.push(newHashedPassword);
-        }
-        if (pin && pin.trim() !== '') {
-            const newHashedPin = await passwordHasher.hash(pin);
-            updateSql += ', pin = ?';
-            params.push(newHashedPin);
-        }
-        if (args.must_change_password !== undefined) {
-            updateSql += ', must_change_password = ?';
-            params.push(args.must_change_password);
-        }
-        updateSql += ' WHERE id = ?';
-        params.push(id);
-        db.run(updateSql, params);
-        const res = db.query('SELECT username, password, passkey, email, pin, is_deleted, last_modified, must_change_password, nome, cognome, is_superadmin, last_login FROM users WHERE id = ?', [id]);
-        if (res.length > 0) {
-            const row = res[0];
-            const payload = {
-                id: id,
-                username: row.username,
-                password: row.password,
-                passkey: row.passkey,
-                email: row.email,
-                pin: row.pin,
-                is_deleted: row.is_deleted,
-                last_modified: row.last_modified,
-                must_change_password: row.must_change_password || 0,
-                nome: row.nome || '',
-                cognome: row.cognome || '',
-                is_superadmin: row.is_superadmin || 0,
-                last_login: row.last_login || 0
-            };
-            wrapMutationWithEvent('UPDATE', 'users', id, payload);
-        }
-        saveDB();
-        notifyDataChanged('users', [id]);
-        return { success: true };
-    } catch (e) {
-        console.error('[UsersHandler] update error:', e);
-        throw new Error(e.message || 'Impossibile aggiornare utente');
-    }
-}
-async function remove(event, args) {
-    try {
-        const { id } = args;
-        if (!id) throw new Error('ID mancante');
-        const db = getDB();
-        const now = Date.now();
-        db.run('UPDATE users SET is_deleted = 1, last_modified = ? WHERE id = ?', [now, id]);
-        const res = db.query('SELECT username, password, passkey, email, pin, is_deleted, last_modified, must_change_password, nome, cognome, is_superadmin, last_login FROM users WHERE id = ?', [id]);
-        if (res.length > 0) {
-            const row = res[0];
-            const payload = {
-                id: id,
-                username: row.username,
-                password: row.password,
-                passkey: row.passkey,
-                email: row.email,
-                pin: row.pin,
-                is_deleted: row.is_deleted,
-                last_modified: row.last_modified,
-                must_change_password: row.must_change_password || 0,
-                nome: row.nome || '',
-                cognome: row.cognome || '',
-                is_superadmin: row.is_superadmin || 0,
-                last_login: row.last_login || 0
-            };
-            wrapMutationWithEvent('UPDATE', 'users', id, payload);
-        }
-        saveDB();
-        notifyDataChanged('users', [id]);
-        return { success: true };
-    } catch (e) {
-        console.error('[UsersHandler] remove error:', e);
-        throw new Error(e.message || 'Impossibile eliminare utente');
-    }
-}
-async function restore(event, args) {
-    try {
-        const { id } = args;
-        if (!id) throw new Error('ID mancante');
-        const db = getDB();
-        const now = Date.now();
-        db.run('UPDATE users SET is_deleted = 0, last_modified = ? WHERE id = ?', [now, id]);
-        const res = db.query('SELECT username, password, passkey, email, pin, is_deleted, last_modified, must_change_password, nome, cognome, is_superadmin, last_login FROM users WHERE id = ?', [id]);
-        if (res.length > 0) {
-            const row = res[0];
-            const payload = {
-                id: id,
-                username: row.username,
-                password: row.password,
-                passkey: row.passkey,
-                email: row.email,
-                pin: row.pin,
-                is_deleted: row.is_deleted,
-                last_modified: row.last_modified,
-                must_change_password: row.must_change_password || 0,
-                nome: row.nome || '',
-                cognome: row.cognome || '',
-                is_superadmin: row.is_superadmin || 0,
-                last_login: row.last_login || 0
-            };
-            wrapMutationWithEvent('UPDATE', 'users', id, payload);
-        }
-        saveDB();
-        notifyDataChanged('users', [id]);
-        return { success: true };
-    } catch (e) {
-        console.error('[UsersHandler] restore error:', e);
-        throw new Error(e.message || 'Impossibile sbloccare utente');
-    }
-}
-async function hardDelete(event, args) {
-    try {
-        const { id } = args;
-        if (!id) throw new Error('ID mancante');
-        const db = getDB();
-        db.run('DELETE FROM users WHERE id = ?', [id]);
-        wrapMutationWithEvent('DELETE', 'users', id, null);
-        saveDB();
-        notifyDataChanged('users', [id]);
-        try { require('../security/developer_vault').deleteRecordMutations('users', id); } catch (e) {}
-        return { success: true };
-    } catch (e) {
-        console.error('[UsersHandler] hardDelete error:', e);
-        throw new Error(e.message || "Impossibile eliminare definitivamente l'utente");
-    }
-}
-module.exports = { getAll, create, update, remove, restore, hardDelete };
+const crypto = require('crypto');const passwordHasher = require('../security/password_hasher');const { getDB, saveDB, wrapMutationWithEvent, notifyDataChanged } = require('../db');const anagraficaPersone = require('./anagrafica_persone');async function getAll(event, args) {    try {        const db = getDB();        const res = db.exec("SELECT id, username, email, pin, last_modified, is_deleted, nome, cognome, is_superadmin, last_login FROM users");        if (res.length === 0) return [];        let persone = [];        try {            const anagraficaDb = getDB('anagrafica');            if (anagraficaDb) {                persone = anagraficaDb.query("SELECT id, codice_fiscale, user_id FROM persone WHERE user_id != '' AND is_deleted = 0");            }        } catch(e) {            console.warn('[UsersHandler] Anagrafica DB not available or missing persone table', e.message);        }        const cfByUserId = {};        persone.forEach(p => { cfByUserId[p.user_id] = p.codice_fiscale; });        return res[0].values.map(row => ({            id: row[0],            username: row[1],            email: row[2] || '',            pin: row[3] || '',            last_modified: row[4],            is_deleted: row[5],            nome: row[6] || '',            cognome: row[7] || '',            is_superadmin: row[8] || 0,            last_login: row[9] || 0,            codice_fiscale: cfByUserId[row[0]] || ''        }));    } catch (e) {        console.error('[UsersHandler] getAll error:', e);        throw new Error('Impossibile recuperare gli utenti');    }}async function create(event, args) {    try {        const { nome, cognome, password, email, pin, codice_fiscale } = args;        const username = `${cognome || ''} ${nome || ''}`.trim() || args.username;        if (!username || !password) throw new Error('Nome, Cognome e Password sono obbligatori');        if (!codice_fiscale || !codice_fiscale.trim()) throw new Error('Il Codice Fiscale è obbligatorio: verrà associato all\'anagrafica personale dell\'utente');        const db = getDB();        const check = db.query('SELECT id FROM users WHERE username = ?', [username]);        if (check.length > 0) {            throw new Error('Attenzione: Il Nome Utente specificato è già presente a sistema. Si prega di sceglierne uno differente.');        }        const id = crypto.randomUUID();        anagraficaPersone.linkOrCreateForUser(id, codice_fiscale, nome, cognome, email, args.actorUserId);        const hashedPassword = await passwordHasher.hash(password);        const hashedPin = pin ? await passwordHasher.hash(pin) : '';        const now = Date.now();        const passkey = '';        db.run(            'INSERT INTO users (id, username, password, passkey, email, pin, last_modified, is_deleted, must_change_password, nome, cognome) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?)',            [id, username, hashedPassword, passkey, email || '', hashedPin, now, nome || '', cognome || '']        );        const payload = { id, username, password: hashedPassword, passkey, email: email || '', pin: hashedPin, last_modified: now, is_deleted: 0, must_change_password: 1, nome: nome || '', cognome: cognome || '', is_superadmin: 0, last_login: 0 };        wrapMutationWithEvent('INSERT', 'users', id, payload);        saveDB();        notifyDataChanged('users', [id]);        notifyDataChanged('persone', [codice_fiscale.trim().toUpperCase()]);        return { success: true, id };    } catch (e) {        console.error('[UsersHandler] create error:', e);        throw new Error(e.message || 'Impossibile creare utente');    }}async function update(event, args) {    try {        const { id, nome, cognome, password, email, pin } = args;        const username = `${cognome || ''} ${nome || ''}`.trim() || args.username;        if (!id || !username) throw new Error('ID e Nome/Cognome sono obbligatori');        const db = getDB();        const check = db.query('SELECT id FROM users WHERE username = ? AND id != ?', [username, id]);        if (check.length > 0) {            throw new Error('Nome e Cognome generano un username già in uso da un altro account');        }        let updateSql = 'UPDATE users SET username = ?, email = ?, last_modified = ?, nome = ?, cognome = ?';        const params = [username, email || '', Date.now(), nome || '', cognome || ''];        if (password && password.trim() !== '') {            const newHashedPassword = await passwordHasher.hash(password);            updateSql += ', password = ?';            params.push(newHashedPassword);        }        if (pin && pin.trim() !== '') {            const newHashedPin = await passwordHasher.hash(pin);            updateSql += ', pin = ?';            params.push(newHashedPin);        }        if (args.must_change_password !== undefined) {            updateSql += ', must_change_password = ?';            params.push(args.must_change_password);        }        updateSql += ' WHERE id = ?';        params.push(id);        db.run(updateSql, params);        const res = db.query('SELECT username, password, passkey, email, pin, is_deleted, last_modified, must_change_password, nome, cognome, is_superadmin, last_login FROM users WHERE id = ?', [id]);        if (res.length > 0) {            const row = res[0];            const payload = {                id: id,                username: row.username,                password: row.password,                passkey: row.passkey,                email: row.email,                pin: row.pin,                is_deleted: row.is_deleted,                last_modified: row.last_modified,                must_change_password: row.must_change_password || 0,                nome: row.nome || '',                cognome: row.cognome || '',                is_superadmin: row.is_superadmin || 0,                last_login: row.last_login || 0            };            wrapMutationWithEvent('UPDATE', 'users', id, payload);        }        saveDB();        notifyDataChanged('users', [id]);        return { success: true };    } catch (e) {        console.error('[UsersHandler] update error:', e);        throw new Error(e.message || 'Impossibile aggiornare utente');    }}async function remove(event, args) {    try {        const { id } = args;        if (!id) throw new Error('ID mancante');        const db = getDB();        const now = Date.now();        db.run('UPDATE users SET is_deleted = 1, last_modified = ? WHERE id = ?', [now, id]);        const res = db.query('SELECT username, password, passkey, email, pin, is_deleted, last_modified, must_change_password, nome, cognome, is_superadmin, last_login FROM users WHERE id = ?', [id]);        if (res.length > 0) {            const row = res[0];            const payload = {                id: id,                username: row.username,                password: row.password,                passkey: row.passkey,                email: row.email,                pin: row.pin,                is_deleted: row.is_deleted,                last_modified: row.last_modified,                must_change_password: row.must_change_password || 0,                nome: row.nome || '',                cognome: row.cognome || '',                is_superadmin: row.is_superadmin || 0,                last_login: row.last_login || 0            };            wrapMutationWithEvent('UPDATE', 'users', id, payload);        }        saveDB();        notifyDataChanged('users', [id]);        return { success: true };    } catch (e) {        console.error('[UsersHandler] remove error:', e);        throw new Error(e.message || 'Impossibile eliminare utente');    }}async function restore(event, args) {    try {        const { id } = args;        if (!id) throw new Error('ID mancante');        const db = getDB();        const now = Date.now();        db.run('UPDATE users SET is_deleted = 0, last_modified = ? WHERE id = ?', [now, id]);        const res = db.query('SELECT username, password, passkey, email, pin, is_deleted, last_modified, must_change_password, nome, cognome, is_superadmin, last_login FROM users WHERE id = ?', [id]);        if (res.length > 0) {            const row = res[0];            const payload = {                id: id,                username: row.username,                password: row.password,                passkey: row.passkey,                email: row.email,                pin: row.pin,                is_deleted: row.is_deleted,                last_modified: row.last_modified,                must_change_password: row.must_change_password || 0,                nome: row.nome || '',                cognome: row.cognome || '',                is_superadmin: row.is_superadmin || 0,                last_login: row.last_login || 0            };            wrapMutationWithEvent('UPDATE', 'users', id, payload);        }        saveDB();        notifyDataChanged('users', [id]);        return { success: true };    } catch (e) {        console.error('[UsersHandler] restore error:', e);        throw new Error(e.message || 'Impossibile sbloccare utente');    }}async function hardDelete(event, args) {    try {        const { id } = args;        if (!id) throw new Error('ID mancante');        const db = getDB();        db.run('DELETE FROM users WHERE id = ?', [id]);        wrapMutationWithEvent('DELETE', 'users', id, null);        saveDB();        notifyDataChanged('users', [id]);        try { require('../security/developer_vault').deleteRecordMutations('users', id); } catch (e) {}        return { success: true };    } catch (e) {        console.error('[UsersHandler] hardDelete error:', e);        throw new Error(e.message || "Impossibile eliminare definitivamente l'utente");    }}module.exports = { getAll, create, update, remove, restore, hardDelete };

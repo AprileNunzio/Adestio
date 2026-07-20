@@ -10,7 +10,6 @@ async function sweep() {
     try {
         const { checkIsRegistered } = require('../../db');
         if (!checkIsRegistered()) return false;
-        
         const peers = getDetailedPeers()
             .filter(p => p.ip !== '127.0.0.1' && !isOnCooldown(p.ip))
             .sort((a, b) => {
@@ -18,7 +17,6 @@ async function sweep() {
                 if (b.status === 'Online' && a.status !== 'Online') return 1;
                 return (b.lastSeen || 0) - (a.lastSeen || 0);
             });
-
     let syncedAny = false;
     for (const peer of peers) {
         const ok = await syncWithPeer(peer.ip, peer.port || PORT).catch(() => false);

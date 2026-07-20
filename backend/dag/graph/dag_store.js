@@ -56,7 +56,6 @@ function getPendingBlocks() {
     const res = db.query('SELECT block_id, parent_ids, event_type, table_name, record_id, payload, node_id, created_at, payload_version FROM event_log WHERE is_applied = 0 ORDER BY created_at ASC');
     return res ? res.map(deserializeRow) : [];
 }
-
 function getTotalBlocksCount() {
     try {
         const db = getLedgerDB();
@@ -66,5 +65,4 @@ function getTotalBlocksCount() {
         return 0;
     }
 }
-
 module.exports = { getLedgerDB, getBlockById, getAllBlocks, getBlocksSince, isBlockKnown, getPendingBlocks, getTotalBlocksCount };

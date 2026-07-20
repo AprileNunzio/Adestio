@@ -1,26 +1,13 @@
 'use strict';
 const { ipcMain } = require('electron');
 const accessGuard = require('./access_guard');
-
-// appId → Set<channelName>
 const _registry = new Map();
-
-/**
- * Registra i canali IPC di un'app.
- *
- * @param {string} appId       — ID univoco dell'app (da manifest.id)
- * @param {string} namespace   — prefisso namespace IPC (da manifest.ipc.namespace)
- * @param {Object} handlers    — mappa { 'entità:azione': async (context, event, payload) => {} }
- * @param {Object} context     — PlatformContext dell'app
- */
 function register(appId, namespace, handlers, context) {
     if (_registry.has(appId)) {
         console.warn(`[AppIpcBridge] App "${appId}" già registrata. Deregistro prima.`);
         deregister(appId);
     }
-
     const channels = new Set();
-
     for (const [action, handler] of Object.entries(handlers)) {
         const channel = `app:${namespace}:${action}`;
         try {
@@ -41,28 +28,19 @@ function register(appId, namespace, handlers, context) {
             console.error(`[AppIpcBridge] Impossibile registrare "${channel}":`, e.message);
         }
     }
-
     _registry.set(appId, channels);
     console.log(`[AppIpcBridge] App "${appId}": ${channels.size} canali registrati.`);
 }
-
-/**
- * Deregistra tutti i canali IPC di un'app (chiamato a uninstall/unload).
- */
 function deregister(appId) {
     const channels = _registry.get(appId);
     if (!channels) return;
-
     for (const channel of channels) {
         try { ipcMain.removeHandler(channel); } catch (e) {}
     }
-
     _registry.delete(appId);
     console.log(`[AppIpcBridge] App "${appId}": canali deregistrati.`);
 }
-
 function getRegistered()       { return Array.from(_registry.keys()); }
 function isRegistered(appId)   { return _registry.has(appId); }
 function getChannels(appId)    { return Array.from(_registry.get(appId) || []); }
-
 module.exports = { register, deregister, getRegistered, isRegistered, getChannels };

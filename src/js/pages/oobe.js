@@ -1,609 +1,1 @@
-import { Router, toast } from '../utils.js';
-const OOBE_TEMPLATE = `
-<div class="oobe-container">
-    <!-- SIDEBAR / INFO PANEL -->
-    <div class="oobe-sidebar">
-        <span class="material-symbols-rounded" style="font-size: 3.5rem; color: var(--md-primary); margin-bottom: 0.5rem;">rocket_launch</span>
-        <h1 class="text-title" style="margin-bottom: 0.2rem; letter-spacing: -0.02em; font-size: 2rem;">Adestio Enterprise</h1>
-        <p class="text-body" style="margin-bottom: 1.5rem; color: var(--md-on-surface-variant); font-size: 0.9rem;">Inizializza la tua postazione lavorativa. Seleziona un ruolo per continuare.</p>
-        <div style="display: flex; flex-direction: column; gap: 0.8rem; margin-bottom: auto;">
-            <button id="btn-create" class="btn btn-primary" style="padding: 0.8rem 1rem; border-radius: 16px; font-weight: 600; font-size: 1rem; justify-content: flex-start; gap: 1rem;">
-                <span class="material-symbols-rounded">lan</span> Crea Nuova Rete
-            </button>
-            <button id="btn-join" class="btn btn-secondary" style="padding: 0.8rem 1rem; border-radius: 16px; font-weight: 600; font-size: 1rem; justify-content: flex-start; gap: 1rem;">
-                <span class="material-symbols-rounded">sensors</span> Unisciti a Rete Esistente
-            </button>
-            <div style="height: 1px; background: var(--md-outline-variant); margin: 0.5rem 0;"></div>
-            <div id="unlock-container" style="display: none; flex-direction: column; gap: 0.5rem;">
-                <button id="btn-unlock" class="btn btn-secondary" style="padding: 0.8rem 1rem; border-radius: 16px; font-weight: 600; font-size: 1rem; justify-content: flex-start; gap: 1rem; border: 1px solid rgba(255,160,0,0.5); color: #ffca28;">
-                    <span class="material-symbols-rounded">lock_open</span> Sblocca Archivio
-                </button>
-                <div id="unlock-details" style="font-size: 0.75rem; color: var(--md-on-surface-variant); padding-left: 0.5rem;"></div>
-            </div>
-            <button id="btn-import" class="btn btn-secondary" style="padding: 0.8rem 1rem; border-radius: 16px; font-weight: 600; font-size: 1rem; justify-content: flex-start; gap: 1rem;">
-                <span class="material-symbols-rounded">usb</span> Importa Backup
-            </button>
-            <div style="height: 1px; background: var(--md-outline-variant); margin: 0.5rem 0;"></div>
-            <button id="btn-oobe-settings" class="btn btn-secondary" style="padding: 0.8rem 1rem; border-radius: 16px; font-weight: 600; font-size: 1rem; justify-content: flex-start; gap: 1rem;">
-                <span class="material-symbols-rounded">settings</span> Impostazioni
-            </button>
-        </div>
-        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--md-outline-variant);">
-            <div style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.5rem;">
-                <span class="material-symbols-rounded" style="color: var(--md-primary);">dns</span>
-                <span style="font-size: 0.9rem; font-weight: 600;">Telemetria Locale</span>
-            </div>
-            <div style="background: var(--md-surface); border-radius: 12px; padding: 1rem; font-family: monospace; font-size: 0.85rem; color: var(--md-on-surface-variant);">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;"><span>Status:</span> <span style="color: var(--md-primary); font-weight: bold;">OFFLINE</span></div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;"><span>Host:</span> <span id="telemetry-host">...</span></div>
-                <div style="display: flex; justify-content: space-between;"><span>Firewall:</span> <span id="telemetry-firewall">...</span></div>
-            </div>
-        </div>
-    </div>
-    <!-- MAIN VIEW / SCAN AREA -->
-    <div id="scan-area" class="oobe-main">
-        <div id="initial-placeholder" style="text-align: center; opacity: 0.5;">
-            <span class="material-symbols-rounded" style="font-size: 8rem; margin-bottom: 1rem;">device_hub</span>
-            <h2>Seleziona un'operazione</h2>
-        </div>
-        <div id="join-container" style="display: none; width: 100%; max-width: 800px; height: 100%; flex-direction: column;">
-            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--md-outline-variant);">
-                <h2 style="display: flex; align-items: center; gap: 0.8rem; margin: 0; font-size: 1.8rem; color: var(--md-primary);">
-                    <span class="material-symbols-rounded" style="animation: spin 3s linear infinite;">radar</span> Discovery di Rete
-                </h2>
-                <div style="display: flex; gap: 1rem; align-items: center;">
-                    <div id="scan-status" style="padding: 0.5rem 1rem; background: var(--md-secondary-container); color: var(--md-on-secondary-container); border-radius: 20px; font-weight: 600; font-size: 0.9rem; transition: all 0.3s ease;">
-                        Inizializzazione Scanner...
-                    </div>
-                    <button id="btn-rescan" class="btn btn-primary" style="border-radius: 20px; padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <span class="material-symbols-rounded" style="font-size: 1.2rem;">sync</span> Riavvia
-                    </button>
-                </div>
-            </div>
-            <div id="warning-container"></div>
-            <div style="flex: 1; display: flex; gap: 2rem;">
-                <!-- LISTA NODI -->
-                <div style="flex: 2; display: flex; flex-direction: column; gap: 1rem; overflow-y: auto; padding-right: 1rem;" id="nodes-list">
-                    <div style="text-align: center; padding: 3rem 0; color: var(--md-on-surface-variant);">
-                        <span class="material-symbols-rounded" style="font-size: 3rem; margin-bottom: 1rem;">search</span>
-                        <p>Ricerca nodi in corso...</p>
-                    </div>
-                </div>
-                <!-- OVERRIDE MANUALE -->
-                <div style="flex: 1; background: var(--md-surface); border-radius: 20px; padding: 1.5rem; border: 1px solid var(--md-outline-variant); height: fit-content;">
-                    <h3 style="margin-top: 0; margin-bottom: 1.5rem; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <span class="material-symbols-rounded">terminal</span> Connessione IPv4 Diretta
-                    </h3>
-                    <p style="font-size: 0.85rem; color: var(--md-on-surface-variant); margin-bottom: 1rem;">Se la rete è pubblica o il firewall blocca il multicast mDNS, inserisci manualmente l'IP del nodo primario.</p>
-                    <label style="font-size: 0.8rem; font-weight: 600; color: var(--md-primary); margin-bottom: 0.3rem; display: block;">INDIRIZZO IP</label>
-                    <input type="text" id="ip-manual-connect" class="input" placeholder="es. 192.168.1.100" autocomplete="off" style="width: 100%; border-radius: 12px; font-family: monospace; padding: 0.8rem; margin-bottom: 1.5rem; background: var(--md-surface-variant); border: none;">
-                    <button id="btn-ip-manual-connect" class="btn btn-primary" style="width: 100%; border-radius: 12px; font-weight: 600; padding: 0.8rem;">
-                        <span class="material-symbols-rounded">podcasts</span> Effettua Ping
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- Modale Inserimento Codice Rete -->
-    <div id="network-code-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
-        <div class="card fade-in-up" style="width: 100%; max-width: 450px; text-align: center; padding: 3rem 2rem; border-radius: 28px; box-shadow: 0 16px 48px rgba(0,0,0,0.3);">
-            <div style="width: 80px; height: 80px; background: var(--md-secondary-container); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">
-                <span class="material-symbols-rounded" style="font-size: 2.5rem; color: var(--md-on-secondary-container);">lock_open</span>
-            </div>
-            <h2 style="margin-bottom: 0.5rem; letter-spacing: -0.02em; font-size: 1.8rem;">Autenticazione Nodo</h2>
-            <p style="font-size: 0.95rem; color: var(--md-on-surface-variant); margin-bottom: 2rem;" id="modal-network-name">Connessione sicura richiesta.</p>
-            <input type="text" id="modal-network-code-input" class="input" placeholder="CODICE-RETE" autocomplete="off" style="margin-bottom: 2.5rem; text-align: center; font-family: monospace; font-size: 1.5rem; font-weight: bold; text-transform: uppercase; border-radius: 16px; padding: 1.2rem; background: var(--md-surface-variant); border: 2px solid transparent; transition: border 0.3s ease;">
-            <div style="display: flex; gap: 1rem;">
-                <button id="btn-modal-cancel" class="btn btn-secondary" style="flex: 1; border-radius: 20px; padding: 0.8rem; font-weight: 600;">Interrompi</button>
-                <button id="btn-modal-confirm" class="btn btn-primary" style="flex: 1; border-radius: 20px; padding: 0.8rem; font-weight: 600;">Sincronizza</button>
-            </div>
-        </div>
-    </div>
-    <!-- Modale Impostazioni OOBE -->
-    <div id="oobe-settings-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(8px);">
-        <div class="card fade-in-up" style="width: 100%; max-width: 600px; padding: 2rem; border-radius: 28px; box-shadow: 0 16px 48px rgba(0,0,0,0.3); background: var(--md-surface); border: 1px solid var(--md-outline-variant); display: flex; flex-direction: column; max-height: 90vh;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--md-outline-variant); padding-bottom: 1rem;">
-                <h2 style="margin: 0; font-size: 1.5rem; display: flex; align-items: center; gap: 0.8rem;">
-                    <span class="material-symbols-rounded" style="color: var(--md-primary);">settings</span> Impostazioni di Sistema
-                </h2>
-                <button id="btn-close-settings" style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--md-on-surface-variant); display: flex;"><span class="material-symbols-rounded">close</span></button>
-            </div>
-            
-            <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
-                <button class="settings-tab active" data-target="tab-diag" style="flex: 1; padding: 0.8rem; border-radius: 12px; border: none; background: var(--md-primary-container); color: var(--md-on-primary-container); font-weight: 600; cursor: pointer; transition: all 0.2s;">Diagnostica</button>
-                <button class="settings-tab" data-target="tab-data" style="flex: 1; padding: 0.8rem; border-radius: 12px; border: none; background: var(--md-surface-variant); color: var(--md-on-surface-variant); font-weight: 600; cursor: pointer; transition: all 0.2s;">Gestione Dati</button>
-                <button class="settings-tab" data-target="tab-troubleshoot" style="flex: 1; padding: 0.8rem; border-radius: 12px; border: none; background: var(--md-surface-variant); color: var(--md-on-surface-variant); font-weight: 600; cursor: pointer; transition: all 0.2s;">Risoluzione Problemi</button>
-            </div>
-            
-            <div class="settings-content-wrapper" style="flex: 1; overflow-y: auto; padding-right: 0.5rem;">
-                <!-- Tab Diagnostica -->
-                <div id="tab-diag" class="settings-tab-content" style="display: block;">
-                    <div style="background: var(--md-surface-variant); padding: 1.5rem; border-radius: 16px; margin-bottom: 1rem;">
-                        <h3 style="margin-top: 0; font-size: 1.1rem; margin-bottom: 1rem; color: var(--md-on-surface);">Stato del Sistema</h3>
-                        <div id="settings-diag-status" style="font-family: monospace; font-size: 0.85rem; color: var(--md-on-surface-variant); white-space: pre-wrap; margin-bottom: 1rem; background: var(--md-background); padding: 1rem; border-radius: 8px;">Caricamento stato in corso...</div>
-                        <button id="btn-run-diag" class="btn btn-primary" style="width: 100%; border-radius: 12px; padding: 0.8rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                            <span class="material-symbols-rounded">health_and_safety</span> Esegui Test Diagnostico
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Tab Dati -->
-                <div id="tab-data" class="settings-tab-content" style="display: none;">
-                    <div style="background: var(--md-surface-variant); padding: 1.5rem; border-radius: 16px; margin-bottom: 1rem;">
-                        <h3 style="margin-top: 0; font-size: 1.1rem; margin-bottom: 1rem; color: var(--md-on-surface);">Esportazione e Log</h3>
-                        <p style="font-size: 0.9rem; color: var(--md-on-surface-variant); margin-bottom: 1rem;">Esporta i log di sistema per l'assistenza tecnica.</p>
-                        <button id="btn-export-logs" class="btn btn-primary" style="width: 100%; border-radius: 12px; padding: 0.8rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                            <span class="material-symbols-rounded">file_download</span> Esporta Log di Sistema
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Tab Risoluzione Problemi -->
-                <div id="tab-troubleshoot" class="settings-tab-content" style="display: none;">
-                    <div style="background: rgba(255, 82, 82, 0.1); border: 1px solid var(--md-error); padding: 1.5rem; border-radius: 16px; margin-bottom: 1rem;">
-                        <h3 style="margin-top: 0; font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--md-error);">Ripristino Applicazione</h3>
-                        <p style="font-size: 0.9rem; color: var(--md-on-surface-variant); margin-bottom: 1rem;">Se l'applicazione non si avvia correttamente o si blocca su schermate vuote, puoi formattare i file temporanei e i database. <br><b>Attenzione: questo eliminerà la configurazione locale!</b></p>
-                        <button id="btn-hard-reset" class="btn" style="width: 100%; border-radius: 12px; padding: 0.8rem; font-weight: 600; background: var(--md-error); color: white; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                            <span class="material-symbols-rounded">warning</span> Esegui Hard Reset
-                        </button>
-                    </div>
-                    
-                    <div style="background: var(--md-surface-variant); padding: 1.5rem; border-radius: 16px; margin-bottom: 1rem;">
-                        <h3 style="margin-top: 0; font-size: 1.1rem; margin-bottom: 1rem; color: var(--md-on-surface);">Strumenti Sviluppatore</h3>
-                        <button id="btn-check-updates" class="btn btn-secondary" style="width: 100%; border-radius: 12px; padding: 0.8rem; font-weight: 600; margin-bottom: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                            <span class="material-symbols-rounded">update</span> Controlla Aggiornamenti
-                        </button>
-                        <button id="btn-toggle-devtools" class="btn btn-secondary" style="width: 100%; border-radius: 12px; padding: 0.8rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                            <span class="material-symbols-rounded">bug_report</span> Attiva DevTools
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-<style>
-    @keyframes spin { 100% { transform: rotate(360deg); } }
-    .node-card {
-        background: var(--md-surface);
-        border: 1px solid var(--md-outline-variant);
-        border-radius: 16px;
-        padding: 1.5rem;
-        transition: all 0.2s ease;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 1.5rem;
-    }
-    .node-card:hover {
-        border-color: var(--md-primary);
-        box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-        transform: translateY(-2px);
-    }
-    .node-status-indicator {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        background: var(--md-primary);
-        box-shadow: 0 0 10px var(--md-primary);
-        animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-        0% { transform: scale(1); opacity: 1; }
-        50% { transform: scale(1.5); opacity: 0.5; }
-        100% { transform: scale(1); opacity: 1; }
-    }
-    /* Layout Responsive */
-    .oobe-container {
-        width: 100%; height: 100%; display: flex; overflow: hidden; background: var(--md-background); color: var(--md-on-background); margin: 0; padding: 0;
-    }
-    .oobe-sidebar {
-        width: 380px; background: var(--md-surface-variant); padding: 2rem; display: flex; flex-direction: column; border-right: 1px solid var(--md-outline-variant); z-index: 10;
-        flex-shrink: 0; justify-content: space-between;
-    }
-    .oobe-main {
-        flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem; background: radial-gradient(circle at center, var(--md-surface-variant) 0%, var(--md-background) 100%);
-        overflow-y: auto;
-    }
-    @media (max-width: 900px) {
-        .oobe-container {
-            flex-direction: column;
-            overflow-y: auto;
-        }
-        .oobe-sidebar {
-            width: 100%;
-            border-right: none;
-            border-bottom: 1px solid var(--md-outline-variant);
-            min-height: auto;
-        }
-        .oobe-main {
-            min-height: 500px;
-        }
-        #join-container > div:last-child {
-            flex-direction: column;
-        }
-        #join-container {
-            padding-top: 2rem;
-        }
-    }
-</style>
-`;
-function validateIPAddress(ip) {
-    try {
-        const regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
-        return regex.test(ip);
-    } catch (e) {
-        return false;
-    }
-}
-function sanitizeNetworkCode(code) {
-    try {
-        return code.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');
-    } catch (e) {
-        return '';
-    }
-}
-async function handleCloneNetwork(node, networkCode) {
-    try {
-        toast("Sincronizzazione di sicurezza in corso...", "success");
-        if (!window.electronAPI) return false;
-        const success = await window.electronAPI.cloneNetwork({
-            host: node.host,
-            port: node.port,
-            networkCode: networkCode,
-            networkName: node.name || 'Network'
-        });
-        if (success) {
-            toast("Sincronizzazione completata con successo.", "success");
-            Router.navigate('auth_login');
-            return true;
-        } else {
-            toast("Accesso negato: Codice errato o firewall attivo.", "error");
-            return false;
-        }
-    } catch (e) {
-        toast("Errore critico durante la negoziazione P2P.", "error");
-        return false;
-    }
-}
-function promptNetworkCode(el, node) {
-    try {
-        const modal = el.querySelector('#network-code-modal');
-        const input = el.querySelector('#modal-network-code-input');
-        const confirmBtn = el.querySelector('#btn-modal-confirm');
-        const cancelBtn = el.querySelector('#btn-modal-cancel');
-        const titleDesc = el.querySelector('#modal-network-name');
-        const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
-        titleDesc.innerHTML = `Connessione a: <b>${_esc(node.name)}</b><br><span style="font-family: monospace; font-size: 0.85rem; opacity: 0.8;">IPv4: ${_esc(node.host)}</span>`;
-        input.value = '';
-        modal.style.display = 'flex';
-        input.focus();
-        const newConfirm = confirmBtn.cloneNode(true);
-        confirmBtn.parentNode.replaceChild(newConfirm, confirmBtn);
-        const newCancel = cancelBtn.cloneNode(true);
-        cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);
-        newCancel.addEventListener('click', () => {
-            try { modal.style.display = 'none'; } catch (e) {}
-        });
-        newConfirm.addEventListener('click', async () => {
-            try {
-                const rawCode = input.value;
-                const safeCode = sanitizeNetworkCode(rawCode);
-                if (safeCode.length < 5) {
-                    input.style.borderColor = 'var(--md-error)';
-                    toast("Codice di sicurezza non conforme.", "error");
-                    return;
-                }
-                input.style.borderColor = 'transparent';
-                modal.style.display = 'none';
-                await handleCloneNetwork(node, safeCode);
-            } catch (e) {}
-        });
-    } catch (e) {}
-}
-async function performManualPing(el, ip) {
-    try {
-        const btn = el.querySelector('#btn-ip-manual-connect');
-        const originalText = btn.innerHTML;
-        btn.innerHTML = '<span class="material-symbols-rounded" style="animation: spin 1s linear infinite;">sync</span> Ping...';
-        btn.disabled = true;
-        if (window.electronAPI && window.electronAPI.pingNode) {
-            const start = performance.now();
-            const res = await window.electronAPI.pingNode({ host: ip, port: 34567 });
-            const latency = Math.round(performance.now() - start);
-            if (res.success) {
-                toast(`Ping OK (${latency}ms). Handshake completato.`, "success");
-                const fakeNode = { name: res.data.node || 'Nodo Adestio', host: ip, port: 34567 };
-                promptNetworkCode(el, fakeNode);
-            } else {
-                toast(`Connessione rifiutata o timeout: ${res.error}`, "error");
-            }
-        }
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-    } catch(e) {
-        toast("Errore interno durante il ping.", "error");
-    }
-}
-function bindManualConnect(el, btnId, inputId) {
-    try {
-        const btn = el.querySelector('#' + btnId);
-        const inp = el.querySelector('#' + inputId);
-        if (!btn || !inp) return;
-        btn.addEventListener('click', () => {
-            try {
-                const ip = inp.value.trim();
-                if (!validateIPAddress(ip)) {
-                    toast("Indirizzo IPv4 non valido.", "error");
-                    return;
-                }
-                performManualPing(el, ip);
-            } catch (e) {}
-        });
-    } catch (e) {}
-}
-async function renderPublicNetworkWarning(el) {
-    try {
-        if (!window.electronAPI || !window.electronAPI.checkNetworkProfile) return;
-        const profile = await window.electronAPI.checkNetworkProfile();
-        el.querySelector('#telemetry-firewall').textContent = profile;
-        if (profile === 'Public') {
-            const warningHTML = `
-                <div style="background: rgba(255, 82, 82, 0.1); border: 1px solid var(--md-error); padding: 1.5rem; border-radius: 16px; margin-bottom: 2rem; display: flex; gap: 1rem; align-items: flex-start;">
-                    <span class="material-symbols-rounded" style="color: var(--md-error); font-size: 2rem;">gpp_maybe</span>
-                    <div>
-                        <h4 style="color: var(--md-error); margin: 0 0 0.5rem 0; font-size: 1.1rem;">Restrizioni Firewall (Rete Pubblica)</h4>
-                        <p style="font-size: 0.95rem; color: var(--md-on-surface); margin: 0; line-height: 1.5;">
-                            Windows Firewall è attivo in modalità restrittiva e bloccherà i pacchetti UDP (mDNS). La scansione automatica potrebbe fallire. <b>Soluzione:</b> Imposta la rete su "Privata" o utilizza la connessione diretta IPv4 qui a destra.
-                        </p>
-                    </div>
-                </div>
-            `;
-            el.querySelector('#warning-container').innerHTML = warningHTML;
-        }
-    } catch (e) {}
-}
-async function executeNetworkScan(el) {
-    try {
-        const listElement = el.querySelector('#nodes-list');
-        const statusEl = el.querySelector('#scan-status');
-        if (!window.electronAPI) return;
-        if (window.electronAPI && window.electronAPI.onScanProgress) {
-            window.electronAPI.onScanProgress((msg) => {
-                statusEl.textContent = msg;
-                statusEl.style.background = 'var(--md-primary-container)';
-                statusEl.style.color = 'var(--md-on-primary-container)';
-            });
-        }
-        const nodes = await window.electronAPI.scanNodes();
-        statusEl.textContent = 'Scansione completata';
-        statusEl.style.background = 'var(--md-surface-variant)';
-        statusEl.style.color = 'var(--md-on-surface-variant)';
-        if (nodes.length === 0) {
-            listElement.innerHTML = `
-                <div style="text-align: center; padding: 4rem 0; color: var(--md-on-surface-variant); background: var(--md-surface); border-radius: 20px; border: 1px dashed var(--md-outline);">
-                    <span class="material-symbols-rounded" style="font-size: 4rem; margin-bottom: 1rem; opacity: 0.5;">wifi_off</span>
-                    <h3 style="margin-bottom: 0.5rem;">Nessun Nodo Trovato</h3>
-                    <p style="font-size: 0.95rem;">Assicurati che l'altro computer sia acceso, con l'app avviata e connesso alla stessa rete LAN.</p>
-                </div>
-            `;
-        } else {
-            listElement.innerHTML = '';
-            nodes.forEach(node => {
-                try {
-                    const card = document.createElement('div');
-                    card.className = 'node-card fade-in-up';
-                    card.innerHTML = `
-                        <div class="node-status-indicator"></div>
-                        <div style="flex: 1;">
-                            <h3 style="margin: 0 0 0.3rem 0; color: var(--md-primary); font-size: 1.2rem;">${node.name}</h3>
-                            <div style="display: flex; gap: 1rem; font-size: 0.85rem; color: var(--md-on-surface-variant); font-family: monospace;">
-                                <span><span class="material-symbols-rounded" style="font-size: 1rem; vertical-align: bottom;">lan</span> ${node.ip || node.host || 'Sconosciuto'}</span>
-                                <span><span class="material-symbols-rounded" style="font-size: 1rem; vertical-align: bottom;">cable</span> Port ${node.port}</span>
-                            </div>
-                        </div>
-                        <button class="btn btn-secondary" style="border-radius: 50%; width: 48px; height: 48px; padding: 0; display: flex; align-items: center; justify-content: center;">
-                            <span class="material-symbols-rounded">login</span>
-                        </button>
-                    `;
-                    card.addEventListener('click', () => {
-                        try { promptNetworkCode(el, node); } catch (e) {}
-                    });
-                    listElement.appendChild(card);
-                } catch (e) {}
-            });
-        }
-    } catch (e) {}
-}
-export default {
-    render: async (el) => {
-        try {
-            el.innerHTML = OOBE_TEMPLATE;
-            try {
-                if (window.electronAPI && window.electronAPI.getLocalIPs) {
-                    const ips = await window.electronAPI.getLocalIPs();
-                    if (ips && ips.length > 0) {
-                        el.querySelector('#telemetry-host').innerHTML = ips.map(ip => `<span style="background: var(--md-secondary-container); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">${ip}</span>`).join(' ');
-                    } else {
-                        el.querySelector('#telemetry-host').textContent = 'Localhost / Isolato';
-                    }
-                }
-            } catch(e){}
-            try {
-                if (window.electronAPI && window.electronAPI.dbGetBackupStatus) {
-                    const status = await window.electronAPI.dbGetBackupStatus();
-                    const unlockContainer = el.querySelector('#unlock-container');
-                    const unlockDetails = el.querySelector('#unlock-details');
-                    let hasArchive = false;
-                    let detailsHtml = '';
-                    if (status && status.primary && (status.primary.appData || status.primary.docs)) {
-                        hasArchive = true;
-                        const size = status.primary.appData || status.primary.docs;
-                        const mb = (size / (1024 * 1024)).toFixed(2);
-                        detailsHtml += `Archivio Primario: ${mb} MB<br>`;
-                    }
-                    if (status && status.totalBackups > 0) {
-                        hasArchive = true;
-                        detailsHtml += `${status.totalBackups} Backup Locali Trovati`;
-                    }
-                    if (hasArchive) {
-                        unlockContainer.style.display = 'flex';
-                        if (detailsHtml) {
-                            unlockDetails.innerHTML = detailsHtml;
-                        }
-                    }
-                }
-            } catch(e){}
-            const createBtn = el.querySelector('#btn-create');
-            if (createBtn) {
-                createBtn.addEventListener('click', () => {
-                    try { Router.navigate('auth_register'); } catch (e) {}
-                });
-            }
-            const joinBtn = el.querySelector('#btn-join');
-            if (joinBtn) {
-                joinBtn.addEventListener('click', async () => {
-                    try {
-                        el.querySelector('#initial-placeholder').style.display = 'none';
-                        const container = el.querySelector('#join-container');
-                        container.style.display = 'flex';
-                        await renderPublicNetworkWarning(el);
-                        bindManualConnect(el, 'btn-ip-manual-connect', 'ip-manual-connect');
-                        const rescanBtn = el.querySelector('#btn-rescan');
-                        rescanBtn.addEventListener('click', async () => {
-                            try {
-                                const listElement = el.querySelector('#nodes-list');
-                                listElement.innerHTML = `
-                                    <div style="text-align: center; padding: 3rem 0; color: var(--md-on-surface-variant);">
-                                        <span class="material-symbols-rounded" style="font-size: 3rem; margin-bottom: 1rem; animation: spin 1s linear infinite;">sync</span>
-                                        <p>Riavvio scansione in corso...</p>
-                                    </div>
-                                `;
-                                await executeNetworkScan(el);
-                            } catch(e){}
-                        });
-                        await executeNetworkScan(el);
-                    } catch (e) {}
-                });
-            }
-            const unlockBtn = el.querySelector('#btn-unlock');
-            if (unlockBtn) {
-                unlockBtn.addEventListener('click', () => {
-                    try {
-                        promptNetworkCode(el, { name: "Archivio Locale", host: "localhost", port: "N/A" });
-                        const titleDesc = el.querySelector('#modal-network-name');
-                        if(titleDesc) {
-                            titleDesc.innerHTML = `Archivio cifrato rilevato.<br><span style="font-size: 0.85rem; opacity: 0.8;">Inserisci il codice di sblocco (Master Key / Seed Phrase)</span>`;
-                        }
-                    } catch (e) {}
-                });
-            }
-            const importBtn = el.querySelector('#btn-import');
-            if (importBtn) {
-                importBtn.addEventListener('click', () => {
-                    try {
-                        toast("Funzione di importazione da backup USB in fase di sviluppo.", "info");
-                    } catch (e) {}
-                });
-            }
-            
-            // --- Impostazioni OOBE ---
-            const settingsBtn = el.querySelector('#btn-oobe-settings');
-            const settingsModal = el.querySelector('#oobe-settings-modal');
-            const closeSettingsBtn = el.querySelector('#btn-close-settings');
-            
-            if (settingsBtn && settingsModal) {
-                settingsBtn.addEventListener('click', async () => {
-                    try {
-                        settingsModal.style.display = 'flex';
-                        // Fetch initial diag info
-                        const diagStatus = el.querySelector('#settings-diag-status');
-                        if (window.electronAPI && window.electronAPI.getAppStatus) {
-                            const status = await window.electronAPI.getAppStatus();
-                            diagStatus.innerHTML = `Versione App: ${status.version || 'N/D'}
-Versione Protocollo P2P: ${status.protocolVersion || 'N/D'}
-Nodi Connessi: ${status.connectedNodes || 0}
-Stato Sincronizzazione: ${status.syncState || 'N/D'}
-Blocchi Ledger: ${status.ledgerHeight || 0}
-`;
-                        } else {
-                            diagStatus.textContent = "Impossibile recuperare lo stato dal backend.";
-                        }
-                    } catch (e) {
-                        toast("Errore durante l'apertura delle impostazioni.", "error");
-                    }
-                });
-                
-                closeSettingsBtn.addEventListener('click', () => {
-                    settingsModal.style.display = 'none';
-                });
-                
-                // Tabs logic
-                const tabs = el.querySelectorAll('.settings-tab');
-                const contents = el.querySelectorAll('.settings-tab-content');
-                tabs.forEach(tab => {
-                    tab.addEventListener('click', () => {
-                        tabs.forEach(t => {
-                            t.classList.remove('active');
-                            t.style.background = 'var(--md-surface-variant)';
-                            t.style.color = 'var(--md-on-surface-variant)';
-                        });
-                        tab.classList.add('active');
-                        tab.style.background = 'var(--md-primary-container)';
-                        tab.style.color = 'var(--md-on-primary-container)';
-                        
-                        contents.forEach(c => c.style.display = 'none');
-                        el.querySelector('#' + tab.dataset.target).style.display = 'block';
-                    });
-                });
-                
-                // Diag
-                el.querySelector('#btn-run-diag').addEventListener('click', async () => {
-                    if (window.electronAPI && window.electronAPI.runDiagnostics) {
-                        toast("Diagnostica in corso...", "info");
-                        const res = await window.electronAPI.runDiagnostics();
-                        if(res && res.success) toast("Test completato. Risultati in log.", "success");
-                    }
-                });
-                
-                // Data
-                el.querySelector('#btn-export-logs').addEventListener('click', async () => {
-                    if (window.electronAPI && window.electronAPI.exportLogs) {
-                        const res = await window.electronAPI.exportLogs();
-                        if (res && res.success) {
-                            toast(`Log esportati in ${res.path}`, "success");
-                        } else if (res && !res.canceled) {
-                            toast("Errore esportazione log: " + res.error, "error");
-                        }
-                    }
-                });
-                
-                // Troubleshoot
-                el.querySelector('#btn-hard-reset').addEventListener('click', () => {
-                    if(confirm("ATTENZIONE! Vuoi davvero eliminare tutti i dati locali e resettare l'app? Questo disconnetterà la postazione.")) {
-                        if (window.electronAPI && window.electronAPI.resetApp) {
-                            window.electronAPI.resetApp();
-                        }
-                    }
-                });
-                
-                el.querySelector('#btn-check-updates').addEventListener('click', () => {
-                    if (window.electronAPI && window.electronAPI.checkForUpdates) {
-                        toast("Controllo aggiornamenti in corso...", "info");
-                        window.electronAPI.checkForUpdates();
-                    }
-                });
-                
-                el.querySelector('#btn-toggle-devtools').addEventListener('click', () => {
-                    if (window.electronAPI && window.electronAPI.toggleDevTools) {
-                        window.electronAPI.toggleDevTools();
-                    }
-                });
-            }
-        } catch (e) {
-            try {
-                el.innerHTML = `<p style="color: var(--md-error); text-align: center;">Inizializzazione OOBE Fallita.</p>`;
-            } catch (fallbackError) {}
-        }
-    }
-};
+import { Router, toast } from '../utils.js';const OOBE_TEMPLATE = `<div class="oobe-container">    <!-- SIDEBAR / INFO PANEL -->    <div class="oobe-sidebar">        <span class="material-symbols-rounded" style="font-size: 3.5rem; color: var(--md-primary); margin-bottom: 0.5rem;">rocket_launch</span>        <h1 class="text-title" style="margin-bottom: 0.2rem; letter-spacing: -0.02em; font-size: 2rem;">Adestio Enterprise</h1>        <p class="text-body" style="margin-bottom: 1.5rem; color: var(--md-on-surface-variant); font-size: 0.9rem;">Inizializza la tua postazione lavorativa. Seleziona un ruolo per continuare.</p>        <div style="display: flex; flex-direction: column; gap: 0.8rem; margin-bottom: auto;">            <button id="btn-create" class="btn btn-primary" style="padding: 0.8rem 1rem; border-radius: 16px; font-weight: 600; font-size: 1rem; justify-content: flex-start; gap: 1rem;">                <span class="material-symbols-rounded">lan</span> Crea Nuova Rete            </button>            <button id="btn-join" class="btn btn-secondary" style="padding: 0.8rem 1rem; border-radius: 16px; font-weight: 600; font-size: 1rem; justify-content: flex-start; gap: 1rem;">                <span class="material-symbols-rounded">sensors</span> Unisciti a Rete Esistente            </button>            <div style="height: 1px; background: var(--md-outline-variant); margin: 0.5rem 0;"></div>            <div id="unlock-container" style="display: none; flex-direction: column; gap: 0.5rem;">                <button id="btn-unlock" class="btn btn-secondary" style="padding: 0.8rem 1rem; border-radius: 16px; font-weight: 600; font-size: 1rem; justify-content: flex-start; gap: 1rem; border: 1px solid rgba(255,160,0,0.5); color: #ffca28;">                    <span class="material-symbols-rounded">lock_open</span> Sblocca Archivio                </button>                <div id="unlock-details" style="font-size: 0.75rem; color: var(--md-on-surface-variant); padding-left: 0.5rem;"></div>            </div>            <button id="btn-import" class="btn btn-secondary" style="padding: 0.8rem 1rem; border-radius: 16px; font-weight: 600; font-size: 1rem; justify-content: flex-start; gap: 1rem;">                <span class="material-symbols-rounded">usb</span> Importa Backup            </button>            <div style="height: 1px; background: var(--md-outline-variant); margin: 0.5rem 0;"></div>            <button id="btn-oobe-settings" class="btn btn-secondary" style="padding: 0.8rem 1rem; border-radius: 16px; font-weight: 600; font-size: 1rem; justify-content: flex-start; gap: 1rem;">                <span class="material-symbols-rounded">settings</span> Impostazioni            </button>        </div>        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--md-outline-variant);">            <div style="display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.5rem;">                <span class="material-symbols-rounded" style="color: var(--md-primary);">dns</span>                <span style="font-size: 0.9rem; font-weight: 600;">Telemetria Locale</span>            </div>            <div style="background: var(--md-surface); border-radius: 12px; padding: 1rem; font-family: monospace; font-size: 0.85rem; color: var(--md-on-surface-variant);">                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;"><span>Status:</span> <span style="color: var(--md-primary); font-weight: bold;">OFFLINE</span></div>                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;"><span>Host:</span> <span id="telemetry-host">...</span></div>                <div style="display: flex; justify-content: space-between;"><span>Firewall:</span> <span id="telemetry-firewall">...</span></div>            </div>        </div>    </div>    <!-- MAIN VIEW / SCAN AREA -->    <div id="scan-area" class="oobe-main">        <div id="initial-placeholder" style="text-align: center; opacity: 0.5;">            <span class="material-symbols-rounded" style="font-size: 8rem; margin-bottom: 1rem;">device_hub</span>            <h2>Seleziona un'operazione</h2>        </div>        <div id="join-container" style="display: none; width: 100%; max-width: 800px; height: 100%; flex-direction: column;">            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--md-outline-variant);">                <h2 style="display: flex; align-items: center; gap: 0.8rem; margin: 0; font-size: 1.8rem; color: var(--md-primary);">                    <span class="material-symbols-rounded" style="animation: spin 3s linear infinite;">radar</span> Discovery di Rete                </h2>                <div style="display: flex; gap: 1rem; align-items: center;">                    <div id="scan-status" style="padding: 0.5rem 1rem; background: var(--md-secondary-container); color: var(--md-on-secondary-container); border-radius: 20px; font-weight: 600; font-size: 0.9rem; transition: all 0.3s ease;">                        Inizializzazione Scanner...                    </div>                    <button id="btn-rescan" class="btn btn-primary" style="border-radius: 20px; padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.5rem;">                        <span class="material-symbols-rounded" style="font-size: 1.2rem;">sync</span> Riavvia                    </button>                </div>            </div>            <div id="warning-container"></div>            <div style="flex: 1; display: flex; gap: 2rem;">                <!-- LISTA NODI -->                <div style="flex: 2; display: flex; flex-direction: column; gap: 1rem; overflow-y: auto; padding-right: 1rem;" id="nodes-list">                    <div style="text-align: center; padding: 3rem 0; color: var(--md-on-surface-variant);">                        <span class="material-symbols-rounded" style="font-size: 3rem; margin-bottom: 1rem;">search</span>                        <p>Ricerca nodi in corso...</p>                    </div>                </div>                <!-- OVERRIDE MANUALE -->                <div style="flex: 1; background: var(--md-surface); border-radius: 20px; padding: 1.5rem; border: 1px solid var(--md-outline-variant); height: fit-content;">                    <h3 style="margin-top: 0; margin-bottom: 1.5rem; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">                        <span class="material-symbols-rounded">terminal</span> Connessione IPv4 Diretta                    </h3>                    <p style="font-size: 0.85rem; color: var(--md-on-surface-variant); margin-bottom: 1rem;">Se la rete è pubblica o il firewall blocca il multicast mDNS, inserisci manualmente l'IP del nodo primario.</p>                    <label style="font-size: 0.8rem; font-weight: 600; color: var(--md-primary); margin-bottom: 0.3rem; display: block;">INDIRIZZO IP</label>                    <input type="text" id="ip-manual-connect" class="input" placeholder="es. 192.168.1.100" autocomplete="off" style="width: 100%; border-radius: 12px; font-family: monospace; padding: 0.8rem; margin-bottom: 1.5rem; background: var(--md-surface-variant); border: none;">                    <button id="btn-ip-manual-connect" class="btn btn-primary" style="width: 100%; border-radius: 12px; font-weight: 600; padding: 0.8rem;">                        <span class="material-symbols-rounded">podcasts</span> Effettua Ping                    </button>                </div>            </div>        </div>    </div>    <!-- Modale Inserimento Codice Rete -->    <div id="network-code-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(8px);">        <div class="card fade-in-up" style="width: 100%; max-width: 450px; text-align: center; padding: 3rem 2rem; border-radius: 28px; box-shadow: 0 16px 48px rgba(0,0,0,0.3);">            <div style="width: 80px; height: 80px; background: var(--md-secondary-container); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;">                <span class="material-symbols-rounded" style="font-size: 2.5rem; color: var(--md-on-secondary-container);">lock_open</span>            </div>            <h2 style="margin-bottom: 0.5rem; letter-spacing: -0.02em; font-size: 1.8rem;">Autenticazione Nodo</h2>            <p style="font-size: 0.95rem; color: var(--md-on-surface-variant); margin-bottom: 2rem;" id="modal-network-name">Connessione sicura richiesta.</p>            <input type="text" id="modal-network-code-input" class="input" placeholder="CODICE-RETE" autocomplete="off" style="margin-bottom: 2.5rem; text-align: center; font-family: monospace; font-size: 1.5rem; font-weight: bold; text-transform: uppercase; border-radius: 16px; padding: 1.2rem; background: var(--md-surface-variant); border: 2px solid transparent; transition: border 0.3s ease;">            <div style="display: flex; gap: 1rem;">                <button id="btn-modal-cancel" class="btn btn-secondary" style="flex: 1; border-radius: 20px; padding: 0.8rem; font-weight: 600;">Interrompi</button>                <button id="btn-modal-confirm" class="btn btn-primary" style="flex: 1; border-radius: 20px; padding: 0.8rem; font-weight: 600;">Sincronizza</button>            </div>        </div>    </div>    <!-- Modale Impostazioni OOBE -->    <div id="oobe-settings-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; backdrop-filter: blur(8px);">        <div class="card fade-in-up" style="width: 100%; max-width: 600px; padding: 2rem; border-radius: 28px; box-shadow: 0 16px 48px rgba(0,0,0,0.3); background: var(--md-surface); border: 1px solid var(--md-outline-variant); display: flex; flex-direction: column; max-height: 90vh;">            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--md-outline-variant); padding-bottom: 1rem;">                <h2 style="margin: 0; font-size: 1.5rem; display: flex; align-items: center; gap: 0.8rem;">                    <span class="material-symbols-rounded" style="color: var(--md-primary);">settings</span> Impostazioni di Sistema                </h2>                <button id="btn-close-settings" style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--md-on-surface-variant); display: flex;"><span class="material-symbols-rounded">close</span></button>            </div>            <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">                <button class="settings-tab active" data-target="tab-diag" style="flex: 1; padding: 0.8rem; border-radius: 12px; border: none; background: var(--md-primary-container); color: var(--md-on-primary-container); font-weight: 600; cursor: pointer; transition: all 0.2s;">Diagnostica</button>                <button class="settings-tab" data-target="tab-data" style="flex: 1; padding: 0.8rem; border-radius: 12px; border: none; background: var(--md-surface-variant); color: var(--md-on-surface-variant); font-weight: 600; cursor: pointer; transition: all 0.2s;">Gestione Dati</button>                <button class="settings-tab" data-target="tab-troubleshoot" style="flex: 1; padding: 0.8rem; border-radius: 12px; border: none; background: var(--md-surface-variant); color: var(--md-on-surface-variant); font-weight: 600; cursor: pointer; transition: all 0.2s;">Risoluzione Problemi</button>            </div>            <div class="settings-content-wrapper" style="flex: 1; overflow-y: auto; padding-right: 0.5rem;">                <!-- Tab Diagnostica -->                <div id="tab-diag" class="settings-tab-content" style="display: block;">                    <div style="background: var(--md-surface-variant); padding: 1.5rem; border-radius: 16px; margin-bottom: 1rem;">                        <h3 style="margin-top: 0; font-size: 1.1rem; margin-bottom: 1rem; color: var(--md-on-surface);">Stato del Sistema</h3>                        <div id="settings-diag-status" style="font-family: monospace; font-size: 0.85rem; color: var(--md-on-surface-variant); white-space: pre-wrap; margin-bottom: 1rem; background: var(--md-background); padding: 1rem; border-radius: 8px;">Caricamento stato in corso...</div>                        <button id="btn-run-diag" class="btn btn-primary" style="width: 100%; border-radius: 12px; padding: 0.8rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">                            <span class="material-symbols-rounded">health_and_safety</span> Esegui Test Diagnostico                        </button>                    </div>                </div>                <!-- Tab Dati -->                <div id="tab-data" class="settings-tab-content" style="display: none;">                    <div style="background: var(--md-surface-variant); padding: 1.5rem; border-radius: 16px; margin-bottom: 1rem;">                        <h3 style="margin-top: 0; font-size: 1.1rem; margin-bottom: 1rem; color: var(--md-on-surface);">Esportazione e Log</h3>                        <p style="font-size: 0.9rem; color: var(--md-on-surface-variant); margin-bottom: 1rem;">Esporta i log di sistema per l'assistenza tecnica.</p>                        <button id="btn-export-logs" class="btn btn-primary" style="width: 100%; border-radius: 12px; padding: 0.8rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">                            <span class="material-symbols-rounded">file_download</span> Esporta Log di Sistema                        </button>                    </div>                </div>                <!-- Tab Risoluzione Problemi -->                <div id="tab-troubleshoot" class="settings-tab-content" style="display: none;">                    <div style="background: rgba(255, 82, 82, 0.1); border: 1px solid var(--md-error); padding: 1.5rem; border-radius: 16px; margin-bottom: 1rem;">                        <h3 style="margin-top: 0; font-size: 1.1rem; margin-bottom: 0.5rem; color: var(--md-error);">Ripristino Applicazione</h3>                        <p style="font-size: 0.9rem; color: var(--md-on-surface-variant); margin-bottom: 1rem;">Se l'applicazione non si avvia correttamente o si blocca su schermate vuote, puoi formattare i file temporanei e i database. <br><b>Attenzione: questo eliminerà la configurazione locale!</b></p>                        <button id="btn-hard-reset" class="btn" style="width: 100%; border-radius: 12px; padding: 0.8rem; font-weight: 600; background: var(--md-error); color: white; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">                            <span class="material-symbols-rounded">warning</span> Esegui Hard Reset                        </button>                    </div>                    <div style="background: var(--md-surface-variant); padding: 1.5rem; border-radius: 16px; margin-bottom: 1rem;">                        <h3 style="margin-top: 0; font-size: 1.1rem; margin-bottom: 1rem; color: var(--md-on-surface);">Strumenti Sviluppatore</h3>                        <button id="btn-check-updates" class="btn btn-secondary" style="width: 100%; border-radius: 12px; padding: 0.8rem; font-weight: 600; margin-bottom: 0.8rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">                            <span class="material-symbols-rounded">update</span> Controlla Aggiornamenti                        </button>                        <button id="btn-toggle-devtools" class="btn btn-secondary" style="width: 100%; border-radius: 12px; padding: 0.8rem; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">                            <span class="material-symbols-rounded">bug_report</span> Attiva DevTools                        </button>                    </div>                </div>            </div>        </div>    </div></div><style>    @keyframes spin { 100% { transform: rotate(360deg); } }    .node-card {        background: var(--md-surface);        border: 1px solid var(--md-outline-variant);        border-radius: 16px;        padding: 1.5rem;        transition: all 0.2s ease;        cursor: pointer;        display: flex;        align-items: center;        gap: 1.5rem;    }    .node-card:hover {        border-color: var(--md-primary);        box-shadow: 0 8px 24px rgba(0,0,0,0.08);        transform: translateY(-2px);    }    .node-status-indicator {        width: 12px;        height: 12px;        border-radius: 50%;        background: var(--md-primary);        box-shadow: 0 0 10px var(--md-primary);        animation: pulse 2s infinite;    }    @keyframes pulse {        0% { transform: scale(1); opacity: 1; }        50% { transform: scale(1.5); opacity: 0.5; }        100% { transform: scale(1); opacity: 1; }    }    /* Layout Responsive */    .oobe-container {        width: 100%; height: 100%; display: flex; overflow: hidden; background: var(--md-background); color: var(--md-on-background); margin: 0; padding: 0;    }    .oobe-sidebar {        width: 380px; background: var(--md-surface-variant); padding: 2rem; display: flex; flex-direction: column; border-right: 1px solid var(--md-outline-variant); z-index: 10;        flex-shrink: 0; justify-content: space-between;    }    .oobe-main {        flex: 1; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 3rem; background: radial-gradient(circle at center, var(--md-surface-variant) 0%, var(--md-background) 100%);        overflow-y: auto;    }    @media (max-width: 900px) {        .oobe-container {            flex-direction: column;            overflow-y: auto;        }        .oobe-sidebar {            width: 100%;            border-right: none;            border-bottom: 1px solid var(--md-outline-variant);            min-height: auto;        }        .oobe-main {            min-height: 500px;        }        #join-container > div:last-child {            flex-direction: column;        }        #join-container {            padding-top: 2rem;        }    }</style>`;function validateIPAddress(ip) {    try {        const regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;        return regex.test(ip);    } catch (e) {        return false;    }}function sanitizeNetworkCode(code) {    try {        return code.trim().toUpperCase().replace(/[^A-Z0-9-]/g, '');    } catch (e) {        return '';    }}async function handleCloneNetwork(node, networkCode) {    try {        toast("Sincronizzazione di sicurezza in corso...", "success");        if (!window.electronAPI) return false;        const success = await window.electronAPI.cloneNetwork({            host: node.host,            port: node.port,            networkCode: networkCode,            networkName: node.name || 'Network'        });        if (success) {            toast("Sincronizzazione completata con successo.", "success");            Router.navigate('auth_login');            return true;        } else {            toast("Accesso negato: Codice errato o firewall attivo.", "error");            return false;        }    } catch (e) {        toast("Errore critico durante la negoziazione P2P.", "error");        return false;    }}function promptNetworkCode(el, node) {    try {        const modal = el.querySelector('#network-code-modal');        const input = el.querySelector('#modal-network-code-input');        const confirmBtn = el.querySelector('#btn-modal-confirm');        const cancelBtn = el.querySelector('#btn-modal-cancel');        const titleDesc = el.querySelector('#modal-network-name');        const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');        titleDesc.innerHTML = `Connessione a: <b>${_esc(node.name)}</b><br><span style="font-family: monospace; font-size: 0.85rem; opacity: 0.8;">IPv4: ${_esc(node.host)}</span>`;        input.value = '';        modal.style.display = 'flex';        input.focus();        const newConfirm = confirmBtn.cloneNode(true);        confirmBtn.parentNode.replaceChild(newConfirm, confirmBtn);        const newCancel = cancelBtn.cloneNode(true);        cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);        newCancel.addEventListener('click', () => {            try { modal.style.display = 'none'; } catch (e) {}        });        newConfirm.addEventListener('click', async () => {            try {                const rawCode = input.value;                const safeCode = sanitizeNetworkCode(rawCode);                if (safeCode.length < 5) {                    input.style.borderColor = 'var(--md-error)';                    toast("Codice di sicurezza non conforme.", "error");                    return;                }                input.style.borderColor = 'transparent';                modal.style.display = 'none';                await handleCloneNetwork(node, safeCode);            } catch (e) {}        });    } catch (e) {}}async function performManualPing(el, ip) {    try {        const btn = el.querySelector('#btn-ip-manual-connect');        const originalText = btn.innerHTML;        btn.innerHTML = '<span class="material-symbols-rounded" style="animation: spin 1s linear infinite;">sync</span> Ping...';        btn.disabled = true;        if (window.electronAPI && window.electronAPI.pingNode) {            const start = performance.now();            const res = await window.electronAPI.pingNode({ host: ip, port: 34567 });            const latency = Math.round(performance.now() - start);            if (res.success) {                toast(`Ping OK (${latency}ms). Handshake completato.`, "success");                const fakeNode = { name: res.data.node || 'Nodo Adestio', host: ip, port: 34567 };                promptNetworkCode(el, fakeNode);            } else {                toast(`Connessione rifiutata o timeout: ${res.error}`, "error");            }        }        btn.innerHTML = originalText;        btn.disabled = false;    } catch(e) {        toast("Errore interno durante il ping.", "error");    }}function bindManualConnect(el, btnId, inputId) {    try {        const btn = el.querySelector('#' + btnId);        const inp = el.querySelector('#' + inputId);        if (!btn || !inp) return;        btn.addEventListener('click', () => {            try {                const ip = inp.value.trim();                if (!validateIPAddress(ip)) {                    toast("Indirizzo IPv4 non valido.", "error");                    return;                }                performManualPing(el, ip);            } catch (e) {}        });    } catch (e) {}}async function renderPublicNetworkWarning(el) {    try {        if (!window.electronAPI || !window.electronAPI.checkNetworkProfile) return;        const profile = await window.electronAPI.checkNetworkProfile();        el.querySelector('#telemetry-firewall').textContent = profile;        if (profile === 'Public') {            const warningHTML = `                <div style="background: rgba(255, 82, 82, 0.1); border: 1px solid var(--md-error); padding: 1.5rem; border-radius: 16px; margin-bottom: 2rem; display: flex; gap: 1rem; align-items: flex-start;">                    <span class="material-symbols-rounded" style="color: var(--md-error); font-size: 2rem;">gpp_maybe</span>                    <div>                        <h4 style="color: var(--md-error); margin: 0 0 0.5rem 0; font-size: 1.1rem;">Restrizioni Firewall (Rete Pubblica)</h4>                        <p style="font-size: 0.95rem; color: var(--md-on-surface); margin: 0; line-height: 1.5;">                            Windows Firewall è attivo in modalità restrittiva e bloccherà i pacchetti UDP (mDNS). La scansione automatica potrebbe fallire. <b>Soluzione:</b> Imposta la rete su "Privata" o utilizza la connessione diretta IPv4 qui a destra.                        </p>                    </div>                </div>            `;            el.querySelector('#warning-container').innerHTML = warningHTML;        }    } catch (e) {}}async function executeNetworkScan(el) {    try {        const listElement = el.querySelector('#nodes-list');        const statusEl = el.querySelector('#scan-status');        if (!window.electronAPI) return;        if (window.electronAPI && window.electronAPI.onScanProgress) {            window.electronAPI.onScanProgress((msg) => {                statusEl.textContent = msg;                statusEl.style.background = 'var(--md-primary-container)';                statusEl.style.color = 'var(--md-on-primary-container)';            });        }        const nodes = await window.electronAPI.scanNodes();        statusEl.textContent = 'Scansione completata';        statusEl.style.background = 'var(--md-surface-variant)';        statusEl.style.color = 'var(--md-on-surface-variant)';        if (nodes.length === 0) {            listElement.innerHTML = `                <div style="text-align: center; padding: 4rem 0; color: var(--md-on-surface-variant); background: var(--md-surface); border-radius: 20px; border: 1px dashed var(--md-outline);">                    <span class="material-symbols-rounded" style="font-size: 4rem; margin-bottom: 1rem; opacity: 0.5;">wifi_off</span>                    <h3 style="margin-bottom: 0.5rem;">Nessun Nodo Trovato</h3>                    <p style="font-size: 0.95rem;">Assicurati che l'altro computer sia acceso, con l'app avviata e connesso alla stessa rete LAN.</p>                </div>            `;        } else {            listElement.innerHTML = '';            nodes.forEach(node => {                try {                    const card = document.createElement('div');                    card.className = 'node-card fade-in-up';                    card.innerHTML = `                        <div class="node-status-indicator"></div>                        <div style="flex: 1;">                            <h3 style="margin: 0 0 0.3rem 0; color: var(--md-primary); font-size: 1.2rem;">${node.name}</h3>                            <div style="display: flex; gap: 1rem; font-size: 0.85rem; color: var(--md-on-surface-variant); font-family: monospace;">                                <span><span class="material-symbols-rounded" style="font-size: 1rem; vertical-align: bottom;">lan</span> ${node.ip || node.host || 'Sconosciuto'}</span>                                <span><span class="material-symbols-rounded" style="font-size: 1rem; vertical-align: bottom;">cable</span> Port ${node.port}</span>                            </div>                        </div>                        <button class="btn btn-secondary" style="border-radius: 50%; width: 48px; height: 48px; padding: 0; display: flex; align-items: center; justify-content: center;">                            <span class="material-symbols-rounded">login</span>                        </button>                    `;                    card.addEventListener('click', () => {                        try { promptNetworkCode(el, node); } catch (e) {}                    });                    listElement.appendChild(card);                } catch (e) {}            });        }    } catch (e) {}}export default {    render: async (el) => {        try {            el.innerHTML = OOBE_TEMPLATE;            try {                if (window.electronAPI && window.electronAPI.getLocalIPs) {                    const ips = await window.electronAPI.getLocalIPs();                    if (ips && ips.length > 0) {                        el.querySelector('#telemetry-host').innerHTML = ips.map(ip => `<span style="background: var(--md-secondary-container); padding: 2px 6px; border-radius: 4px; font-size: 0.75rem;">${ip}</span>`).join(' ');                    } else {                        el.querySelector('#telemetry-host').textContent = 'Localhost / Isolato';                    }                }            } catch(e){}            try {                if (window.electronAPI && window.electronAPI.dbGetBackupStatus) {                    const status = await window.electronAPI.dbGetBackupStatus();                    const unlockContainer = el.querySelector('#unlock-container');                    const unlockDetails = el.querySelector('#unlock-details');                    let hasArchive = false;                    let detailsHtml = '';                    if (status && status.primary && (status.primary.appData || status.primary.docs)) {                        hasArchive = true;                        const size = status.primary.appData || status.primary.docs;                        const mb = (size / (1024 * 1024)).toFixed(2);                        detailsHtml += `Archivio Primario: ${mb} MB<br>`;                    }                    if (status && status.totalBackups > 0) {                        hasArchive = true;                        detailsHtml += `${status.totalBackups} Backup Locali Trovati`;                    }                    if (hasArchive) {                        unlockContainer.style.display = 'flex';                        if (detailsHtml) {                            unlockDetails.innerHTML = detailsHtml;                        }                    }                }            } catch(e){}            const createBtn = el.querySelector('#btn-create');            if (createBtn) {                createBtn.addEventListener('click', () => {                    try { Router.navigate('auth_register'); } catch (e) {}                });            }            const joinBtn = el.querySelector('#btn-join');            if (joinBtn) {                joinBtn.addEventListener('click', async () => {                    try {                        el.querySelector('#initial-placeholder').style.display = 'none';                        const container = el.querySelector('#join-container');                        container.style.display = 'flex';                        await renderPublicNetworkWarning(el);                        bindManualConnect(el, 'btn-ip-manual-connect', 'ip-manual-connect');                        const rescanBtn = el.querySelector('#btn-rescan');                        rescanBtn.addEventListener('click', async () => {                            try {                                const listElement = el.querySelector('#nodes-list');                                listElement.innerHTML = `                                    <div style="text-align: center; padding: 3rem 0; color: var(--md-on-surface-variant);">                                        <span class="material-symbols-rounded" style="font-size: 3rem; margin-bottom: 1rem; animation: spin 1s linear infinite;">sync</span>                                        <p>Riavvio scansione in corso...</p>                                    </div>                                `;                                await executeNetworkScan(el);                            } catch(e){}                        });                        await executeNetworkScan(el);                    } catch (e) {}                });            }            const unlockBtn = el.querySelector('#btn-unlock');            if (unlockBtn) {                unlockBtn.addEventListener('click', () => {                    try {                        promptNetworkCode(el, { name: "Archivio Locale", host: "localhost", port: "N/A" });                        const titleDesc = el.querySelector('#modal-network-name');                        if(titleDesc) {                            titleDesc.innerHTML = `Archivio cifrato rilevato.<br><span style="font-size: 0.85rem; opacity: 0.8;">Inserisci il codice di sblocco (Master Key / Seed Phrase)</span>`;                        }                    } catch (e) {}                });            }            const importBtn = el.querySelector('#btn-import');            if (importBtn) {                importBtn.addEventListener('click', () => {                    try {                        toast("Funzione di importazione da backup USB in fase di sviluppo.", "info");                    } catch (e) {}                });            }            const settingsBtn = el.querySelector('#btn-oobe-settings');            const settingsModal = el.querySelector('#oobe-settings-modal');            const closeSettingsBtn = el.querySelector('#btn-close-settings');            if (settingsBtn && settingsModal) {                settingsBtn.addEventListener('click', async () => {                    try {                        settingsModal.style.display = 'flex';                        const diagStatus = el.querySelector('#settings-diag-status');                        if (window.electronAPI && window.electronAPI.getAppStatus) {                            const status = await window.electronAPI.getAppStatus();                            diagStatus.innerHTML = `Versione App: ${status.version || 'N/D'}Versione Protocollo P2P: ${status.protocolVersion || 'N/D'}Nodi Connessi: ${status.connectedNodes || 0}Stato Sincronizzazione: ${status.syncState || 'N/D'}Blocchi Ledger: ${status.ledgerHeight || 0}`;                        } else {                            diagStatus.textContent = "Impossibile recuperare lo stato dal backend.";                        }                    } catch (e) {                        toast("Errore durante l'apertura delle impostazioni.", "error");                    }                });                closeSettingsBtn.addEventListener('click', () => {                    settingsModal.style.display = 'none';                });                const tabs = el.querySelectorAll('.settings-tab');                const contents = el.querySelectorAll('.settings-tab-content');                tabs.forEach(tab => {                    tab.addEventListener('click', () => {                        tabs.forEach(t => {                            t.classList.remove('active');                            t.style.background = 'var(--md-surface-variant)';                            t.style.color = 'var(--md-on-surface-variant)';                        });                        tab.classList.add('active');                        tab.style.background = 'var(--md-primary-container)';                        tab.style.color = 'var(--md-on-primary-container)';                        contents.forEach(c => c.style.display = 'none');                        el.querySelector('#' + tab.dataset.target).style.display = 'block';                    });                });                el.querySelector('#btn-run-diag').addEventListener('click', async () => {                    if (window.electronAPI && window.electronAPI.runDiagnostics) {                        toast("Diagnostica in corso...", "info");                        const res = await window.electronAPI.runDiagnostics();                        if(res && res.success) toast("Test completato. Risultati in log.", "success");                    }                });                el.querySelector('#btn-export-logs').addEventListener('click', async () => {                    if (window.electronAPI && window.electronAPI.exportLogs) {                        const res = await window.electronAPI.exportLogs();                        if (res && res.success) {                            toast(`Log esportati in ${res.path}`, "success");                        } else if (res && !res.canceled) {                            toast("Errore esportazione log: " + res.error, "error");                        }                    }                });                el.querySelector('#btn-hard-reset').addEventListener('click', () => {                    if(confirm("ATTENZIONE! Vuoi davvero eliminare tutti i dati locali e resettare l'app? Questo disconnetterà la postazione.")) {                        if (window.electronAPI && window.electronAPI.resetApp) {                            window.electronAPI.resetApp();                        }                    }                });                el.querySelector('#btn-check-updates').addEventListener('click', () => {                    if (window.electronAPI && window.electronAPI.checkForUpdates) {                        toast("Controllo aggiornamenti in corso...", "info");                        window.electronAPI.checkForUpdates();                    }                });                el.querySelector('#btn-toggle-devtools').addEventListener('click', () => {                    if (window.electronAPI && window.electronAPI.toggleDevTools) {                        window.electronAPI.toggleDevTools();                    }                });            }        } catch (e) {            try {                el.innerHTML = `<p style="color: var(--md-error); text-align: center;">Inizializzazione OOBE Fallita.</p>`;            } catch (fallbackError) {}        }    }};

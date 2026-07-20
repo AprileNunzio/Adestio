@@ -23,7 +23,6 @@ const handlers = {
             const db = require('../../db').getDB('config');
             db.run('INSERT OR REPLACE INTO node_registry (node_id, protocol_version, app_version, last_seen) VALUES (?, ?, ?, ?)', [nodeId, protocolVersion, appVersion || '0.0.0', Date.now()]);
             require('../../db').saveDB('config');
-            
             if (appVersion) {
                 const { app } = require('electron');
                 const updatesManager = require('../../updates_manager');

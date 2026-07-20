@@ -1,7 +1,4 @@
 import { toast } from '../../../../js/utils.js';
-
-// Campi salvati nella config (chiave -> etichetta). Usati per compilare i
-// placeholder dell'istituto nella presa di servizio.
 const FIELDS = [
     { key: 'istituto_nome', label: 'Denominazione Istituto', icon: 'school', ph: 'Es. I.C. Giovanni Verga', span: 2 },
     { key: 'istituto_codice_meccanografico', label: 'Codice Meccanografico', icon: 'tag', ph: 'Es. RMIC8AA00X' },
@@ -13,7 +10,6 @@ const FIELDS = [
     { key: 'istituto_cc_iban', label: 'IBAN Conto Corrente', icon: 'tag', ph: 'IBAN della tesoreria della scuola' },
     { key: 'istituto_fondo_espero', label: 'Fondo Espero', icon: 'savings', ph: 'Es. Aderente / Non aderente', span: 2 }
 ];
-
 export default {
     render: async (el) => {
         try {
@@ -41,10 +37,8 @@ export default {
                     </div>
                 </div>
             `;
-
             const config = await window.electronAPI.readConfig() || {};
             FIELDS.forEach(f => { const i = document.getElementById('di-' + f.key); if (i && config[f.key]) i.value = config[f.key]; });
-
             document.getElementById('di-save').addEventListener('click', async (ev) => {
                 const btn = ev.currentTarget;
                 const old = btn.innerHTML;

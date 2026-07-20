@@ -69,7 +69,6 @@ class WindowManager {
                     contextIsolation: true
                 }
             });
-            
             this.mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
                 const logger = require('../observability/logger');
                 if (level >= 2) {
@@ -78,7 +77,6 @@ class WindowManager {
                     logger.warn(`[Frontend Warn] ${message}`, { line, source: sourceId });
                 }
             });
-
             this.mainWindow.webContents.on('render-process-gone', (event, details) => {
                 const logger = require('../observability/logger');
                 logger.error(`[Frontend Crash] Il processo di rendering è terminato in modo anomalo`, details);

@@ -2,7 +2,6 @@ export class HistoryTable {
     constructor(container, dataService) {
         this.container = container;
         this.dataService = dataService;
-
         this.SEVERITY_ICONS = {
             info: 'info',
             warning: 'warning',
@@ -14,11 +13,9 @@ export class HistoryTable {
             system: 'Sistema',
             network: 'Rete'
         };
-
         this._renderBase();
         this._attachBaseEvents();
     }
-
     _renderBase() {
         try {
             this.container.innerHTML = `
@@ -65,21 +62,17 @@ export class HistoryTable {
             console.error('[HistoryTable] _renderBase error:', e);
         }
     }
-
     _attachBaseEvents() {
         try {
             const severityFilter = this.container.querySelector('#not-severity-filter');
             const unreadCheckbox = this.container.querySelector('#not-unread-checkbox');
             const markAllBtn = this.container.querySelector('#not-mark-all-btn');
-
             severityFilter.addEventListener('change', (e) => {
                 this.dataService.setFilters(unreadCheckbox.checked, e.target.value);
             });
-
             unreadCheckbox.addEventListener('change', (e) => {
                 this.dataService.setFilters(e.target.checked, severityFilter.value);
             });
-
             markAllBtn.addEventListener('click', async () => {
                 try {
                     await this.dataService.markAsRead(null, true);
@@ -93,12 +86,10 @@ export class HistoryTable {
             console.error('[HistoryTable] _attachBaseEvents error:', e);
         }
     }
-
     _fmtDate(ts) {
         if (!ts) return '—';
         try { return new Date(Number(ts)).toLocaleString('it-IT'); } catch (e) { return '—'; }
     }
-
     update(notifications) {
         try {
             if (!notifications || notifications.length === 0) {
@@ -114,7 +105,6 @@ export class HistoryTable {
                 `;
                 return;
             }
-
             this.tbody.innerHTML = notifications.map(n => {
                 let metaHtml = '';
                 try {
@@ -127,7 +117,6 @@ export class HistoryTable {
                         }
                     }
                 } catch (e) {}
-
                 return `
                     <tr class="${n.is_read ? '' : 'unread'}">
                         <td style="text-align: center;">
@@ -156,7 +145,6 @@ export class HistoryTable {
                     </tr>
                 `;
             }).join('');
-
             // Event listener for single mark as read
             this.tbody.querySelectorAll('[data-mark]').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
@@ -165,7 +153,6 @@ export class HistoryTable {
                     await this.dataService.markAsRead(id);
                 });
             });
-
         } catch (e) {
             console.error('[HistoryTable] update error:', e);
             this.tbody.innerHTML = `<tr><td colspan="5" style="color: var(--md-error); text-align:center; padding: 1rem;">Errore rendering tabella.</td></tr>`;

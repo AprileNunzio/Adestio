@@ -2,8 +2,6 @@ export class PreferencesPanel {
     constructor(container, dataService) {
         this.container = container;
         this.dataService = dataService;
-        
-        // Nuove icone moderne per le categorie
         this.CATEGORY_ICONS = {
             security: 'gpp_maybe',
             sync: 'cloud_sync',
@@ -11,14 +9,12 @@ export class PreferencesPanel {
             network: 'hub'
         };
     }
-
     render(preferences) {
         try {
             if (!preferences || preferences.length === 0) {
                 this.container.innerHTML = `<div style="padding: 1.5rem; text-align: center; color: var(--md-on-surface-variant);">Nessuna preferenza disponibile.</div>`;
                 return;
             }
-
             const html = preferences.map(p => {
                 const icon = this.CATEGORY_ICONS[p.category] || 'notifications_active';
                 return `
@@ -42,7 +38,6 @@ export class PreferencesPanel {
                     </div>
                 `;
             }).join('');
-
             this.container.innerHTML = html;
             this._attachEvents();
         } catch (e) {
@@ -50,7 +45,6 @@ export class PreferencesPanel {
             this.container.innerHTML = `<div style="color: var(--md-error); padding: 1rem;">Errore caricamento preferenze.</div>`;
         }
     }
-
     _attachEvents() {
         try {
             this.container.querySelectorAll('.not-cat-row').forEach(row => {

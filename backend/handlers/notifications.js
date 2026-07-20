@@ -1,6 +1,5 @@
 const crypto = require('crypto');
 const { getDB, saveDB, wrapMutationWithEvent } = require('../db');
-
 const CATEGORIES = ['security', 'sync', 'system', 'network'];
 const CATEGORY_LABELS = {
     security: 'Sicurezza',
@@ -9,7 +8,6 @@ const CATEGORY_LABELS = {
     network: 'Rete'
 };
 const DEFAULT_PREF = { in_app: 1, email: 0, sound: 1 };
-
 async function getPreferences(event, userId) {
     try {
         const db = getDB();
@@ -32,7 +30,6 @@ async function getPreferences(event, userId) {
         return { success: false, error: e.message };
     }
 }
-
 async function setPreference(event, { userId, category, in_app, email, sound }) {
     try {
         if (!CATEGORIES.includes(category)) return { success: false, error: 'Categoria non valida' };
@@ -58,7 +55,6 @@ async function setPreference(event, { userId, category, in_app, email, sound }) 
         return { success: false, error: e.message };
     }
 }
-
 async function list(event, { userId, unreadOnly, page = 1, pageSize = 30 }) {
     try {
         const db = getDB();
@@ -82,7 +78,6 @@ async function list(event, { userId, unreadOnly, page = 1, pageSize = 30 }) {
         return { success: false, error: e.message };
     }
 }
-
 async function markRead(event, { userId, id, all }) {
     try {
         const db = getDB();
@@ -102,8 +97,6 @@ async function markRead(event, { userId, id, all }) {
         return { success: false, error: e.message };
     }
 }
-
-// Funzione interna (esposta anche via IPC): crea una notifica passando per il nuovo NotificationManager.
 async function create(payload) {
     try {
         const NotificationManager = require('../core/notificationManager');
@@ -113,5 +106,4 @@ async function create(payload) {
         return { success: false, error: e.message };
     }
 }
-
 module.exports = { getPreferences, setPreference, list, markRead, create, CATEGORIES };

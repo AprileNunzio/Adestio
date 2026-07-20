@@ -5,8 +5,6 @@ import { personaFormHtml, readPersonaForm, fillPersonaForm, populatePersonaFormD
 import { renderPersonScopedCrudSubapp } from './shared/subapp_crud_kit.js';
 import { mountContattiSection } from './shared/contatti_section.js';
 import { mountAuditButton } from './shared/audit_trail_button.js';
-
-/* ------------------------- Configurazioni sezioni CRUD ------------------------- */
 const TIPI_DOCUMENTO = {
     carta_identita: "Carta d'Identità", passaporto: 'Passaporto', patente: 'Patente di Guida',
     tessera_sanitaria: 'Tessera Sanitaria', permesso_soggiorno: 'Permesso di Soggiorno', altro: 'Altro'
@@ -14,7 +12,6 @@ const TIPI_DOCUMENTO = {
 const TIPI_CONTRATTO = ['Tempo Indeterminato', 'Tempo Determinato', 'Apprendistato', 'Partita IVA', 'Collaborazione', 'Stage/Tirocinio', 'Altro'];
 const MANSIONI_SCOLASTICHE = ['Docente', 'Assistente Tecnico', 'Collaboratore Scolastico', 'Assistente Amministrativo', 'DSGA', 'Altro'];
 const TIPI_INDIRIZZO = { residenza: 'Residenza', domicilio: 'Domicilio' };
-
 function scadenzaInfo(r) {
     if (!r.data_scadenza) return { label: 'Nessuna scadenza registrata', badge: null };
     const oggi = new Date(); oggi.setHours(0, 0, 0, 0);
@@ -33,7 +30,6 @@ function periodoIndirizzo(r) {
     if (r.is_corrente) return i ? `Dal ${i} · attuale` : 'Indirizzo attuale';
     return i ? `Dal ${i}${r.data_fine ? ' al ' + fmt.data(r.data_fine) : ''}` : (r.data_fine ? `Fino al ${fmt.data(r.data_fine)}` : '');
 }
-
 function documentiConfig(persona, onChange) {
     return {
         embedded: true, fixedPersona: persona, tone: 'orange', icon: 'badge', newLabel: 'Nuovo Documento',
@@ -157,7 +153,6 @@ function residenzaConfig(persona, onChange) {
         cardBadge: (r) => r.is_corrente ? 'Attuale' : null
     };
 }
-
 function famigliaConfig(persona, onChange) {
     return {
         embedded: true, fixedPersona: persona, tone: 'pink', icon: 'family_restroom', newLabel: 'Nuovo Familiare',
@@ -188,14 +183,10 @@ function famigliaConfig(persona, onChange) {
         cardBadge: (r) => r.is_a_carico ? 'A carico' : null
     };
 }
-
-/* --------------------------------- Console --------------------------------- */
 export default {
     render: async (el, params = {}) => {
         let rawPersone = [];
-
-        /* ============================ DIRECTORY ============================ */
-        const renderDirectory = async (filter = '') => {
+                const renderDirectory = async (filter = '') => {
             el.innerHTML = `
                 <div class="fade-in-up ak-root">
                     ${heroHtml({
@@ -222,7 +213,6 @@ export default {
                         <div class="ak-panel-body" id="gp-directory"></div>
                     </div>
                 </div>
-
                 <div id="persona-modal" class="ak-modal" style="--ak-accent:${TONI.teal.accent}; --ak-soft:${TONI.teal.soft};" role="dialog" aria-modal="true" aria-labelledby="persona-modal-title">
                     <div class="ak-modal-card">
                         <div class="ak-modal-head">
@@ -260,7 +250,6 @@ export default {
                         background:var(--md-error-container); color:var(--md-on-error-container); padding:0.1rem 0.45rem; border-radius:999px; }
                 </style>
             `;
-
             const directory = el.querySelector('#gp-directory');
             const searchInput = el.querySelector('#gp-search');
             const countEl = el.querySelector('#gp-count');
@@ -268,7 +257,6 @@ export default {
             const form = el.querySelector('#persona-form');
             const modalError = el.querySelector('#persona-modal-error');
             const AVATAR_TONES = [TONI.teal.accent, TONI.violet.accent, TONI.orange.accent, TONI.blue.accent, TONI.cyan.accent];
-
             const renderCards = (filterText) => {
                 const q = (filterText || '').toLowerCase();
                 const filtered = rawPersone.filter(p =>
@@ -296,7 +284,6 @@ export default {
                     card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
                 });
             };
-
             const loadPersone = async (filterText = '') => {
                 try {
                     rawPersone = await window.electronAPI.anagrafica.persone.getAll({ includeDeleted: true });
@@ -305,9 +292,7 @@ export default {
                     directory.innerHTML = `<p style="color:var(--md-error); text-align:center; padding:2rem;">Errore caricamento: ${e.message}</p>`;
                 }
             };
-
             searchInput.addEventListener('input', (e) => renderCards(e.target.value));
-
             const openModal = () => {
                 modalError.style.display = 'none';
                 fillPersonaForm(el, null);
@@ -328,7 +313,6 @@ export default {
             el.querySelector('#persona-modal-close').addEventListener('click', closeModal);
             el.querySelector('#persona-modal-cancel').addEventListener('click', closeModal);
             modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
-
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
                 modalError.style.display = 'none';
@@ -349,12 +333,9 @@ export default {
                     modalError.style.display = 'block';
                 } finally { btnSave.disabled = false; }
             });
-
             await loadPersone(filter);
         };
-
-        /* ============================ WORKSPACE ============================ */
-        const openWorkspace = async (personaId) => {
+                const openWorkspace = async (personaId) => {
             el.innerHTML = `<div class="ak-root" style="align-items:center; justify-content:center;"><span class="material-symbols-rounded" style="font-size:2rem; animation:spin 2s linear infinite;">sync</span></div>`;
             let scheda, contattiCount = 0;
             try {
@@ -384,7 +365,6 @@ export default {
                 { id: 'bancari', label: 'Dati Bancari', icon: 'account_balance' },
                 { id: 'residenza', label: 'Residenza', icon: 'home' }
             ];
-
             el.innerHTML = `
                 <div class="fade-in-up ak-root gp-ws">
                     ${heroHtml({
@@ -425,7 +405,6 @@ export default {
                     .gp-tab-content { flex:1; min-height:0; display:flex; flex-direction:column; }
                 </style>
             `;
-
             mountAuditButton(el.querySelector('#gp-audit'), { tableName: 'persone', recordId: personaId, label: `${p.cognome} ${p.nome}` });
             el.querySelector('#gp-back').addEventListener('click', () => renderDirectory());
             const blockBtn = el.querySelector('#gp-block');
@@ -439,10 +418,8 @@ export default {
                 try { await window.electronAPI.anagrafica.persone.restore({ id: personaId }); toast('Persona ripristinata', 'success'); openWorkspace(personaId); }
                 catch (e) { toast(e.message || 'Errore', 'error'); }
             });
-
             const content = el.querySelector('#gp-tab-content');
             const setCount = (tabId, n) => { const b = el.querySelector(`#gp-tc-${tabId}`); if (b) b.textContent = n; };
-
             const mountDati = () => {
                 content.innerHTML = `
                     <div class="ak-root" style="--ak-accent:${TONI.blue.accent}; --ak-soft:${TONI.blue.soft}; gap:0.75rem;">
@@ -481,7 +458,6 @@ export default {
                     } finally { btn.disabled = false; }
                 });
             };
-
             const mountTab = (tabId) => {
                 content.innerHTML = '';
                 if (tabId === 'dati') return mountDati();
@@ -493,7 +469,6 @@ export default {
                 if (tabId === 'bancari') return renderPersonScopedCrudSubapp(content, bancariConfig(p, (n) => setCount('bancari', n)));
                 if (tabId === 'residenza') return renderPersonScopedCrudSubapp(content, residenzaConfig(p, (n) => setCount('residenza', n)));
             };
-
             el.querySelectorAll('.gp-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
                     el.querySelectorAll('.gp-tab').forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
@@ -503,10 +478,7 @@ export default {
             });
             mountTab('dati');
         };
-
         try {
-            // Se un'altra app (es. Presa di Servizio) ci passa una persona, apri
-            // direttamente la sua scheda invece dell'elenco.
             if (params && params.personaId) await openWorkspace(params.personaId);
             else await renderDirectory();
         } catch (e) {

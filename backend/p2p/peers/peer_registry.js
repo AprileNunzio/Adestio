@@ -43,7 +43,6 @@ function getPexPeers() {
         .filter(p => p.state === STATES.SYNCED && now - p.lastSeen < 45000)
         .map(({ ip, name, port, nodeId, protocolVersion }) => ({ ip, name, port, nodeId, protocolVersion }));
 }
-// Cleanup periodico ogni minuto per eliminare i nodi inattivi da oltre 15 minuti
 setInterval(() => {
     const now = Date.now();
     for (const [ip, p] of _peers.entries()) {
@@ -52,7 +51,6 @@ setInterval(() => {
         }
     }
 }, 60000);
-
 function getDetailedPeers() {
     const { getNodeId } = require('../../core/node_identity');
     const myNodeId = getNodeId();

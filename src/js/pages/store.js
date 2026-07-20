@@ -1,5 +1,4 @@
 import { Router, toast } from '../utils.js';
-
 async function isSuperadmin() {
     try {
         const userId = sessionStorage.getItem('currentUserId');
@@ -10,7 +9,6 @@ async function isSuperadmin() {
         return false;
     }
 }
-
 const CATEGORY_LABELS = {
     hr: 'Risorse Umane',
     erp: 'Gestionale',
@@ -18,7 +16,6 @@ const CATEGORY_LABELS = {
     personal: 'Personale',
     utility: 'Utilità'
 };
-
 export default {
     render: async (el) => {
         try {
@@ -27,9 +24,7 @@ export default {
                 Router.navigate('auth_login');
                 return;
             }
-
             const admin = await isSuperadmin();
-
             el.innerHTML = `
                 <div id="store-main-view" class="fade-in-up" style="width: 100%; flex: 1; display: flex; flex-direction: column;">
                     <div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1.5rem; margin-bottom: 2rem; width: 100%;">
@@ -44,18 +39,15 @@ export default {
                             <input type="text" id="store-search" class="input" placeholder="Cerca applicazione..." style="padding-left: 3rem; padding-top: 0.8rem; padding-bottom: 0.8rem; width: 100%; border-radius: 28px; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant); font-size: 1.05rem; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); transition: all 0.2s ease;">
                         </div>
                     </div>
-
                     <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--md-outline-variant);">
                         <button class="store-tab active" data-tab="available">Terze Parti</button>
                         <button class="store-tab" data-tab="installed">Installate</button>
                         <button class="store-tab" data-tab="core">Predefinite</button>
                     </div>
-
                     <div id="store-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem;">
                         <p style="color: var(--md-on-surface-variant);">Caricamento store in corso...</p>
                     </div>
                 </div>
-
                 <div id="store-detail-view" style="display: none; width: 100%; flex: 1; flex-direction: column;">
                     <div style="margin-bottom: 1.5rem;">
                         <button id="btn-back-store" class="btn" style="background: transparent; border: 1px solid var(--md-outline); color: var(--md-on-surface); display: inline-flex; align-items: center; gap: 0.5rem; border-radius: 12px;">
@@ -66,7 +58,6 @@ export default {
                         <!-- Il contenuto ultra-dettagliato verrà iniettato qui -->
                     </div>
                 </div>
-
                 <style>
                     .store-tab {
                         background: transparent;
@@ -107,7 +98,6 @@ export default {
                     .store-badge.installed { background: var(--md-success-container); color: var(--md-on-success-container); }
                     .store-badge.category { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
                     .store-badge.core { background: var(--md-primary-container); color: var(--md-on-primary-container); }
-                    
                     /* Stili pagina dettaglio */
                     .detail-header { display: flex; gap: 1.5rem; align-items: center; margin-bottom: 2rem; }
                     .detail-icon { width: 90px; height: 90px; border-radius: 18px; object-fit: contain; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
@@ -121,30 +111,24 @@ export default {
                     .btn-uninstall-large { background: transparent; color: var(--md-error); border: 2px solid var(--md-error); padding: 1rem 2rem; border-radius: 14px; font-size: 1.1rem; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; }
                 </style>
             `;
-
             const mainView = el.querySelector('#store-main-view');
             const detailView = el.querySelector('#store-detail-view');
             const detailContent = el.querySelector('#store-detail-content');
             const btnBackStore = el.querySelector('#btn-back-store');
-            
             const grid = el.querySelector('#store-grid');
             const searchInput = el.querySelector('#store-search');
             const tabs = el.querySelectorAll('.store-tab');
-
             let marketApps = [];
             let coreApps = [];
             let activeTab = 'available';
-
             btnBackStore.addEventListener('click', () => {
                 detailView.style.display = 'none';
                 mainView.style.display = 'flex';
-                loadApps(); // ricarica stato
+                loadApps(); 
             });
-
             async function performInstall(app) {
                 const btn = document.getElementById('detail-action-btn');
                 if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-symbols-rounded spin">sync</span> Download e Installazione...'; }
-                
                 const res = await window.electronAPI.store.install(app.id);
                 if (res && res.success) {
                     toast(`"${app.name}" installata con successo.`, 'success');
@@ -155,12 +139,10 @@ export default {
                     if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-rounded">download</span> Riprova'; }
                 }
             }
-
             async function performUninstall(app) {
                 if (!confirm(`Sei sicuro di voler disinstallare e rimuovere definitivamente ${app.name}?`)) return;
                 const btn = document.getElementById('detail-action-btn');
                 if (btn) { btn.disabled = true; btn.innerHTML = '<span class="material-symbols-rounded spin">sync</span> Disinstallazione in corso...'; }
-                
                 const res = await window.electronAPI.store.uninstall(app.id);
                 if (res && res.success) {
                     toast(`"${app.name}" rimossa con successo.`, 'success');
@@ -171,14 +153,11 @@ export default {
                     if (btn) { btn.disabled = false; btn.innerHTML = '<span class="material-symbols-rounded">delete</span> Riprova'; }
                 }
             }
-
             function showAppDetails(app, isAdmin) {
                 mainView.style.display = 'none';
                 detailView.style.display = 'flex';
-
                 const iconPath = app.icon ? (app.icon.includes('//') ? app.icon : `apps/${app.folder}/${app.icon}`) : `icone/applicazione_generica.png`;
                 const isCore = app.core;
-                
                 let actionBtnHtml = '';
                 if (!isAdmin) {
                     actionBtnHtml = `<div style="padding: 1rem; background: var(--md-error-container); color: var(--md-on-error-container); border-radius: 12px; font-weight: bold;">Sono richiesti i permessi di Super Amministratore per gestire l'applicazione.</div>`;
@@ -189,7 +168,6 @@ export default {
                 } else {
                     actionBtnHtml = `<button id="detail-action-btn" class="btn-install-large"><span class="material-symbols-rounded">download</span> Scarica e Installa</button>`;
                 }
-
                 detailContent.innerHTML = `
                     <div class="detail-header">
                         <img src="${iconPath}" class="detail-icon" onerror="this.src='icone/applicazione_generica.png'">
@@ -203,16 +181,13 @@ export default {
                             </div>
                         </div>
                     </div>
-
                     <div class="detail-action-bar">
                         ${actionBtnHtml}
                     </div>
-
                     <div class="detail-section">
                         <h3 class="detail-h3"><span class="material-symbols-rounded">info</span> Descrizione</h3>
                         <p class="detail-text">${(app.long_description || app.description || '').replace(/\n/g, '<br>')}</p>
                     </div>
-
                     <div class="detail-section" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
                         <div>
                             <h3 class="detail-h3"><span class="material-symbols-rounded">memory</span> Dettagli Tecnici</h3>
@@ -231,13 +206,11 @@ export default {
                             </ul>
                         </div>
                     </div>
-
                     ${app.legal_info ? `
                     <div class="detail-section">
                         <h3 class="detail-h3"><span class="material-symbols-rounded">gavel</span> Informazioni Legali e Privacy</h3>
                         <p class="detail-text" style="font-size: 0.9rem;">${app.legal_info.replace(/\n/g, '<br>')}</p>
                     </div>` : ''}
-
                     ${app.links && app.links.length > 0 ? `
                     <div class="detail-section">
                         <h3 class="detail-h3"><span class="material-symbols-rounded">link</span> Link Utili</h3>
@@ -246,7 +219,6 @@ export default {
                         </div>
                     </div>` : ''}
                 `;
-
                 const btn = document.getElementById('detail-action-btn');
                 if (btn && isAdmin && !isCore) {
                     btn.addEventListener('click', () => {
@@ -255,7 +227,6 @@ export default {
                     });
                 }
             }
-
             async function loadApps() {
                 if (!window.electronAPI || !window.electronAPI.store) {
                     grid.innerHTML = '<p style="color: var(--md-error);">API Store non disponibile.</p>';
@@ -269,11 +240,9 @@ export default {
                 coreApps = (coreRes && coreRes.success) ? coreRes.data : [];
                 renderGrid(searchInput.value);
             }
-
             function renderMarketCard(app) {
                 const iconPath = app.icon ? (app.icon.includes('//') ? app.icon : `apps/${app.folder}/${app.icon}`) : `icone/applicazione_generica.png`;
                 const categoryLabel = CATEGORY_LABELS[app.category] || null;
-
                 const card = document.createElement('div');
                 card.className = 'store-card fade-in-up';
                 card.innerHTML = `
@@ -290,15 +259,12 @@ export default {
                         ${categoryLabel ? `<span class="store-badge category">${categoryLabel}</span>` : ''}
                     </div>
                 `;
-
                 card.addEventListener('click', () => showAppDetails(app, admin));
                 return card;
             }
-
             function renderCoreCard(app) {
                 const iconPath = app.icon ? `apps/${app.folder}/${app.icon}` : `icone/applicazione_generica.png`;
                 const categoryLabel = CATEGORY_LABELS[app.category] || null;
-
                 const card = document.createElement('div');
                 card.className = 'store-card fade-in-up';
                 card.innerHTML = `
@@ -315,11 +281,9 @@ export default {
                         ${categoryLabel ? `<span class="store-badge category">${categoryLabel}</span>` : ''}
                     </div>
                 `;
-
                 card.addEventListener('click', () => showAppDetails(app, admin));
                 return card;
             }
-
             function renderGrid(filterText = '') {
                 const term = (filterText || '').toLowerCase();
                 const source = activeTab === 'core' ? coreApps : marketApps;
@@ -329,7 +293,6 @@ export default {
                         a.name.toLowerCase().includes(term) ||
                         (a.description && a.description.toLowerCase().includes(term))
                     );
-
                 if (filtered.length === 0) {
                     const emptyMessages = {
                         installed: 'Nessuna applicazione di terze parti installata.',
@@ -341,14 +304,12 @@ export default {
                     </p>`;
                     return;
                 }
-
                 grid.innerHTML = '';
                 filtered.forEach(app => {
                     const card = activeTab === 'core' ? renderCoreCard(app) : renderMarketCard(app);
                     grid.appendChild(card);
                 });
             }
-
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
                     tabs.forEach(t => t.classList.remove('active'));
@@ -357,9 +318,7 @@ export default {
                     renderGrid(searchInput.value);
                 });
             });
-
             searchInput.addEventListener('input', (e) => renderGrid(e.target.value));
-
             await loadApps();
         } catch (e) {
             console.error(e);

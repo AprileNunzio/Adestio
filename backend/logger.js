@@ -1,12 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
-
-// Rate Limiter per evitare spam nel DAG: max 10 log al minuto
 const RATE_LIMIT_WINDOW = 60000;
 const MAX_LOGS_PER_WINDOW = 10;
 let _logTimestamps = [];
-
 function _canPublishLogToDag() {
     const now = Date.now();
     _logTimestamps = _logTimestamps.filter(t => now - t < RATE_LIMIT_WINDOW);
@@ -14,7 +11,6 @@ function _canPublishLogToDag() {
     _logTimestamps.push(now);
     return true;
 }
-
 function _publishToDag(level, message, meta) {
     if (!_canPublishLogToDag()) return;
     try {

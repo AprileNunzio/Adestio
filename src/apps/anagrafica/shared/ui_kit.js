@@ -1,22 +1,4 @@
-/**
- * Anagrafica UI Kit
- * -----------------
- * Sistema di design condiviso da TUTTE le sotto-app dell'Anagrafica
- * (I Miei Dati, Contatti, Documenti, Lavoro, Residenza e Domicilio).
- *
- * Obiettivi:
- *  - grafica moderna e coerente ("stessa famiglia") tra tutte le app
- *  - massimo dettaglio e istruzioni per l'utente (label + suggerimenti)
- *  - alti contrasti e piena accessibilità (label associate, focus visibili, ARIA)
- *  - layout compatto che occupa poco spazio
- *
- * Espone: TONI, heroHtml(), guidaHtml(), campoHtml(), leggiCampo(), AK_STYLES.
- */
-
 import { datalistHtml } from './riferimenti.js';
-
-/* Palette per-app: ogni gradiente usa toni scuri così che il testo bianco
-   mantenga sempre un contrasto WCAG adeguato (titolo grande/bold >= 3:1). */
 export const TONI = {
     blue:   { grad: 'linear-gradient(135deg, #2563eb 0%, #4338ca 100%)', accent: '#2563eb', soft: 'rgba(37,99,235,0.10)',  icon: 'badge' },
     violet: { grad: 'linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)', accent: '#7c3aed', soft: 'rgba(124,58,237,0.10)', icon: 'contacts' },
@@ -24,20 +6,9 @@ export const TONI = {
     teal:   { grad: 'linear-gradient(135deg, #0f766e 0%, #0e7490 100%)', accent: '#0f766e', soft: 'rgba(15,118,110,0.10)', icon: 'work' },
     cyan:   { grad: 'linear-gradient(135deg, #0e7490 0%, #1d4ed8 100%)', accent: '#0e7490', soft: 'rgba(14,116,144,0.10)', icon: 'home' }
 };
-
 function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
-
-/**
- * Intestazione "hero" a gradiente, identica in tutte le app.
- * @param {object} o
- *  - title, subtitle: testi
- *  - icon: material symbol del chip a sinistra
- *  - tone: chiave di TONI (blue/violet/orange/teal/cyan)
- *  - actionsHtml: markup dei bottoni a destra (es. "Nuovo …")
- *  - auditMountId: id del contenitore per il bottone storico (opzionale)
- */
 export function heroHtml(o) {
     const tone = TONI[o.tone] || TONI.blue;
     const icon = o.icon || tone.icon;
@@ -61,12 +32,6 @@ export function heroHtml(o) {
         </header>
     `;
 }
-
-/**
- * Pannello istruzioni compatto e accessibile (elemento <details>).
- * Chiuso di default per non occupare spazio, ma sempre disponibile.
- * @param {object} o - { intro: string, steps: string[], tone }
- */
 export function guidaHtml(o) {
     const tone = TONI[o.tone] || TONI.blue;
     const steps = (o.steps || []).map((s, i) => `
@@ -89,7 +54,6 @@ export function guidaHtml(o) {
         </details>
     `;
 }
-
 /* ---- Campo di form condiviso: etichetta statica + icona + suggerimento ---- */
 /* Uso label statica (sempre visibile) invece di floating label: più chiara per
    qualsiasi utente e pienamente accessibile via <label for>. */
@@ -103,7 +67,6 @@ export function campoHtml(field, value, idPrefix = 'crud-field-') {
     const req = field.required ? '<span class="ak-req" title="Campo obbligatorio" aria-hidden="true">*</span>' : '';
     const hint = field.hint ? `<small class="ak-hint" id="${id}-hint">${esc(field.hint)}</small>` : '';
     const describedBy = field.hint ? `aria-describedby="${id}-hint"` : '';
-
     if (field.type === 'checkbox') {
         return `
             <label class="ak-check" ${flex} for="${id}">
@@ -113,9 +76,7 @@ export function campoHtml(field, value, idPrefix = 'crud-field-') {
             </label>
         `;
     }
-
     const labelRow = `<label class="ak-flabel" for="${id}">${esc(field.label)}${req}</label>`;
-
     if (field.type === 'select') {
         const options = (field.options || []).map(op =>
             `<option value="${esc(op.value)}" ${String(op.value) === String(val) ? 'selected' : ''}>${esc(op.label)}</option>`).join('');
@@ -134,7 +95,6 @@ export function campoHtml(field, value, idPrefix = 'crud-field-') {
             </div>
         `;
     }
-
     if (field.type === 'textarea') {
         return `
             <div class="ak-field" ${flex}>
@@ -147,7 +107,6 @@ export function campoHtml(field, value, idPrefix = 'crud-field-') {
             </div>
         `;
     }
-
     const inputType = field.type === 'date' ? 'date' : (field.type || 'text');
     const listAttr = field.datalist ? `list="dl-${field.key}"` : '';
     const listHtml = field.datalist ? datalistHtml(`dl-${field.key}`) : '';
@@ -164,7 +123,6 @@ export function campoHtml(field, value, idPrefix = 'crud-field-') {
         </div>
     `;
 }
-
 export function leggiCampo(el, field, idPrefix = 'crud-field-') {
     const input = el.querySelector(`#${idPrefix}${field.key}`);
     if (!input) return '';
@@ -173,12 +131,9 @@ export function leggiCampo(el, field, idPrefix = 'crud-field-') {
     if (field.uppercase && typeof v === 'string') v = v.toUpperCase();
     return v;
 }
-
-/* ------------------------------ Stili condivisi ------------------------------ */
 export const AK_STYLES = `
 <style>
     .ak-root { width:100%; height:100%; display:flex; flex-direction:column; gap:1rem; min-height:0; }
-
     /* ---------- HERO ---------- */
     .ak-hero {
         position:relative; overflow:hidden; border-radius:20px;
@@ -200,7 +155,6 @@ export const AK_STYLES = `
     .ak-hero-glow { position:absolute; border-radius:50%; filter:blur(34px); opacity:0.35; pointer-events:none; }
     .ak-hero-glow-a { width:220px; height:220px; right:-4%; top:-70%; background:radial-gradient(circle,#fff 0%,transparent 70%); }
     .ak-hero-glow-b { width:160px; height:160px; left:-3%; bottom:-70%; background:radial-gradient(circle,#fff 0%,transparent 70%); }
-
     .ak-hero-btn {
         display:inline-flex; align-items:center; gap:0.4rem; cursor:pointer;
         padding:0.6rem 1.2rem; border-radius:999px; font-weight:700; font-size:0.92rem;
@@ -210,7 +164,6 @@ export const AK_STYLES = `
     .ak-hero-btn:hover { transform:translateY(-2px); box-shadow:0 8px 18px rgba(0,0,0,0.25); }
     .ak-hero-btn:active { transform:translateY(0); }
     .ak-hero-btn .material-symbols-rounded { font-size:1.2rem; }
-
     /* ---------- GUIDA (istruzioni) ---------- */
     .ak-guide {
         border:1px solid var(--md-outline-variant); border-left:4px solid var(--ak-accent);
@@ -236,7 +189,6 @@ export const AK_STYLES = `
         flex-shrink:0; width:22px; height:22px; border-radius:50%; background:var(--ak-accent); color:#fff;
         font-size:0.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:1px;
     }
-
     /* ---------- PANNELLO / CARD ---------- */
     .ak-panel {
         flex:1; min-height:0; display:flex; flex-direction:column;
@@ -249,7 +201,6 @@ export const AK_STYLES = `
     .ak-toolbar h3 { margin:0; font-family:var(--font-heading); font-size:1.05rem; color:var(--md-on-surface); }
     .ak-count { font-size:0.8rem; color:var(--md-on-surface-variant); font-weight:600;
         background:var(--md-surface-variant); padding:0.15rem 0.6rem; border-radius:999px; margin-left:0.5rem; }
-
     /* ---------- CAMPI FORM ---------- */
     .ak-form-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:0.9rem 1rem; }
     .ak-section { border:1px solid var(--md-outline-variant); border-radius:14px; padding:1rem 1.1rem 1.1rem;
@@ -260,7 +211,6 @@ export const AK_STYLES = `
         background:var(--ak-soft, var(--md-primary-container)); color:var(--ak-accent, var(--md-on-primary-container)); }
     .ak-section-icon .material-symbols-rounded { font-size:1.15rem; }
     .ak-section-title { margin:0; font-size:1rem; font-weight:700; color:var(--md-on-surface); letter-spacing:-0.01em; }
-
     .ak-field { display:flex; flex-direction:column; gap:0.3rem; }
     .ak-flabel { font-size:0.8rem; font-weight:600; color:var(--md-on-surface); padding-left:0.15rem; }
     .ak-req { color:var(--md-error); margin-left:0.15rem; font-weight:800; }
@@ -283,7 +233,6 @@ export const AK_STYLES = `
     .ak-input:focus { border-color:var(--md-primary); box-shadow:0 0 0 3px var(--md-outline-focus); background:var(--md-surface); }
     .ak-input:disabled { background:var(--md-surface-variant); color:var(--md-on-surface-variant); cursor:not-allowed; }
     .ak-hint { font-size:0.74rem; color:var(--md-on-surface-variant); padding-left:0.15rem; line-height:1.35; }
-
     /* Checkbox custom accessibile */
     .ak-check { display:flex; align-items:flex-start; gap:0.6rem; cursor:pointer; padding:0.55rem 0.2rem; }
     .ak-check input { position:absolute; opacity:0; width:1px; height:1px; }
@@ -296,7 +245,6 @@ export const AK_STYLES = `
     .ak-check input:focus-visible + .ak-check-box { outline:3px solid var(--md-outline-focus); outline-offset:2px; }
     .ak-check-text { font-size:0.9rem; font-weight:600; color:var(--md-on-surface); line-height:1.3; }
     .ak-check-text .ak-hint { font-weight:400; }
-
     /* ---------- CARD ELENCO ---------- */
     .ak-cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(clamp(230px, 27vw, 300px), 1fr)); gap:1rem; }
     .ak-card {
@@ -313,7 +261,6 @@ export const AK_STYLES = `
         font-size:0.66rem; font-weight:800; padding:0.15rem 0.5rem; border-radius:999px; text-transform:uppercase; letter-spacing:0.04em; }
     .ak-card-actions { display:flex; justify-content:flex-end; gap:0.4rem; margin-top:0.7rem; padding-top:0.7rem;
         border-top:1px solid var(--md-outline-variant); }
-
     .ak-iconbtn { background:transparent; border:1px solid var(--md-outline-variant); color:var(--md-on-surface-variant);
         cursor:pointer; width:34px; height:34px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center;
         transition:all .15s ease; }
@@ -322,13 +269,11 @@ export const AK_STYLES = `
     .ak-iconbtn.danger { color:var(--md-error); }
     .ak-iconbtn.danger:hover { background:var(--md-error); border-color:var(--md-error); color:#fff; }
     .ak-iconbtn .material-symbols-rounded { font-size:1.15rem; }
-
     /* ---------- STATO VUOTO ---------- */
     .ak-empty { text-align:center; padding:2.5rem 1rem; color:var(--md-on-surface-variant); display:flex; flex-direction:column; align-items:center; gap:0.4rem; }
     .ak-empty .material-symbols-rounded { font-size:3rem; color:var(--md-outline-variant); }
     .ak-empty h4 { margin:0.3rem 0 0; color:var(--md-on-surface); font-weight:700; }
     .ak-empty p { margin:0; font-size:0.9rem; }
-
     /* ---------- MODALE ---------- */
     .ak-modal { display:none; position:fixed; inset:0; z-index:10000; align-items:center; justify-content:center;
         background:rgba(15,23,42,0.45); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); opacity:0; transition:opacity .25s ease; }
@@ -359,7 +304,6 @@ export const AK_STYLES = `
     .ak-btn-danger { background:transparent; color:var(--md-error); margin-right:auto; }
     .ak-btn-danger:hover { background:var(--md-error-container); color:var(--md-on-error-container); }
     .ak-btn:disabled { opacity:0.6; cursor:not-allowed; transform:none; }
-
     @media (max-width: 680px) {
         .ak-hero { padding:0.9rem 1rem; }
         .ak-hero-actions { width:100%; }
@@ -367,7 +311,6 @@ export const AK_STYLES = `
         .ak-form-grid { grid-template-columns:1fr; }
         .ak-toolbar { flex-direction:column; align-items:stretch; }
     }
-
     /* --- Compatibilità componente audit condiviso (audit_trail_button.js) --- */
     .btn-icon-action { background:transparent; border:1px solid var(--md-outline-variant); color:var(--md-on-surface-variant);
         cursor:pointer; width:34px; height:34px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; transition:all .15s ease; }
@@ -376,7 +319,6 @@ export const AK_STYLES = `
     .ak-hero .btn-icon-action { width:40px; height:40px; border-radius:12px;
         background:rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.35); color:#fff; }
     .ak-hero .btn-icon-action:hover { background:rgba(255,255,255,0.32); border-color:rgba(255,255,255,0.6); }
-
     /* Record dello storico revisioni (audit modal) */
     .scheda-record { background:var(--md-surface-container-lowest); border:1px solid var(--md-outline-variant);
         border-left:4px solid var(--md-primary); border-radius:12px; padding:1rem; margin-bottom:0.8rem; }

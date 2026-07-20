@@ -1,6 +1,5 @@
 import { Router, toast } from '../../utils.js';
 import { startAuthentication, isWebauthnSupported } from '../../webauthn_client.js';
-
 async function finalizeSession(userId) {
     try {
         sessionStorage.setItem('currentUserId', userId);
@@ -10,7 +9,6 @@ async function finalizeSession(userId) {
         }
     } catch (_) {}
 }
-
 const AuthTwoFaForm = {
     render: (el, { challengeToken, methods, userId, onBack }) => {
         try {
@@ -35,9 +33,7 @@ const AuthTwoFaForm = {
                 </div>
             `;
             container.querySelector('#tfa-back').addEventListener('click', () => { if (onBack) onBack(); });
-
             const section = container.querySelector('#tfa-form-section');
-
             const renderTotp = () => {
                 section.innerHTML = `
                     <form id="tfa-totp-form" class="auth-form">
@@ -65,7 +61,6 @@ const AuthTwoFaForm = {
                 }
                 section.querySelector('#tfa-use-backup').addEventListener('click', renderBackup);
             };
-
             const renderWebauthn = () => {
                 section.innerHTML = `
                     <div style="text-align:center; padding: 1rem 0;">
@@ -93,7 +88,6 @@ const AuthTwoFaForm = {
                 if (hasTotp) section.querySelector('#tfa-use-totp').addEventListener('click', renderTotp);
                 section.querySelector('#tfa-use-backup').addEventListener('click', renderBackup);
             };
-
             const renderBackup = () => {
                 section.innerHTML = `
                     <form id="tfa-backup-form" class="auth-form">
@@ -119,7 +113,6 @@ const AuthTwoFaForm = {
                 if (hasTotp) section.querySelector('#tfa-use-totp').addEventListener('click', renderTotp);
                 if (hasWebauthn) section.querySelector('#tfa-use-webauthn').addEventListener('click', renderWebauthn);
             };
-
             const submitVerification = async (payload) => {
                 try {
                     toast('Verifica in corso...', 'info');
@@ -141,7 +134,6 @@ const AuthTwoFaForm = {
                     toast('Errore durante la verifica', 'error');
                 }
             };
-
             if (hasTotp) renderTotp();
             else if (hasWebauthn) renderWebauthn();
             else renderBackup();

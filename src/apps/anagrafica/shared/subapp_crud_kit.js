@@ -3,7 +3,6 @@ import { mountPersonaPicker } from './persona_picker.js';
 import { mountAuditButton } from './audit_trail_button.js';
 import { populateProvinceDatalist, populateNazioniDatalist, populateSuggestionDatalist, populateComuniDatalist, getComuniCache } from './riferimenti.js';
 import { TONI, heroHtml, guidaHtml, campoHtml, leggiCampo, AK_STYLES } from './ui_kit.js';
-
 function populateFieldDatalists(el, fields) {
     fields.forEach(field => {
         if (!field.datalist) return;
@@ -15,19 +14,6 @@ function populateFieldDatalists(el, fields) {
         else populateSuggestionDatalist(datalistEl, field.datalist.table, field.datalist.column);
     });
 }
-
-/**
- * Rende una sotto-app CRUD "person-scoped" con il design condiviso dell'Anagrafica:
- * hero a gradiente, pannello istruzioni, form con etichette e suggerimenti, elenco a card.
- *
- * config aggiuntive rispetto a prima:
- *  - tone:   chiave di TONI (blue/violet/orange/teal/cyan)
- *  - icon:   material symbol del chip nell'hero
- *  - instructions: { intro, steps: [] }  -> pannello "Come compilare"
- *  - modalHint: testo guida mostrato dentro la modale
- *  - fields[].hint: suggerimento sotto ogni campo
- *  - cardBadge(record): testo badge angolo card (opzionale)
- */
 export function renderPersonScopedCrudSubapp(el, config) {
     const {
         title, subtitle, icon, tone = 'blue', api, fields, newLabel, emptyLabel,
@@ -35,7 +21,6 @@ export function renderPersonScopedCrudSubapp(el, config) {
         instructions, modalHint
     } = config;
     const toneObj = TONI[tone] || TONI.blue;
-
     el.innerHTML = `
         <div class="fade-in-up ak-root">
             ${heroHtml({
@@ -51,7 +36,6 @@ export function renderPersonScopedCrudSubapp(el, config) {
                 <div class="ak-panel-body" id="crud-kit-grid"></div>
             </section>
         </div>
-
         <div id="crud-kit-modal" class="ak-modal" style="--ak-accent:${toneObj.accent}; --ak-soft:${toneObj.soft};" role="dialog" aria-modal="true" aria-labelledby="crud-kit-modal-title">
             <div class="ak-modal-card">
                 <div class="ak-modal-head">
@@ -74,7 +58,6 @@ export function renderPersonScopedCrudSubapp(el, config) {
         </div>
         ${AK_STYLES}
     `;
-
     const recordsSection = el.querySelector('#crud-kit-records');
     const grid = el.querySelector('#crud-kit-grid');
     const countEl = el.querySelector('#crud-kit-count');
@@ -84,10 +67,8 @@ export function renderPersonScopedCrudSubapp(el, config) {
     const formFieldsBox = el.querySelector('#crud-kit-form-fields');
     let currentPersona = null;
     let records = [];
-
     formFieldsBox.innerHTML = fields.map(f => campoHtml(f, '')).join('');
     populateFieldDatalists(el, fields);
-
     // Auto-compilazione Provincia/CAP dal Comune
     fields.forEach(f => {
         if (f.datalist === 'comuni') {
@@ -107,7 +88,6 @@ export function renderPersonScopedCrudSubapp(el, config) {
             }
         }
     });
-
     function renderRecords() {
         countEl.textContent = records.length;
         if (records.length === 0) {
@@ -131,7 +111,6 @@ export function renderPersonScopedCrudSubapp(el, config) {
                 </div>
             </div>
         `).join('')}</div>`;
-
         if (tableName) {
             grid.querySelectorAll('.crud-kit-audit-mount').forEach(mount => {
                 const record = records.find(r => r.id === mount.getAttribute('data-id'));
@@ -157,7 +136,6 @@ export function renderPersonScopedCrudSubapp(el, config) {
             });
         });
     }
-
     async function loadRecords() {
         try {
             records = await api.getByPersona({ personaId: currentPersona.id });
@@ -166,7 +144,6 @@ export function renderPersonScopedCrudSubapp(el, config) {
             grid.innerHTML = `<p style="color:var(--md-error); text-align:center; padding:2rem;">Errore caricamento: ${e.message}</p>`;
         }
     }
-
     function openModal(record = null) {
         modalError.style.display = 'none';
         el.querySelector('#crud-kit-modal-title-text').textContent = record ? 'Modifica' : newLabel;
@@ -191,13 +168,11 @@ export function renderPersonScopedCrudSubapp(el, config) {
         modal.querySelector('.ak-modal-card').style.transform = 'scale(0.95) translateY(10px)';
         setTimeout(() => { modal.style.display = 'none'; }, 250);
     }
-
     el.querySelector('#crud-kit-btn-new').addEventListener('click', () => openModal());
     el.querySelector('#crud-kit-btn-close').addEventListener('click', closeModal);
     el.querySelector('#crud-kit-btn-cancel').addEventListener('click', closeModal);
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.style.display === 'flex') closeModal(); });
-
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         modalError.style.display = 'none';
@@ -223,7 +198,6 @@ export function renderPersonScopedCrudSubapp(el, config) {
             btnSave.disabled = false;
         }
     });
-
     if (fixedPersona) {
         currentPersona = fixedPersona;
         recordsSection.style.display = 'flex';

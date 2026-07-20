@@ -83,7 +83,6 @@ async function syncWithPeer(ip, port) {
             e.message.includes('EHOSTUNREACH') ||
             e.message.includes('EHOSTDOWN')
         )) {
-            // Nodi spenti o irraggiungibili sono normali, logghiamo solo come warning locale per evitare spam
             if (!e.message.includes('DB_NOT_INITIALIZED')) {
                 console.warn(`[SyncCoordinator] Nodo ${ip} irraggiungibile: ${e.message}`);
             }

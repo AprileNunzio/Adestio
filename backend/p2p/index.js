@@ -72,7 +72,6 @@ function announceLocalUpdate(version) {
     } catch (_) {}
 }
 function broadcastUpdateAvailable(version) { announceLocalUpdate(version); }
-
 function broadcastForceResync() {
     try {
         const { computeBroadcastToken } = require('./network_auth');
@@ -85,7 +84,6 @@ function broadcastForceResync() {
         console.error('[P2P] broadcastForceResync error:', e.message);
     }
 }
-
 async function forceNukeAndClone(ip, port) {
     if (!ip) return false;
     const { app: electronApp } = require('electron');
@@ -93,20 +91,16 @@ async function forceNukeAndClone(ip, port) {
     const fs = require('fs');
     const { getNetworkCodeHash } = require('../db');
     const { getNetworkName } = require('../core/node_identity');
-
     console.warn(`[P2P] RICEVUTO ORDINE DI OVERWRITE DATABASE DA ${ip}! Inizio procedura di backup e nuke...`);
     try {
         const networkName = getNetworkName() || 'UnknownNetwork';
         const hash = await getNetworkCodeHash();
-
         const dbDir = path.join(electronApp.getPath('userData'), 'dbs');
         const backupBaseDir = path.join(electronApp.getPath('userData'), 'backups', networkName);
         const dateStr = new Date().toISOString().split('T')[0];
         const timeStr = new Date().toISOString().split('T')[1].replace(/:/g, '-').split('.')[0];
         const backupDir = path.join(backupBaseDir, `${dateStr}_${timeStr}_PRE_NUKE`);
-
         fs.mkdirSync(backupDir, { recursive: true });
-
         ['ledger.db', 'auth.db'].forEach(file => {
             const src = path.join(dbDir, file);
             if (fs.existsSync(src)) {
@@ -114,9 +108,7 @@ async function forceNukeAndClone(ip, port) {
             }
         });
         console.log(`[P2P] Backup completato in ${backupDir}`);
-
         const headers = { 'x-adestio-network': hash };
-        
         const fetchFile = (endpoint, targetFile) => {
             return new Promise((resolve, reject) => {
                 const http = require('http');
@@ -130,19 +122,15 @@ async function forceNukeAndClone(ip, port) {
                 req.on('error', reject);
             });
         };
-
         await fetchFile('/sync/clone', 'ledger.db');
         await fetchFile('/sync/clone-auth', 'auth.db');
-
         console.warn('[P2P] Database rimpiazzati con successo. Riavvio forzato del nodo...');
-
         electronApp.relaunch();
         electronApp.exit(0);
     } catch (e) {
         console.error(`[P2P] Errore critico durante forceNukeAndClone:`, e.message);
     }
 }
-
 async function triggerFullResync(ip, port) {
     return fullResync(ip, port || PORT);
 }
@@ -164,38 +152,31 @@ function startSyncServer() {
                 res.status(500).json({ error: 'Internal error' });
             }
         });
-
         app.get('/sync/app-package/:appId', async (req, res) => {
             try {
                 const { verifyNetworkHash } = require('./network_auth');
                 const providedHash = req.headers['x-adestio-network'];
                 const authorized = await verifyNetworkHash(providedHash);
                 if (!authorized) return res.status(403).json({ error: 'Network code mismatch' });
-
                 const appId = req.params.appId;
                 if (!appId || appId.includes('..') || appId.includes('/') || appId.includes('\\')) {
                     return res.status(400).json({ error: 'Invalid appId' });
                 }
-
                 const fs = require('fs');
                 const AdmZip = require('adm-zip');
                 const appsRegistry = require('../core/appsRegistry');
-                
                 const manifests = await appsRegistry.getAppsRegistry();
                 const manifest = manifests.find(m => m.id === appId);
                 if (!manifest || !manifest.appPath) {
                     return res.status(404).json({ error: 'App not found on this node' });
                 }
-
                 const appDir = manifest.appPath;
                 if (!fs.existsSync(appDir)) {
                     return res.status(404).json({ error: 'App physically not found' });
                 }
-
                 const zip = new AdmZip();
                 zip.addLocalFolder(appDir);
                 const buffer = zip.toBuffer();
-
                 res.set('Content-Type', 'application/zip');
                 res.set('Content-Disposition', `attachment; filename=${appId}.zip`);
                 res.set('Content-Length', buffer.length);
@@ -205,7 +186,6 @@ function startSyncServer() {
                 res.status(500).json({ error: 'Internal error processing zip' });
             }
         });
-
         app.post('/sync/force-nuke', _rlMiddleware(5, 60000), async (req, res) => {
             try {
                 const { verifyNetworkHash } = require('./network_auth');

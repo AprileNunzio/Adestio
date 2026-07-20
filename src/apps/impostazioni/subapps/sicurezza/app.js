@@ -1,10 +1,8 @@
 import TwofaPanel from '../../../../js/shared/twofa_panel.js';
-
 export default {
     render: async (el) => {
         const userId = sessionStorage.getItem('currentUserId');
         if (!userId) { el.innerHTML = `<p style="padding:2rem; text-align:center; color: var(--md-error);">Utente non autenticato.</p>`; return; }
-
         el.innerHTML = `
             <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:1rem;">
                 <span class="material-symbols-rounded" style="font-size:2rem; color: var(--md-primary);">verified_user</span>
@@ -15,7 +13,6 @@ export default {
             </div>
             <div id="sic-twofa-panel"></div>
         `;
-
         TwofaPanel.render(el.querySelector('#sic-twofa-panel'), userId);
     }
 };

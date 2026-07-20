@@ -4,12 +4,10 @@ const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
 const JSZip = require('jszip');
-
 function _xmlEscape(s) {
     return String(s == null ? '' : s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
-
 // Individua l'eseguibile di LibreOffice (config override, env, percorsi standard per OS).
 function findSoffice() {
     const candidates = [];
@@ -26,7 +24,6 @@ function findSoffice() {
     for (const c of candidates) { try { if (c && fs.existsSync(c)) return c; } catch (_) {} }
     return null;
 }
-
 function _coreXml(meta) {
     const now = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
     return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
@@ -41,8 +38,6 @@ function _coreXml(meta) {
         '<dcterms:modified xsi:type="dcterms:W3CDTF">' + now + '</dcterms:modified>' +
         '</cp:coreProperties>';
 }
-
-// Inietta i metadati nel core.xml del docx, così LibreOffice li riporta nell'XMP del PDF/A.
 async function injectDocxMetadata(docxBuffer, meta) {
     const zip = await JSZip.loadAsync(docxBuffer);
     zip.file('docProps/core.xml', _coreXml(meta || {}));
@@ -64,11 +59,9 @@ async function injectDocxMetadata(docxBuffer, meta) {
     }
     return zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
 }
-
 function _fileUrl(p) {
     return 'file:///' + String(p).replace(/\\/g, '/').replace(/^\/+/, '');
 }
-
 // Converte un docx (buffer) in PDF/A tramite LibreOffice headless. pdfaVersion: 1|2|3 (PDF/A-1b/2b/3b).
 async function convertDocxToPdfA(docxBuffer, meta, opts) {
     opts = opts || {};
@@ -110,5 +103,4 @@ async function convertDocxToPdfA(docxBuffer, meta, opts) {
         });
     });
 }
-
 module.exports = { findSoffice, injectDocxMetadata, convertDocxToPdfA };

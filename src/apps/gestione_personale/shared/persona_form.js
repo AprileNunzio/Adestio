@@ -1,11 +1,7 @@
 import { populateProvinceDatalist, populateNazioniDatalist, populateComuniDatalist, getComuniCache } from './riferimenti.js';
 import { campoHtml, toISODate } from './ui_kit.js';
-
 export const STATI_CIVILI = ['Celibe/Nubile', 'Coniugato/a', 'Divorziato/a', 'Vedovo/a', 'Unione civile'];
-
-/* I campi usano idPrefix "persona-" così gli id restano persona-cognome, persona-cf, ... */
 const P = 'persona-';
-
 const CAMPI_IDENTITA = [
     { key: 'cognome', label: 'Cognome', icon: 'badge', type: 'text', required: true, hint: 'Il tuo cognome, come sui documenti.' },
     { key: 'nome', label: 'Nome', icon: 'person', type: 'text', required: true, hint: 'Il tuo nome di battesimo.' },
@@ -15,7 +11,6 @@ const CAMPI_IDENTITA = [
     ] },
     { key: 'stato-civile', label: 'Stato Civile', icon: 'favorite', type: 'select', required: true, hint: 'La tua situazione familiare attuale.', options: STATI_CIVILI.map(s => ({ value: s, label: s })) }
 ];
-
 const CAMPI_NASCITA = [
     { key: 'data-nascita', label: 'Data di Nascita', icon: 'cake', type: 'date', required: true, hint: 'Giorno, mese e anno di nascita.' },
     { key: 'luogo-nascita', label: 'Luogo di Nascita', icon: 'location_on', type: 'text', datalist: true, hint: 'Comune di nascita: Provincia e CAP automatici.' },
@@ -23,7 +18,6 @@ const CAMPI_NASCITA = [
     { key: 'cap-nascita', label: 'CAP di Nascita', icon: 'markunread_mailbox', type: 'text', datalist: true, hint: 'Codice postale.' },
     { key: 'cittadinanza', label: 'Cittadinanza', icon: 'flag', type: 'text', datalist: true, hint: 'La tua nazionalità (es. Italiana).' }
 ];
-
 function sectionHtml(icon, title, tone, campi) {
     return `
         <div class="ak-section" style="--ak-accent:${tone.accent}; --ak-soft:${tone.soft};">
@@ -37,7 +31,6 @@ function sectionHtml(icon, title, tone, campi) {
         </div>
     `;
 }
-
 export function personaFormHtml() {
     const blue = { accent: '#2563eb', soft: 'rgba(37,99,235,0.10)' };
     const teal = { accent: '#0f766e', soft: 'rgba(15,118,110,0.10)' };
@@ -49,7 +42,6 @@ export function personaFormHtml() {
         </div>
     `;
 }
-
 export function readPersonaForm(el) {
     return {
         cognome: el.querySelector('#persona-cognome').value.trim(),
@@ -64,13 +56,10 @@ export function readPersonaForm(el) {
         stato_civile: el.querySelector('#persona-stato-civile').value
     };
 }
-
 export function populatePersonaFormDatalists(el) {
     populateProvinceDatalist(el.querySelector('#dl-provincia-nascita'));
     populateNazioniDatalist(el.querySelector('#dl-cittadinanza'));
     populateComuniDatalist(el.querySelector('#dl-luogo-nascita'));
-
-    // Auto-fill Provincia dal Comune di nascita
     const inputLuogoNascita = el.querySelector('#persona-luogo-nascita');
     if (inputLuogoNascita) {
         inputLuogoNascita.addEventListener('input', () => {
@@ -86,7 +75,6 @@ export function populatePersonaFormDatalists(el) {
         });
     }
 }
-
 export function fillPersonaForm(el, persona) {
     const cfInput = el.querySelector('#persona-cf');
     el.querySelector('#persona-id').value = persona ? persona.id : '';
@@ -103,7 +91,6 @@ export function fillPersonaForm(el, persona) {
     el.querySelector('#persona-cittadinanza').value = persona ? persona.cittadinanza : '';
     el.querySelector('#persona-stato-civile').value = persona ? persona.stato_civile : '';
 }
-
 /* Retro-compatibilità: alcuni moduli importano ancora KIT_STYLES.
    Gli stili ora vivono in ui_kit.js (AK_STYLES), quindi qui è una stringa vuota. */
 export const KIT_STYLES = '';

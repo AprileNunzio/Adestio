@@ -7,7 +7,6 @@ const { getNodeId } = require('../../core/node_identity');
 const { CURRENT_PAYLOAD_VERSION } = require('../schema/schema_registry');
 const bus = require('../../core/event_bus');
 const DeveloperVault = require('../../security/developer_vault');
-
 function createBlock(eventType, tableName, recordId, payload) {
     try {
         const norm = normalizePayload(payload);

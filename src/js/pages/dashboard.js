@@ -7,7 +7,6 @@ export default {
                 Router.navigate('auth_login');
                 return;
             }
-            
             let lastLoginHtml = '';
             try {
                 if (window.electronAPI) {
@@ -28,7 +27,6 @@ export default {
                     }
                 }
             } catch(e) { console.error('Error fetching access logs', e); }
-
             el.innerHTML = `
                 <div class="fade-in-up" style="width: 100%; flex: 1; display: flex; flex-direction: column;">
                     <div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1.5rem; margin-bottom: 3rem; width: 100%;">
@@ -106,8 +104,6 @@ export default {
                 if (userId) {
                     userPerms = await window.electronAPI.rbac.getEffectiveUserPermissions(userId);
                 }
-                
-                // Filtriamo mostrando solo le app effettivamente "installate" nel DB dello Store
                 let installedApps = [];
                 try {
                     const storeRes = await window.electronAPI.store.getInstalled();
@@ -115,24 +111,17 @@ export default {
                         installedApps = storeRes.apps.map(a => a.app_id);
                     }
                 } catch(e) { console.warn("Impossibile recuperare le app installate", e); }
-
                 apps = allApps.filter(app => {
                     const appId = app.folder;
-                    
-                    // Se non è predefinita e non è installata nello store, nascondila dalla dashboard
                     if (!app.core && !app.bundled && !installedApps.includes(appId)) {
                         return false;
                     }
-
                     const viewPermId = `${appId}:view`;
                     if (userPerms.includes('*')) return true;
                     if (userPerms.includes(viewPermId)) return true;
                     if (userPerms.some(p => p.startsWith(`${appId}:`))) return true;
                     return false;
                 });
-                // Tile fissa dell'App Store: pagina di piattaforma (non un'app da manifest),
-                // visibile a tutti gli utenti loggati. Le azioni di install/uninstall restano
-                // gestite dentro la pagina store in base al ruolo dell'utente.
                 apps.unshift({
                     __isStorePinned: true,
                     name: 'App Store',

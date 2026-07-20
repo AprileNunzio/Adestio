@@ -1,6 +1,5 @@
 import { renderPersonScopedCrudSubapp } from '../../shared/subapp_crud_kit.js';
 import { resolveCurrentPersona } from '../../shared/current_persona.js';
-
 const FIELDS = [
     { key: 'nome', label: 'Nome', icon: 'person', type: 'text', required: true, full: true },
     { key: 'cognome', label: 'Cognome', icon: 'badge', type: 'text', required: true, full: true },
@@ -26,8 +25,6 @@ const FIELDS = [
     { key: 'is_a_carico', label: 'Familiare a carico', icon: 'payments', type: 'checkbox', hint: 'Spunta se il familiare è a carico fiscalmente' },
     { key: 'note', label: 'Note (Opzionale)', icon: 'edit_note', type: 'textarea', full: true }
 ];
-
-
 const subapp = {
     render: function(container) {
         const persona = resolveCurrentPersona();
@@ -35,7 +32,6 @@ const subapp = {
             container.innerHTML = '<div class="ak-empty">Nessuna persona selezionata</div>';
             return;
         }
-
         renderPersonScopedCrudSubapp(container, {
             title: 'Unità Familiare',
             subtitle: 'Gestisci i membri del tuo nucleo familiare',
@@ -59,5 +55,4 @@ const subapp = {
         });
     }
 };
-
 export default subapp;

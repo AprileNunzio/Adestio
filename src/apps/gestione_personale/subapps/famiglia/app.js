@@ -1,7 +1,5 @@
 import { initCrudSubapp } from '../../shared/subapp_crud_kit.js';
-
 const TONE = { accent: '#ec4899', soft: 'rgba(236, 72, 153, 0.1)', icon: 'family_restroom' };
-
 const FIELDS = [
     { key: 'nome', label: 'Nome', icon: 'person', type: 'text', required: true, full: true },
     { key: 'cognome', label: 'Cognome', icon: 'badge', type: 'text', required: true, full: true },
@@ -27,12 +25,10 @@ const FIELDS = [
     { key: 'is_a_carico', label: 'Familiare a carico', icon: 'payments', type: 'checkbox', hint: 'Spunta se il familiare è a carico fiscalmente' },
     { key: 'note', label: 'Note (Opzionale)', icon: 'edit_note', type: 'textarea', full: true }
 ];
-
 function renderFamiliare(item) {
     const aCarico = item.is_a_carico ? '<span class="ak-badge" style="background:#ec4899; color:white; font-size:10px; margin-left:8px;">A CARICO</span>' : '';
     const cfStr = item.codice_fiscale ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:2px; font-family:monospace;">${item.codice_fiscale}</div>` : '';
     const nascitaStr = item.data_nascita ? `<span style="margin-left: 8px;">(Nato/a il ${item.data_nascita.split('-').reverse().join('/')})</span>` : '';
-    
     return `
         <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
             <div>
@@ -48,7 +44,6 @@ function renderFamiliare(item) {
         </div>
     `;
 }
-
 export function initFamigliaSubapp(container, currentPersona, config = {}) {
     return initCrudSubapp(container, currentPersona, {
         ...config,

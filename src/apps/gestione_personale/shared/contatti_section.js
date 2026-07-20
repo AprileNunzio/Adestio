@@ -1,13 +1,5 @@
 import { toast } from '../../../js/utils.js';
 import { AK_STYLES, TONI } from './ui_kit.js';
-
-/**
- * Sezione "Contatti & Recapiti" riutilizzabile, agganciata a una persona fissa.
- * Pensata per essere montata dentro la console per singola persona (embedded),
- * ma usabile anche in autonomia. Design condiviso (AK).
- *
- * mountContattiSection(el, { persona, tone='violet', embedded=true, onChange })
- */
 const CATEGORIE = ['Telefono', 'Email', 'Social', 'Web', 'VoIP', 'Emergenza', 'Altro'];
 const TIPI_PER_CATEGORIA = {
     'Telefono': ['Cellulare', 'Lavoro', 'Fisso', 'Aziendale', 'Fax'],
@@ -19,11 +11,9 @@ const TIPI_PER_CATEGORIA = {
     'Altro': ['Personalizzato']
 };
 const ICONS = { 'Telefono': 'phone', 'Email': 'email', 'Social': 'share', 'Web': 'language', 'VoIP': 'headset_mic', 'Emergenza': 'medical_services', 'Altro': 'contact_mail' };
-
 function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
-
 export function mountContattiSection(el, opts = {}) {
     const { persona, tone = 'violet', embedded = true, onChange } = opts;
     const TONE = TONI[tone] || TONI.violet;
@@ -31,7 +21,6 @@ export function mountContattiSection(el, opts = {}) {
         el.innerHTML = '<div class="ak-empty"><span class="material-symbols-rounded">person_off</span><h4>Nessuna persona selezionata</h4></div>';
         return;
     }
-
     el.innerHTML = `
         <div class="ak-root" style="--ak-accent:${TONE.accent}; --ak-soft:${TONE.soft}; gap:0.75rem;">
             <section class="ak-panel">
@@ -42,7 +31,6 @@ export function mountContattiSection(el, opts = {}) {
                 <div class="ak-panel-body" id="ct-list"></div>
             </section>
         </div>
-
         <div id="ct-modal" class="ak-modal" style="--ak-accent:${TONE.accent}; --ak-soft:${TONE.soft};" role="dialog" aria-modal="true" aria-labelledby="ct-modal-title">
             <div class="ak-modal-card">
                 <div class="ak-modal-head">
@@ -106,7 +94,6 @@ export function mountContattiSection(el, opts = {}) {
                 </div>
             </div>
         </div>
-
         ${AK_STYLES}
         <style>
             .ct-group { margin-bottom: 1.4rem; }
@@ -132,7 +119,6 @@ export function mountContattiSection(el, opts = {}) {
             .ct-card .c-star { position: absolute; top: 0.5rem; right: 0.5rem; color: #f59e0b; font-size: 1rem; }
         </style>
     `;
-
     const listBox = el.querySelector('#ct-list');
     const modal = el.querySelector('#ct-modal');
     const form = el.querySelector('#ct-form');
@@ -147,9 +133,7 @@ export function mountContattiSection(el, opts = {}) {
     const dlTipi = el.querySelector('#ct-tipi-list');
     const btnDelete = el.querySelector('#ct-delete');
     const countEl = el.querySelector('#ct-count');
-
     let contatti = [];
-
     async function load() {
         try {
             contatti = await window.electronAPI.anagrafica.contatti.getByPersona({ personaId: persona.id });
@@ -159,7 +143,6 @@ export function mountContattiSection(el, opts = {}) {
             listBox.innerHTML = `<p style="color:var(--md-error); padding:1rem;">Errore: ${e.message}</p>`;
         }
     }
-
     function cardHtml(c, icon) {
         const star = c.is_principale === 1 ? `<span class="material-symbols-rounded c-star" title="Contatto principale" style="font-variation-settings:'FILL' 1;">star</span>` : '';
         const note = c.note ? `<div class="c-note">${esc(c.note)}</div>` : '';
@@ -174,7 +157,6 @@ export function mountContattiSection(el, opts = {}) {
                 </div>
             </div>`;
     }
-
     function render() {
         countEl.textContent = contatti.length;
         if (contatti.length === 0) {
@@ -204,7 +186,6 @@ export function mountContattiSection(el, opts = {}) {
             card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); } });
         });
     }
-
     function updateDatalist(cat) {
         dlTipi.innerHTML = (TIPI_PER_CATEGORIA[cat] || []).map(t => `<option value="${t}"></option>`).join('');
         if (cat === 'Email') inVal.type = 'email';
@@ -212,7 +193,6 @@ export function mountContattiSection(el, opts = {}) {
         else if (cat === 'Web') inVal.type = 'url';
         else inVal.type = 'text';
     }
-
     function openModal(c = null) {
         errorBox.style.display = 'none';
         if (c) {
@@ -236,14 +216,12 @@ export function mountContattiSection(el, opts = {}) {
         modal.querySelector('.ak-modal-card').style.transform = 'scale(0.95) translateY(10px)';
         setTimeout(() => { modal.style.display = 'none'; }, 250);
     }
-
     inCat.addEventListener('change', (e) => { updateDatalist(e.target.value); inTipo.value = ''; });
     el.querySelector('#ct-add').addEventListener('click', () => openModal());
     el.querySelector('#ct-cancel').addEventListener('click', closeModal);
     el.querySelector('#ct-close').addEventListener('click', closeModal);
     modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.style.display === 'flex') closeModal(); });
-
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         errorBox.style.display = 'none';
@@ -267,7 +245,6 @@ export function mountContattiSection(el, opts = {}) {
             errorBox.style.display = 'block';
         } finally { btnSave.disabled = false; }
     });
-
     btnDelete.addEventListener('click', async () => {
         if (!confirm('Sei sicuro di voler eliminare questo contatto?')) return;
         try {
@@ -281,6 +258,5 @@ export function mountContattiSection(el, opts = {}) {
             errorBox.style.display = 'block';
         } finally { btnDelete.disabled = false; }
     });
-
     load();
 }
