@@ -358,4 +358,28 @@ async function checkUpdates() {
         return { success: false, error: e.message };
     }
 }
-module.exports = { getAvailable, getInstalled, getCoreApps, install, uninstall, checkUpdates, preloadMarketplaceCache, syncNetworkApps };
+
+async function getSystemLogs() {
+    try {
+        const { getDB } = require('../db');
+        const db = getDB('store');
+        // Prendi gli ultimi 200 log, decrescente
+        const logs = db.query('SELECT * FROM app_install_log ORDER BY timestamp DESC LIMIT 200', []);
+        return logs;
+    } catch (e) {
+        console.error('[Store] Errore lettura log sistema:', e);
+        return [];
+    }
+}
+
+module.exports = {
+    getAvailable,
+    getInstalled,
+    getCoreApps,
+    install,
+    uninstall,
+    checkUpdates,
+    getSystemLogs,
+    preloadMarketplaceCache,
+    syncNetworkApps
+};

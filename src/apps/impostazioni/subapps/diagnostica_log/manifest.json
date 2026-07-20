@@ -1,0 +1,14 @@
+{
+    "id": "diagnostica_log",
+    "name": "Registro Eventi di Sistema",
+    "description": "Visualizza i log di sistema, gli errori e la cronologia installazioni",
+    "icon": "manage_history",
+    "main": "app.js",
+    "color": "#795548",
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza Registro Log"
+        }
+    ]
+}

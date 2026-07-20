@@ -293,6 +293,7 @@ function registerAllIPCHandlers(windowManager) {
         ipcMain.handle('store:install', (e, appId) => storeHandlers.install(e, appId));
         ipcMain.handle('store:uninstall', (e, appId) => storeHandlers.uninstall(e, appId));
         ipcMain.handle('store:checkUpdates', () => storeHandlers.checkUpdates());
+        ipcMain.handle('get_system_logs', () => storeHandlers.getSystemLogs());
         ipcMain.handle('forceNetworkDatabaseSync', async (event) => {
             try {
                 if (!accessGuard.isSuperadmin()) return { success: false, error: 'Permesso negato' };
