@@ -176,10 +176,36 @@ async function downloadFromPeersOrFallback(appId, fallbackUrl, targetFolder) {
     if (!zipBuffer) {
         if (!fallbackUrl) throw new Error('Nessun peer possiede l\'app e fallbackUrl è assente');
         console.log(`[Store] Download di ${appId} da fallback remoto: ${fallbackUrl}`);
-        const response = await fetch(fallbackUrl);
-        if (!response.ok) throw new Error(`Download fallback fallito: ${response.statusText}`);
-        const arrayBuffer = await response.arrayBuffer();
-        zipBuffer = Buffer.from(arrayBuffer);
+        
+        require('dotenv').config();
+        if (fallbackUrl.startsWith('ftp://') || process.env.FTP_HOST) {
+            const ftp = require('basic-ftp');
+            const client = new ftp.Client();
+            try {
+                await client.access({
+                    host: process.env.FTP_HOST,
+                    user: process.env.FTP_USER,
+                    password: process.env.FTP_PASS,
+                    secure: false
+                });
+                const targetFile = fallbackUrl.split('/').pop();
+                const os = require('os');
+                const path = require('path');
+                const tempZip = path.join(os.tmpdir(), targetFile);
+                await client.downloadTo(tempZip, targetFile);
+                zipBuffer = require('fs').readFileSync(tempZip);
+                require('fs').unlinkSync(tempZip);
+            } catch (err) {
+                throw new Error(`Download FTP fallito: ${err.message}`);
+            } finally {
+                client.close();
+            }
+        } else {
+            const response = await fetch(fallbackUrl);
+            if (!response.ok) throw new Error(`Download fallback HTTP fallito: ${response.statusText}`);
+            const arrayBuffer = await response.arrayBuffer();
+            zipBuffer = Buffer.from(arrayBuffer);
+        }
     }
     const AdmZip = require('adm-zip');
     const zip = new AdmZip(zipBuffer);

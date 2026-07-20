@@ -27,6 +27,9 @@ if (!gotTheLock) {
         });
         app.whenReady().then(async () => {
             try {
+                const CustomProtocol = require('./backend/core/CustomProtocol');
+                CustomProtocol.registerCustomProtocol();
+                
                 ipcRouter.registerAllIPCHandlers(windowManager);
                 try { require('./backend/security/developer_vault').rotateVault(); } catch(e) {}
                 const BootManager = require('./backend/core/BootManager');

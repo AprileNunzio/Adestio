@@ -260,6 +260,32 @@ function registerAllIPCHandlers(windowManager) {
             }
         });
         ipcMain.handle('getAppsRegistry', appsRegistry.getAppsRegistry);
+        ipcMain.handle('getUiExtensions', async (event, target) => {
+            try {
+                const manifests = await appsRegistry.getAppsRegistry();
+                const db = require('../db').getDB('store');
+                const installedIds = db.query("SELECT app_id FROM installed_apps WHERE status = 'active'").map(r => r.app_id);
+                
+                const extensions = [];
+                for (const manifest of manifests) {
+                    if (manifest.core || installedIds.includes(manifest.id)) {
+                        if (manifest.ui_injections && Array.isArray(manifest.ui_injections)) {
+                            for (const inj of manifest.ui_injections) {
+                                if (inj.target === target) {
+                                    extensions.push({
+                                        appId: manifest.id,
+                                        ...inj
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+                return { success: true, extensions };
+            } catch(e) {
+                return { success: false, error: e.message };
+            }
+        });
         ipcMain.handle('getSubAppsRegistry', appsRegistry.getSubAppsRegistry);
         ipcMain.handle('store:getAvailable', () => storeHandlers.getAvailable());
         ipcMain.handle('store:getInstalled', () => storeHandlers.getInstalled());
@@ -886,6 +912,23 @@ function registerAllIPCHandlers(windowManager) {
                     saveDB();
                 }
                 return { success: true };
+            } catch(err) {
+                return { success: false, error: err.message };
+            }
+        });
+        ipcMain.handle('appBus:registerWindow', (e, appId) => {
+            try {
+                const appMessageBus = require('./appMessageBus');
+                appMessageBus.registerAppWindow(appId, e.sender);
+                return { success: true };
+            } catch(err) {
+                return { success: false, error: err.message };
+            }
+        });
+        ipcMain.handle('appBus:sendMessage', (e, senderAppId, targetAppId, payload) => {
+            try {
+                const appMessageBus = require('./appMessageBus');
+                return appMessageBus.routeMessage(senderAppId, targetAppId, payload);
             } catch(err) {
                 return { success: false, error: err.message };
             }

@@ -20,10 +20,12 @@
   "dependencies": {
     "@simplewebauthn/server": "^11.0.0",
     "adm-zip": "^0.6.0",
+    "basic-ftp": "^6.0.1",
     "bcryptjs": "^3.0.3",
     "bonjour-service": "^1.4.2",
     "cors": "^2.8.6",
     "docx-templates": "^4.15.0",
+    "dotenv": "^17.4.2",
     "electron-updater": "^6.8.9",
     "express": "^5.2.1",
     "nodemailer": "^9.0.3",
