@@ -1,7 +1,7 @@
 export default {
     render: async (el, params) => {
         try {
-            const htmlResponse = await fetch('adestio-app://amministratore/subapps/errori/index.html');
+            const htmlResponse = await fetch('../../apps/amministratore/subapps/errori/index.html');
             if (htmlResponse.ok) {
                 el.innerHTML = await htmlResponse.text();
             } else {
