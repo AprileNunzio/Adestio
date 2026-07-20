@@ -4,8 +4,9 @@ export default {
     render: async (container, configCache, saveConfig) => {
         try {
             // Add font faces
+            // Add font faces
             const style = document.createElement('style');
-            style.innerHTML = \`
+            style.innerHTML = `
                 @font-face {
                     font-family: 'Priestacy';
                     src: url('../../../../../assets/fonts/Priestacy.otf') format('opentype');
@@ -16,10 +17,10 @@ export default {
                 }
                 .firma-font-priestacy { font-family: 'Priestacy', cursive; }
                 .firma-font-signatie { font-family: 'Signatie', cursive; }
-            \`;
+            `;
             document.head.appendChild(style);
 
-            container.innerHTML = \`
+            container.innerHTML = `
                 <div class="card fade-in-up" style="padding:1.5rem; background:var(--md-surface); border-radius:16px; border:1px solid var(--md-surface-variant); max-width:900px; margin:0 auto;">
                     <div style="margin-bottom:1.5rem;">
                         <h3 style="margin:0; font-size:1.4rem; color:var(--md-on-surface);">Brand, Timbri e Firme</h3>
@@ -31,7 +32,7 @@ export default {
                         <!-- Logo Aziendale -->
                         <div style="background:var(--md-surface-variant); padding:1.5rem; border-radius:12px; border:1px solid var(--md-outline-variant); display:flex; flex-direction:column; align-items:center;">
                             <h4 style="margin:0 0 1rem; color:var(--md-primary); font-size:1rem;">Logo Aziendale</h4>
-                            <div class="image-preview" id="da-preview-logo" style="width:100%; height:150px; background:\${configCache.img_logo ? 'url('+configCache.img_logo+') center/contain no-repeat' : '#eee'}; border-radius:8px; margin-bottom:1rem; border:1px dashed var(--md-outline);"></div>
+                            <div class="image-preview" id="da-preview-logo" style="width:100%; height:150px; background:${configCache.img_logo ? 'url('+configCache.img_logo+') center/contain no-repeat' : '#eee'}; border-radius:8px; margin-bottom:1rem; border:1px dashed var(--md-outline);"></div>
                             <input type="file" id="da-file-logo" accept="image/png, image/jpeg, image/svg+xml" style="display:none;">
                             <button class="btn" onclick="document.getElementById('da-file-logo').click()" style="width:100%; padding:0.6rem; display:flex; justify-content:center; gap:0.5rem; align-items:center;">
                                 <span class="material-symbols-rounded">upload</span> Carica Logo
@@ -42,7 +43,7 @@ export default {
                         <!-- Timbro Ufficiale -->
                         <div style="background:var(--md-surface-variant); padding:1.5rem; border-radius:12px; border:1px solid var(--md-outline-variant); display:flex; flex-direction:column; align-items:center;">
                             <h4 style="margin:0 0 1rem; color:var(--md-primary); font-size:1rem;">Timbro Ufficiale</h4>
-                            <div class="image-preview" id="da-preview-timbro" style="width:100%; height:150px; background:\${configCache.img_timbro ? 'url('+configCache.img_timbro+') center/contain no-repeat' : '#eee'}; border-radius:8px; margin-bottom:1rem; border:1px dashed var(--md-outline);"></div>
+                            <div class="image-preview" id="da-preview-timbro" style="width:100%; height:150px; background:${configCache.img_timbro ? 'url('+configCache.img_timbro+') center/contain no-repeat' : '#eee'}; border-radius:8px; margin-bottom:1rem; border:1px dashed var(--md-outline);"></div>
                             <input type="file" id="da-file-timbro" accept="image/png" style="display:none;">
                             <button class="btn" onclick="document.getElementById('da-file-timbro').click()" style="width:100%; padding:0.6rem; display:flex; justify-content:center; gap:0.5rem; align-items:center;">
                                 <span class="material-symbols-rounded">upload</span> Carica Timbro
@@ -66,7 +67,7 @@ export default {
                             <div style="display:flex; flex-wrap:wrap; gap:1.5rem; align-items:flex-start;">
                                 
                                 <div style="flex:1; min-width:250px;">
-                                    <div class="image-preview" id="da-preview-firma" style="width:100%; height:150px; background:\${configCache.img_firma ? 'url('+configCache.img_firma+') center/contain no-repeat' : '#eee'}; border-radius:8px; margin-bottom:1rem; border:1px dashed var(--md-outline);"></div>
+                                    <div class="image-preview" id="da-preview-firma" style="width:100%; height:150px; background:${configCache.img_firma ? 'url('+configCache.img_firma+') center/contain no-repeat' : '#eee'}; border-radius:8px; margin-bottom:1rem; border:1px dashed var(--md-outline);"></div>
                                     
                                     <div id="da-firma-upload-container">
                                         <input type="file" id="da-file-firma" accept="image/png" style="display:none;">
@@ -77,7 +78,7 @@ export default {
                                     </div>
                                     
                                     <div id="da-firma-generate-container" style="display:none; flex-direction:column; gap:0.8rem;">
-                                        <input type="text" id="da-firma-text" value="\${configCache.istituto_rappresentante || ''}" placeholder="Nome e Cognome" style="width:100%; padding:0.6rem; border-radius:8px; border:1px solid var(--md-outline); background:var(--md-surface); color:var(--md-on-surface); outline:none;">
+                                        <input type="text" id="da-firma-text" value="${configCache.istituto_rappresentante || ''}" placeholder="Nome e Cognome" style="width:100%; padding:0.6rem; border-radius:8px; border:1px solid var(--md-outline); background:var(--md-surface); color:var(--md-on-surface); outline:none;">
                                         
                                         <select id="da-firma-font" style="width:100%; padding:0.6rem; border-radius:8px; border:1px solid var(--md-outline); background:var(--md-surface); color:var(--md-on-surface); outline:none;">
                                             <option value="Priestacy">Font: Priestacy</option>
@@ -92,7 +93,7 @@ export default {
                                 
                                 <div style="flex:1; min-width:250px; background:var(--md-surface); padding:1rem; border-radius:8px; border:1px solid var(--md-outline);">
                                     <label style="display:flex; align-items:flex-start; gap:0.6rem; cursor:pointer;">
-                                        <input type="checkbox" id="da-firma-legale-chk" \${configCache.firma_legale_cad === 'true' ? 'checked' : ''} style="margin-top:0.3rem; width:18px; height:18px; accent-color:var(--md-primary);">
+                                        <input type="checkbox" id="da-firma-legale-chk" ${configCache.firma_legale_cad === 'true' ? 'checked' : ''} style="margin-top:0.3rem; width:18px; height:18px; accent-color:var(--md-primary);">
                                         <span style="font-size:0.9rem; color:var(--md-on-surface); line-height:1.4;">
                                             <strong>Apponi dicitura di legge</strong><br>
                                             "Firma autografa sostituita a mezzo stampa ai sensi dell'art. 3 comma 2 del D.Lgs n.39/1993 e Firma Elettronica ai sensi dell'art. 21 del D.Lgs 82/2005 (CAD)"
@@ -111,7 +112,7 @@ export default {
                         </button>
                     </div>
                 </div>
-            \`;
+            `;
 
             let b64Logo = configCache.img_logo || '';
             let b64Timbro = configCache.img_timbro || '';
@@ -149,7 +150,7 @@ export default {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
                 // Draw text
-                ctx.font = \`60px \${font}\`;
+                ctx.font = `60px ${font}`;
                 ctx.fillStyle = '#000080'; // Dark blue ink
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
