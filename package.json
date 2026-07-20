@@ -1,7 +1,7 @@
 {
   "name": "adestio",
   "productName": "Adestio",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Architettura Dinamica per l'Espansione e lo Sviluppo Tecnologico di Imprese e Organizzazioni",
   "author": "NunzioTech",
   "main": "main.js",
