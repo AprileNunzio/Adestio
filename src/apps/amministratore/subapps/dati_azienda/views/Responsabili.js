@@ -4,6 +4,16 @@ export default {
     render: async (container, configCache, saveConfig) => {
         try {
             const isScuola = configCache.is_scuola === true || configCache.is_scuola === 'true';
+            
+            // Parse custom responsabili from cache
+            let customResp = [];
+            if (configCache.responsabili_custom) {
+                try {
+                    customResp = JSON.parse(configCache.responsabili_custom);
+                } catch(e) {
+                    customResp = [];
+                }
+            }
 
             container.innerHTML = `
                 <div class="card fade-in-up" style="padding:1.5rem; background:var(--md-surface); border-radius:16px; border:1px solid var(--md-surface-variant); max-width:900px; margin:0 auto;">
@@ -82,6 +92,21 @@ export default {
                             </label>
                             <input type="text" id="da-resp_rtd" value="${configCache.resp_rtd || ''}" placeholder="Nominativo RTD" style="width:100%; padding:0.75rem; border-radius:8px; border:1px solid var(--md-outline); background:var(--md-surface); color:var(--md-on-surface); outline:none;">
                         </div>
+
+                        <!-- Organigramma Personalizzato -->
+                        <div style="grid-column:1 / -1; margin-top:1rem;">
+                            <div style="display:flex; justify-content:space-between; align-items:flex-end; border-bottom:1px solid var(--md-outline-variant); padding-bottom:0.3rem; margin-bottom:0.5rem;">
+                                <h4 style="margin:0; color:var(--md-primary);">Organigramma Flessibile (Infinite Figure)</h4>
+                                <button id="da-btn-add-custom-resp" class="btn" style="padding:0.3rem 0.6rem; font-size:0.8rem; display:flex; align-items:center; gap:0.3rem;">
+                                    <span class="material-symbols-rounded" style="font-size:1.1rem;">add</span> Aggiungi Figura
+                                </button>
+                            </div>
+                            <p style="margin:0 0 1rem; color:var(--md-on-surface-variant); font-size:0.85rem;">Qui puoi inserire liberamente DSGA, Dirigenti, Preposti, Amministratori di Sistema e qualsiasi altra qualifica.</p>
+                            
+                            <div id="da-custom-resp-container" style="display:flex; flex-direction:column; gap:0.8rem;">
+                                <!-- Le righe dinamiche verranno iniettate qui -->
+                            </div>
+                        </div>
                     </div>
 
                     <div style="margin-top:2rem; display:flex; justify-content:flex-end;">
@@ -92,6 +117,43 @@ export default {
                 </div>
             `;
 
+            const customContainer = container.querySelector('#da-custom-resp-container');
+
+            const renderCustomResp = () => {
+                customContainer.innerHTML = '';
+                if (customResp.length === 0) {
+                    customContainer.innerHTML = '<div style="text-align:center; padding:1rem; color:var(--md-on-surface-variant); font-size:0.9rem; font-style:italic;">Nessuna figura personalizzata aggiunta.</div>';
+                    return;
+                }
+                customResp.forEach((item, index) => {
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display:flex; gap:0.5rem; align-items:center; background:var(--md-surface-variant); padding:0.5rem; border-radius:8px;';
+                    row.innerHTML = `
+                        <input type="text" class="custom-role" value="${item.ruolo}" placeholder="Ruolo (es. Dirigente, DSGA...)" style="flex:1; padding:0.6rem; border-radius:4px; border:1px solid var(--md-outline); background:var(--md-surface); outline:none;">
+                        <input type="text" class="custom-name" value="${item.nome}" placeholder="Nominativo" style="flex:1; padding:0.6rem; border-radius:4px; border:1px solid var(--md-outline); background:var(--md-surface); outline:none;">
+                        <button class="btn-remove-custom icon-btn" data-index="${index}" style="color:var(--md-error); padding:0.5rem; background:transparent; border:none; cursor:pointer;" title="Rimuovi">
+                            <span class="material-symbols-rounded">delete</span>
+                        </button>
+                    `;
+                    customContainer.appendChild(row);
+                });
+
+                customContainer.querySelectorAll('.btn-remove-custom').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const idx = parseInt(e.currentTarget.dataset.index);
+                        customResp.splice(idx, 1);
+                        renderCustomResp();
+                    });
+                });
+            };
+
+            renderCustomResp();
+
+            container.querySelector('#da-btn-add-custom-resp').addEventListener('click', () => {
+                customResp.push({ ruolo: '', nome: '' });
+                renderCustomResp();
+            });
+
             container.querySelector('#da-btn-save-responsabili').addEventListener('click', async (ev) => {
                 const btn = ev.currentTarget;
                 const old = btn.innerHTML;
@@ -99,6 +161,17 @@ export default {
                 btn.innerHTML = '<span class="material-symbols-rounded" style="animation:spin 1s linear infinite;">sync</span> Salvataggio...';
                 
                 try {
+                    // Collect custom responsabili
+                    const customRows = customContainer.querySelectorAll('div[style*="display:flex"]');
+                    const currentCustomResp = [];
+                    customRows.forEach(row => {
+                        const ruolo = row.querySelector('.custom-role')?.value.trim();
+                        const nome = row.querySelector('.custom-name')?.value.trim();
+                        if (ruolo || nome) {
+                            currentCustomResp.push({ ruolo, nome });
+                        }
+                    });
+
                     const patch = {
                         resp_titolare_privacy: container.querySelector('#da-resp_titolare_privacy').value.trim(),
                         resp_dpo: container.querySelector('#da-resp_dpo').value.trim(),
@@ -108,7 +181,8 @@ export default {
                         resp_emergenze: container.querySelector('#da-resp_emergenze').value.trim(),
                         resp_fumo: container.querySelector('#da-resp_fumo').value.trim(),
                         resp_sysadmin: container.querySelector('#da-resp_sysadmin').value.trim(),
-                        resp_rtd: container.querySelector('#da-resp_rtd') ? container.querySelector('#da-resp_rtd').value.trim() : ''
+                        resp_rtd: container.querySelector('#da-resp_rtd') ? container.querySelector('#da-resp_rtd').value.trim() : '',
+                        responsabili_custom: JSON.stringify(currentCustomResp)
                     };
                     const ok = await saveConfig(patch);
                     toast(ok ? 'Responsabili salvati con successo' : 'Errore nel salvataggio', ok ? 'success' : 'error');
