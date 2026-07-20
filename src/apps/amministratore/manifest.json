@@ -1,0 +1,30 @@
+{
+    "id": "amministratore",
+    "name": "Amministratore",
+    "description": "Gestione Utenti, Ruoli e Sicurezza",
+    "icon": "icona.png",
+    "main": "app.js",
+    "color": "#f44336",
+    "version": "1.0.0",
+    "author": "NunzioTech",
+    "category": "utility",
+    "tags": ["admin", "rbac", "sicurezza"],
+    "core": true,
+    "subApps": [
+        {
+            "id": "smtp",
+            "name": "Server SMTP",
+            "icon": "mail"
+        }
+    ],
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza Applicazione"
+        },
+        {
+            "id": "edit",
+            "label": "Modifica Dati"
+        }
+    ]
+}

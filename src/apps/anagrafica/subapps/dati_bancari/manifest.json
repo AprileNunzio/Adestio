@@ -1,0 +1,17 @@
+{
+    "id": "dati_bancari",
+    "name": "Dati Bancari",
+    "description": "Coordinate bancarie per accrediti e pagamenti",
+    "icon": "account_balance",
+    "main": "app.js",
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza"
+        },
+        {
+            "id": "edit",
+            "label": "Modifica"
+        }
+    ]
+}

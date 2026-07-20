@@ -1,0 +1,26 @@
+{
+    "id": "anagrafica",
+    "name": "Anagrafica",
+    "description": "La tua anagrafica personale: dati anagrafici, documenti, residenza/domicilio e lavoro",
+    "icon": "icon.png",
+    "main": "app.js",
+    "color": "#00897B",
+    "version": "1.0.0",
+    "author": "NunzioTech",
+    "category": "hr",
+    "tags": ["persone", "hr", "anagrafica"],
+    "core": true,
+    "licensing": {
+        "type": "free"
+    },
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza Applicazione"
+        },
+        {
+            "id": "edit",
+            "label": "Modifica i Miei Dati"
+        }
+    ]
+}

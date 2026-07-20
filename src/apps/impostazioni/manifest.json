@@ -1,0 +1,37 @@
+{
+    "id": "impostazioni",
+    "name": "Impostazioni Sistema",
+    "description": "Configurazione avanzata del nodo locale, notifiche e credenziali",
+    "icon": "icon.png",
+    "version": "1.0.0",
+    "author": "NunzioTech",
+    "category": "utility",
+    "tags": ["sistema", "sicurezza", "notifiche"],
+    "core": true,
+    "roles": [
+        "superadmin",
+        "admin"
+    ],
+    "subApps": [
+        {
+            "id": "credenziali",
+            "name": "Credenziali",
+            "icon": "key"
+        },
+        {
+            "id": "notifiche",
+            "name": "Notifiche",
+            "icon": "notifications"
+        }
+    ],
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza Applicazione"
+        },
+        {
+            "id": "edit",
+            "label": "Modifica Dati"
+        }
+    ]
+}

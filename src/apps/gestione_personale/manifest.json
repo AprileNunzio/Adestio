@@ -1,0 +1,33 @@
+{
+    "id": "gestione_personale",
+    "name": "Gestione del Personale",
+    "description": "Registro centrale del personale: dati anagrafici, documenti, residenza/domicilio e lavoro di tutte le persone gestite",
+    "icon": "icon.png",
+    "main": "app.js",
+    "color": "#00897B",
+    "version": "1.0.0",
+    "author": "NunzioTech",
+    "category": "hr",
+    "tags": ["persone", "hr", "gestione"],
+    "core": true,
+    "licensing": {
+        "type": "free"
+    },
+    "dependencies": {
+        "anagrafica": ">=1.0.0"
+    },
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza Applicazione"
+        },
+        {
+            "id": "edit",
+            "label": "Modifica Dati"
+        },
+        {
+            "id": "delete",
+            "label": "Elimina Dati"
+        }
+    ]
+}

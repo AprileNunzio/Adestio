@@ -1,0 +1,17 @@
+{
+    "id": "contatti",
+    "name": "Contatti",
+    "description": "Agenda completa recapiti e contatti",
+    "icon": "import_contacts",
+    "main": "app.js",
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza"
+        },
+        {
+            "id": "edit",
+            "label": "Modifica"
+        }
+    ]
+}

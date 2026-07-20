@@ -1,0 +1,395 @@
+const { contextBridge, ipcRenderer } = require('electron');
+function withActor(args) {
+    try {
+        return Object.assign({}, args, { actorUserId: sessionStorage.getItem('currentUserId') || '' });
+    } catch (e) {
+        return args;
+    }
+}
+try {
+    contextBridge.exposeInMainWorld('electronAPI', {
+        onDbChanged: (callback) => { ipcRenderer.removeAllListeners('db-changed'); ipcRenderer.on('db-changed', (e, data) => callback(data)); },
+        forceNetworkDatabaseSync: () => ipcRenderer.invoke('forceNetworkDatabaseSync'),
+        ping: () => {
+            try {
+                return ipcRenderer.invoke('ping');
+            } catch (e) {
+                console.error(e);
+                throw e;
+            }
+        },
+        checkIsRegistered: () => {
+            try {
+                return ipcRenderer.invoke('checkIsRegistered');
+            } catch (e) {
+                console.error(e);
+                throw e;
+            }
+        },
+        hasConfig: () => {
+            try { return ipcRenderer.invoke('hasConfig'); } catch(e) { throw e; }
+        },
+        readConfig: () => {
+            try { return ipcRenderer.invoke('readConfig'); } catch(e) { throw e; }
+        },
+        saveConfig: (data) => {
+            try { return ipcRenderer.invoke('saveConfig', data); } catch(e) { throw e; }
+        },
+        testSmtpConnection: (smtpConfig, testEmail) => {
+            try { return ipcRenderer.invoke('testSmtpConnection', smtpConfig, testEmail); } catch(e) { throw e; }
+        },
+        sendMail: (mail) => {
+            try { return ipcRenderer.invoke('sendMail', mail); } catch(e) { throw e; }
+        },
+        registerUser: (data) => {
+            try {
+                return ipcRenderer.invoke('registerUser', data);
+            } catch (e) {
+                console.error(e);
+                throw e;
+            }
+        },
+        loginUser: (data) => {
+            try {
+                return ipcRenderer.invoke('loginUser', data);
+            } catch (e) {
+                console.error(e);
+                throw e;
+            }
+        },
+        loginUserVerify2fa: (data) => {
+            try { return ipcRenderer.invoke('loginUserVerify2fa', data); } catch(e) { throw e; }
+        },
+        loginWebauthnOptions: (data) => {
+            try { return ipcRenderer.invoke('loginWebauthnOptions', data); } catch(e) { throw e; }
+        },
+        logoutUser: (data) => {
+            try { return ipcRenderer.invoke('logoutUser', data); } catch(e) { throw e; }
+        },
+        broadcastLogin: (userId) => {
+            try { return ipcRenderer.invoke('broadcastLogin', userId); } catch(e) { throw e; }
+        },
+        getAccessLogs: (userId) => {
+            try { return ipcRenderer.invoke('getAccessLogs', userId); } catch(e) { throw e; }
+        },
+        getAllAccessLogs: (filters) => {
+            try { return ipcRenderer.invoke('getAllAccessLogs', filters); } catch(e) { throw e; }
+        },
+        getAccessLogsStats: (actorUserId) => {
+            try { return ipcRenderer.invoke('getAccessLogsStats', actorUserId); } catch(e) { throw e; }
+        },
+        twofa: {
+            getStatus: (userId) => ipcRenderer.invoke('twofa:getStatus', userId),
+            totpSetupBegin: (userId) => ipcRenderer.invoke('twofa:totpSetupBegin', userId),
+            totpSetupConfirm: (data) => ipcRenderer.invoke('twofa:totpSetupConfirm', data),
+            totpDisable: (data) => ipcRenderer.invoke('twofa:totpDisable', data),
+            webauthnRegisterBegin: (userId) => ipcRenderer.invoke('twofa:webauthnRegisterBegin', userId),
+            webauthnRegisterFinish: (data) => ipcRenderer.invoke('twofa:webauthnRegisterFinish', data),
+            webauthnRemove: (data) => ipcRenderer.invoke('twofa:webauthnRemove', data),
+            adminReset: (data) => ipcRenderer.invoke('twofa:adminReset', data),
+            setPolicy: (data) => ipcRenderer.invoke('twofa:setPolicy', data),
+            adminListStatus: (actorUserId) => ipcRenderer.invoke('twofa:adminListStatus', actorUserId)
+        },
+        notifications: {
+            getPreferences: (userId) => ipcRenderer.invoke('notifications:getPreferences', userId),
+            setPreference: (data) => ipcRenderer.invoke('notifications:setPreference', data),
+            list: (data) => ipcRenderer.invoke('notifications:list', data),
+            markRead: (data) => ipcRenderer.invoke('notifications:markRead', data),
+            create: (data) => ipcRenderer.invoke('notifications:create', data),
+            onNotificationNew: (callback) => {
+                ipcRenderer.removeAllListeners('notification:new');
+                ipcRenderer.on('notification:new', (event, data) => callback(data));
+            }
+        },
+        onForceLogout: (callback) => { ipcRenderer.removeAllListeners('force-logout-if-user'); ipcRenderer.on('force-logout-if-user', (e, data) => callback(data)); },
+        unlockDatabase: (password) => {
+            try { return ipcRenderer.invoke('unlockDatabase', password); } catch(e) { throw e; }
+        },
+        recoverDatabase: (networkCode) => {
+            try { return ipcRenderer.invoke('recoverDatabase', networkCode); } catch(e) { throw e; }
+        },
+        getUsersList: () => {
+            try { return ipcRenderer.invoke('getUsersList'); } catch(e) { throw e; }
+        },
+        getAppsRegistry: () => {
+            try { return ipcRenderer.invoke('getAppsRegistry'); } catch(e) { throw e; }
+        },
+        getSubAppsRegistry: (appId) => {
+            try { return ipcRenderer.invoke('getSubAppsRegistry', appId); } catch(e) { throw e; }
+        },
+        store: {
+            getAvailable: () => ipcRenderer.invoke('store:getAvailable'),
+            getInstalled: () => ipcRenderer.invoke('store:getInstalled'),
+            getCoreApps: () => ipcRenderer.invoke('store:getCoreApps'),
+            install: (appId) => ipcRenderer.invoke('store:install', appId),
+            uninstall: (appId) => ipcRenderer.invoke('store:uninstall', appId),
+            checkUpdates: () => ipcRenderer.invoke('store:checkUpdates')
+        },
+        scanNodes: () => {
+            try { return ipcRenderer.invoke('scanNodes'); } catch(e) { throw e; }
+        },
+        onScanProgress: (callback) => { ipcRenderer.removeAllListeners('scan-progress'); ipcRenderer.on('scan-progress', (event, message) => callback(message)); },
+        onSyncUpdated: (callback) => { ipcRenderer.removeAllListeners('sync-updated'); ipcRenderer.on('sync-updated', (event, data) => callback(data)); },
+        forceSync: () => {
+            try { return ipcRenderer.invoke('forceSync'); } catch(e) { throw e; }
+        },
+        checkNetworkProfile: () => {
+            try { return ipcRenderer.invoke('checkNetworkProfile'); } catch(e) { throw e; }
+        },
+        cloneNetwork: (data) => {
+            try { return ipcRenderer.invoke('cloneNetwork', data); } catch(e) { throw e; }
+        },
+        pingNode: (data) => {
+            try { return ipcRenderer.invoke('pingNode', data); } catch(e) { throw e; }
+        },
+        getAppStatus: () => {
+            try { return ipcRenderer.invoke('getAppStatus'); } catch(e) { throw e; }
+        },
+        getLocalIPs: () => {
+            try { return ipcRenderer.invoke('getLocalIPs'); } catch(e) { throw e; }
+        },
+        runDiagnostics: () => {
+            try { return ipcRenderer.invoke('runDiagnostics'); } catch(e) { throw e; }
+        },
+        fixDiagnostics: () => {
+            try { return ipcRenderer.invoke('fixDiagnostics'); } catch(e) { throw e; }
+        },
+        openFirewallSettings: () => {
+            try { return ipcRenderer.invoke('openFirewallSettings'); } catch(e) { throw e; }
+        },
+        forceFirewallRules: () => {
+            try { return ipcRenderer.invoke('forceFirewallRules'); } catch(e) { throw e; }
+        },
+        usersGetAll: (data) => {
+            try { return ipcRenderer.invoke('usersGetAll', data); } catch(e) { throw e; }
+        },
+        usersCreate: (data) => {
+            try { return ipcRenderer.invoke('usersCreate', withActor(data)); } catch(e) { throw e; }
+        },
+        usersUpdate: (data) => {
+            try { return ipcRenderer.invoke('usersUpdate', data); } catch(e) { throw e; }
+        },
+        usersDelete: (data) => {
+            try { return ipcRenderer.invoke('usersDelete', data); } catch(e) { throw e; }
+        },
+        usersRestore: (data) => {
+            try { return ipcRenderer.invoke('usersRestore', data); } catch(e) { throw e; }
+        },
+        usersHardDelete: (data) => {
+            try { return ipcRenderer.invoke('usersHardDelete', data); } catch(e) { throw e; }
+        },
+        rbac: {
+            getAccessLogs: (userId) => ipcRenderer.invoke('getAccessLogs', userId),
+            getAllUsers: () => ipcRenderer.invoke('rbac:getAllUsers'),
+            getAllRoles: () => ipcRenderer.invoke('rbac:getAllRoles'),
+            createRole: (name, desc) => ipcRenderer.invoke('rbac:createRole', name, desc),
+            assignRoleToUser: (userId, roleId) => ipcRenderer.invoke('rbac:assignRoleToUser', userId, roleId),
+            removeRoleFromUser: (userId, roleId) => ipcRenderer.invoke('rbac:removeRoleFromUser', userId, roleId),
+            syncPermissionsFromManifests: () => ipcRenderer.invoke('rbac:syncPermissionsFromManifests'),
+            getAllGroups: () => ipcRenderer.invoke('rbac:getAllGroups'),
+            createGroup: (name, desc, isSuperadmin) => ipcRenderer.invoke('rbac:createGroup', name, desc, isSuperadmin),
+            getGroupPermissions: (groupId) => ipcRenderer.invoke('rbac:getGroupPermissions', groupId),
+            getUserPermissions: (userId) => ipcRenderer.invoke('rbac:getUserPermissions', userId),
+            getEffectiveUserPermissions: (userId) => ipcRenderer.invoke('rbac:getEffectiveUserPermissions', userId),
+            setGroupPermission: (groupId, permId, val) => ipcRenderer.invoke('rbac:setGroupPermission', groupId, permId, val),
+            setUserPermission: (userId, permId, val) => ipcRenderer.invoke('rbac:setUserPermission', userId, permId, val),
+            getGroupUsers: (groupId) => ipcRenderer.invoke('rbac:getGroupUsers', groupId),
+            updateGroupUsers: (groupId, userIds) => ipcRenderer.invoke('rbac:updateGroupUsers', groupId, userIds),
+            getDistributedLogs: () => ipcRenderer.invoke('getDistributedLogs'),
+            deleteDistributedLog: (id) => ipcRenderer.invoke('deleteDistributedLog', id),
+            clearDistributedLogs: () => ipcRenderer.invoke('clearDistributedLogs')
+        },
+        anagrafica: {
+            persone: {
+                getAll: (args) => ipcRenderer.invoke('anagrafica:persone:getAll', args),
+                search: (args) => ipcRenderer.invoke('anagrafica:persone:search', args),
+                getById: (args) => ipcRenderer.invoke('anagrafica:persone:getById', args),
+                getByUserId: (args) => ipcRenderer.invoke('anagrafica:persone:getByUserId', args),
+                create: (args) => ipcRenderer.invoke('anagrafica:persone:create', withActor(args)),
+                update: (args) => ipcRenderer.invoke('anagrafica:persone:update', withActor(args)),
+                remove: (args) => ipcRenderer.invoke('anagrafica:persone:remove', withActor(args)),
+                restore: (args) => ipcRenderer.invoke('anagrafica:persone:restore', withActor(args)),
+                hardDelete: (args) => ipcRenderer.invoke('anagrafica:persone:hardDelete', withActor(args)),
+                getScheda: (args) => ipcRenderer.invoke('anagrafica:persone:getScheda', args)
+            },
+            documenti: {
+                getByPersona: (args) => ipcRenderer.invoke('anagrafica:documenti:getByPersona', args),
+                create: (args) => ipcRenderer.invoke('anagrafica:documenti:create', withActor(args)),
+                update: (args) => ipcRenderer.invoke('anagrafica:documenti:update', withActor(args)),
+                remove: (args) => ipcRenderer.invoke('anagrafica:documenti:remove', withActor(args))
+            },
+            residenza: {
+                getByPersona: (args) => ipcRenderer.invoke('anagrafica:residenza:getByPersona', args),
+                create: (args) => ipcRenderer.invoke('anagrafica:residenza:create', withActor(args)),
+                update: (args) => ipcRenderer.invoke('anagrafica:residenza:update', withActor(args)),
+                remove: (args) => ipcRenderer.invoke('anagrafica:residenza:remove', withActor(args))
+            },
+            contatti: {
+                getByPersona: (args) => ipcRenderer.invoke('anagrafica:contatti:getByPersona', args),
+                create: (args) => ipcRenderer.invoke('anagrafica:contatti:create', withActor(args)),
+                update: (args) => ipcRenderer.invoke('anagrafica:contatti:update', withActor(args)),
+                remove: (args) => ipcRenderer.invoke('anagrafica:contatti:remove', withActor(args))
+            },
+            familiari: {
+                getByPersona: (args) => ipcRenderer.invoke('anagrafica:familiari:getByPersona', args),
+                create: (args) => ipcRenderer.invoke('anagrafica:familiari:create', withActor(args)),
+                update: (args) => ipcRenderer.invoke('anagrafica:familiari:update', withActor(args)),
+                remove: (args) => ipcRenderer.invoke('anagrafica:familiari:remove', withActor(args))
+            },
+            lavoro: {
+                getByPersona: (args) => ipcRenderer.invoke('anagrafica:lavoro:getByPersona', args),
+                create: (args) => ipcRenderer.invoke('anagrafica:lavoro:create', withActor(args)),
+                update: (args) => ipcRenderer.invoke('anagrafica:lavoro:update', withActor(args)),
+                remove: (args) => ipcRenderer.invoke('anagrafica:lavoro:remove', withActor(args))
+            },
+            titoliStudio: {
+                getByPersona: (args) => ipcRenderer.invoke('anagrafica:titoliStudio:getByPersona', args),
+                create: (args) => ipcRenderer.invoke('anagrafica:titoliStudio:create', withActor(args)),
+                update: (args) => ipcRenderer.invoke('anagrafica:titoliStudio:update', withActor(args)),
+                remove: (args) => ipcRenderer.invoke('anagrafica:titoliStudio:remove', withActor(args))
+            },
+            datiBancari: {
+                getByPersona: (args) => ipcRenderer.invoke('anagrafica:datiBancari:getByPersona', args),
+                create: (args) => ipcRenderer.invoke('anagrafica:datiBancari:create', withActor(args)),
+                update: (args) => ipcRenderer.invoke('anagrafica:datiBancari:update', withActor(args)),
+                remove: (args) => ipcRenderer.invoke('anagrafica:datiBancari:remove', withActor(args))
+            },
+            audit: {
+                getHistory: (args) => ipcRenderer.invoke('anagrafica:audit:getHistory', args)
+            },
+            riferimenti: {
+                getProvince: () => ipcRenderer.invoke('anagrafica:riferimenti:getProvince'),
+                getNazioni: () => ipcRenderer.invoke('anagrafica:riferimenti:getNazioni'),
+                getAllComuni: () => ipcRenderer.invoke('anagrafica:riferimenti:getAllComuni'),
+                getSuggestions: (args) => ipcRenderer.invoke('anagrafica:riferimenti:getSuggestions', args)
+            }
+        },
+        presaServizio: {
+            exportTemplate: (args) => ipcRenderer.invoke('presaServizio:exportTemplate', args),
+            emailTemplate: (args) => ipcRenderer.invoke('presaServizio:emailTemplate', args),
+            importXlsx: () => ipcRenderer.invoke('presaServizio:importXlsx'),
+            saveImportedPersona: (args) => ipcRenderer.invoke('presaServizio:saveImportedPersona', withActor(args)),
+            previewDocx: (args) => ipcRenderer.invoke('presaServizio:previewDocx', args),
+            generateDocx: (args) => ipcRenderer.invoke('presaServizio:generateDocx', args),
+            generatePdf: (args) => ipcRenderer.invoke('presaServizio:generatePdf', args)
+        },
+        logError: (message) => ipcRenderer.invoke('logError', message),
+        runDiagnostics: () => {
+            try { return ipcRenderer.invoke('runDiagnostics'); } catch(e) { throw e; }
+        },
+        fixDiagnostics: () => {
+            try { return ipcRenderer.invoke('fixDiagnostics'); } catch(e) { throw e; }
+        },
+        dbGetBackupStatus: () => {
+            try { return ipcRenderer.invoke('dbGetBackupStatus'); } catch(e) { throw e; }
+        },
+        getDetailedNodes: () => {
+            try { return ipcRenderer.invoke('getDetailedNodes'); } catch(e) { throw e; }
+        },
+        getNetworkSyncStatus: () => {
+            try { return ipcRenderer.invoke('getNetworkSyncStatus'); } catch(e) { throw e; }
+        },
+        executeNodeAction: (action, ip, port) => {
+            try { return ipcRenderer.invoke('executeNodeAction', { action, ip, port }); } catch(e) { throw e; }
+        },
+        getExtendedNodeMetrics: () => {
+            try { return ipcRenderer.invoke('getExtendedNodeMetrics'); } catch(e) { throw e; }
+        },
+        getNodeId: () => {
+            try { return ipcRenderer.invoke('getNodeId'); } catch(e) { throw e; }
+        },
+        blockchainFullResync: (data) => {
+            try { return ipcRenderer.invoke('blockchainFullResync', data); } catch(e) { throw e; }
+        },
+        blockchainRebuild: () => {
+            try { return ipcRenderer.invoke('blockchainRebuild'); } catch(e) { throw e; }
+        },
+        onNetworkVersionMismatch: (callback) => {
+            try {
+                ipcRenderer.removeAllListeners('network-version-mismatch');
+                ipcRenderer.on('network-version-mismatch', (event, data) => callback(data));
+            } catch(e) { console.error(e); }
+        },
+        onUpdateDownloadProgress: (callback) => {
+            try {
+                ipcRenderer.removeAllListeners('update-download-progress');
+                ipcRenderer.on('update-download-progress', (event, data) => callback(data));
+            } catch(e) { console.error(e); }
+        },
+        onUpdateStatus: (callback) => {
+            try {
+                ipcRenderer.removeAllListeners('update-status');
+                ipcRenderer.on('update-status', (event, data) => callback(data));
+            } catch(e) { console.error('onUpdateStatus error', e); }
+        },
+        onUpdateReadyForInstall: (callback) => {
+            try {
+                ipcRenderer.removeAllListeners('update-ready-for-install');
+                ipcRenderer.on('update-ready-for-install', (event, data) => callback(data));
+            } catch(e) { console.error(e); }
+        },
+        forceUpdateConsensus: () => {
+            try { return ipcRenderer.invoke('forceUpdateConsensus'); } catch(e) { throw e; }
+        },
+        onSyncStateChanged: (callback) => {
+            try {
+                ipcRenderer.removeAllListeners('sync-state-changed');
+                ipcRenderer.on('sync-state-changed', (event, data) => callback(data));
+            } catch(e) { console.error(e); }
+        },
+        onSyncAnomaly: (callback) => {
+            try {
+                ipcRenderer.removeAllListeners('sync-anomaly');
+                ipcRenderer.on('sync-anomaly', (event, data) => callback(data));
+            } catch(e) { console.error(e); }
+        },
+        onDbRecoveryFailed: (callback) => {
+            try {
+                ipcRenderer.removeAllListeners('db-recovery-failed');
+                ipcRenderer.on('db-recovery-failed', (event, data) => callback(data));
+            } catch(e) { console.error(e); }
+        },
+        onUserKicked: (callback) => {
+            try {
+                ipcRenderer.removeAllListeners('user-kicked');
+                ipcRenderer.on('user-kicked', (event, data) => callback(data));
+            } catch(e) { console.error(e); }
+        },
+        onDiagProgress: (callback) => { ipcRenderer.removeAllListeners('diag-progress'); ipcRenderer.on('diag-progress', (event, data) => callback(data)); },
+        windowMinimize: () => {
+            try { return ipcRenderer.invoke('window-minimize'); } catch(e) { throw e; }
+        },
+        windowMaximize: () => {
+            try { return ipcRenderer.invoke('window-maximize'); } catch(e) { throw e; }
+        },
+        windowClose: () => {
+            try { return ipcRenderer.invoke('window-close'); } catch(e) { throw e; }
+        },
+        resetApp: () => {
+            try { return ipcRenderer.invoke('resetApp'); } catch(e) { throw e; }
+        },
+        checkForUpdates: () => {
+            try { return ipcRenderer.invoke('checkForUpdates'); } catch(e) { throw e; }
+        },
+        installPendingUpdate: () => {
+            try { return ipcRenderer.invoke('installPendingUpdate'); } catch(e) { throw e; }
+        },
+        forceP2PUpdate: (peerIp) => {
+            try { return ipcRenderer.invoke('forceP2PUpdate', peerIp); } catch(e) { throw e; }
+        },
+        openGitHub: () => {
+            try { return ipcRenderer.invoke('openGitHub'); } catch(e) { throw e; }
+        },
+        toggleDevTools: () => {
+            try { return ipcRenderer.invoke('toggleDevTools'); } catch(e) { throw e; }
+        },
+        exportLogs: () => {
+            try { return ipcRenderer.invoke('exportLogs'); } catch(e) { throw e; }
+        },
+        getNetworkCode: () => {
+            try { return ipcRenderer.invoke('getNetworkCode'); } catch(e) { throw e; }
+        }
+    });
+} catch (e) {
+    console.error(e);
+}

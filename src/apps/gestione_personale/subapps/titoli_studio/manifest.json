@@ -1,0 +1,17 @@
+{
+    "id": "titoli_studio",
+    "name": "Titoli di Studio",
+    "description": "Titoli di studio e qualifiche della persona selezionata",
+    "icon": "school",
+    "main": "app.js",
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza"
+        },
+        {
+            "id": "edit",
+            "label": "Modifica"
+        }
+    ]
+}

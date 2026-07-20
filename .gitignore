@@ -1,0 +1,89 @@
+# ── Dipendenze ──────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+.yarn/
+
+# ── Build e Distribuzione ────────────────────────────────────
+dist/
+build/
+out/
+release/
+*.exe
+*.dmg
+*.AppImage
+*.deb
+*.rpm
+*.snap
+*.nupkg
+
+# ── Log e Debug ──────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.npm
+
+# ── Database e File Locali Cifrati ───────────────────────────
+*.sqlite
+*.sqlite3
+*.db
+*.enc
+*.tmp
+*.bak
+backups/
+scratch/
+
+# ── File Runtime Locali (non committare) ─────────────────────
+active_node.json
+device.key
+*.key
+
+# ── File di Sistema e IDE ────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*~
+
+# ── Variabili d'Ambiente e Segreti ───────────────────────────
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# ── Electron Build ───────────────────────────────────────────
+.electron-builder-cache/
+app-update.yml
+dev-app-update.yml
+latest*.yml
+latest*.json
+
+# ── Coverage e Test ──────────────────────────────────────────
+coverage/
+.nyc_output/
+*.lcov
+
+# ── Cache ────────────────────────────────────────────────────
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+
+# ── AI Assistants (sessioni personali, non il config di progetto) ──
+.agents/
+.claude/
+
+# ── File duplicati Windows (Google Drive sync) ───────────────
+*\ \(1\).*
+*\(1\).*

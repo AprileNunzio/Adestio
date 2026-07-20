@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adestio Enterprise</title>
+    
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0" />
+
+    <link rel="stylesheet" href="css/variables.css">
+    <link rel="stylesheet" href="css/utilities.css">
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body style="display: flex; flex-direction: column; height: 100vh; margin: 0; overflow: hidden;">
+    
+    <div class="animated-background">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+    </div>
+
+    
+    <div id="splash-screen" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--md-bg-color); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s ease, visibility 0.8s; backdrop-filter: var(--glass-blur);">
+        <h1 style="font-family: var(--font-heading); font-size: 5rem; font-weight: 800; color: var(--md-primary); letter-spacing: 6px; margin-bottom: 0.5rem; text-shadow: 0 4px 20px rgba(59, 130, 246, 0.4); animation: pulse 2s infinite;">
+            ADESTIO
+        </h1>
+        <p style="font-family: var(--font-body); font-size: 1.2rem; color: var(--md-on-surface-variant); text-align: center; max-width: 700px; line-height: 1.6; margin-top: 1rem; font-weight: 500;">
+            <strong style="color: var(--md-primary); font-size: 1.3rem;">A</strong>rchitettura 
+            <strong style="color: var(--md-primary); font-size: 1.3rem;">D</strong>inamica per l'
+            <strong style="color: var(--md-primary); font-size: 1.3rem;">E</strong>spansione e lo 
+            <strong style="color: var(--md-primary); font-size: 1.3rem;">S</strong>viluppo 
+            <strong style="color: var(--md-primary); font-size: 1.3rem;">T</strong>ecnologico di 
+            <strong style="color: var(--md-primary); font-size: 1.3rem;">I</strong>mprese e 
+            <strong style="color: var(--md-primary); font-size: 1.3rem;">O</strong>rganizzazioni
+        </p>
+        
+        <div style="margin-top: 4rem; display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+            <div style="width: 45px; height: 45px; border: 4px solid var(--md-outline); border-top: 4px solid var(--md-primary); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <span style="font-family: var(--font-body); font-size: 0.9rem; color: var(--md-on-surface-variant); letter-spacing: 1px; text-transform: uppercase;">Caricamento Ambiente...</span>
+        </div>
+    </div>
+    <style>
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.02); }
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+
+    
+    <div id="title-bar" style="width: 100%; height: 42px; background: rgba(50, 50, 54, 0.85); backdrop-filter: var(--glass-blur); border-bottom: 1px solid rgba(255, 255, 255, 0.1); display: flex; align-items: center; justify-content: space-between; z-index: 1000; -webkit-app-region: drag; position: relative; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+        
+        <div style="display: flex; align-items: center; height: 100%; -webkit-app-region: no-drag; margin-left: 1rem; gap: 1rem;">
+            
+            <button id="btn-nav-back" class="btn btn-icon" style="display: none; background: rgba(255, 255, 255, 0.1); color: #ffffff; height: 32px; width: 32px; border-radius: 6px; padding: 0; transition: all 0.2s; border: 1px solid rgba(255,255,255,0.05);">
+                <span class="material-symbols-rounded" style="font-size: 1.2rem;">arrow_back</span>
+            </button>
+            <button id="btn-nav-home" class="btn btn-icon" style="display: none; background: rgba(255, 255, 255, 0.1); color: #ffffff; height: 32px; width: 32px; border-radius: 6px; padding: 0; transition: all 0.2s; border: 1px solid rgba(255,255,255,0.05); margin-left: -0.5rem;" title="Torna alla Dashboard">
+                <span class="material-symbols-rounded" style="font-size: 1.2rem;">home</span>
+            </button>
+            <div style="display: flex; align-items: center; gap: 0.5rem; color: #ffffff; font-weight: 700; font-family: var(--font-heading); font-size: 0.95rem; letter-spacing: 1.5px; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
+                <span class="material-symbols-rounded" style="font-size: 1.2rem; color: var(--md-primary);">hexagon</span>
+                ADESTIO
+            </div>
+            <div style="width: 1px; height: 20px; background: rgba(255, 255, 255, 0.15); margin: 0 0.2rem;"></div>
+            <div id="nav-title" style="color: rgba(255, 255, 255, 0.85); font-size: 0.9rem; font-weight: 600; letter-spacing: 0.5px;"></div>
+        </div>
+
+        <div style="display: flex; height: 100%; -webkit-app-region: no-drag;">
+            
+            <div style="position: relative;">
+                <div id="app-menu-btn" class="win-btn" style="width: 48px; height: 100%; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #ffffff; transition: background 0.2s;">
+                    <span class="material-symbols-rounded" style="font-size: 1.2rem; font-weight: 300;">menu</span>
+                </div>
+                
+                <div id="app-dropdown-menu" style="display: none; position: absolute; top: 100%; right: 0; background: var(--md-surface); border: 1px solid var(--md-outline-variant); border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); padding: 0.5rem; min-width: 220px; flex-direction: column; gap: 0.2rem; z-index: 10001;">
+                    <button class="menu-item-btn" id="menu-btn-store">
+                        <span class="material-symbols-rounded" style="font-size: 1.1rem;">storefront</span> App Store
+                    </button>
+                    <button class="menu-item-btn" id="menu-btn-security">
+                        <span class="material-symbols-rounded" style="font-size: 1.1rem;">shield_person</span> Sicurezza Account
+                    </button>
+                    <button class="menu-item-btn" id="menu-btn-logout">
+                        <span class="material-symbols-rounded" style="font-size: 1.1rem;">logout</span> Esci
+                    </button>
+                    <div style="height: 1px; background: var(--md-outline-variant); margin: 0.2rem 0;"></div>
+                    <button class="menu-item-btn" id="menu-btn-updates">
+                        <span class="material-symbols-rounded" style="font-size: 1.1rem;">update</span> Controlla Aggiornamenti
+                    </button>
+                    <button class="menu-item-btn" id="menu-btn-github">
+                        <span class="material-symbols-rounded" style="font-size: 1.1rem;">code</span> Pagina Progetto
+                    </button>
+                    <div style="height: 1px; background: var(--md-outline-variant); margin: 0.2rem 0;"></div>
+                    <button class="menu-item-btn" id="menu-btn-devtools">
+                        <span class="material-symbols-rounded" style="font-size: 1.1rem;">bug_report</span> Strumenti Sviluppatore
+                    </button>
+                </div>
+            </div>
+            <div id="win-min" class="win-btn" style="width: 48px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #ffffff; transition: background 0.2s;">
+                <span class="material-symbols-rounded" style="font-size: 1.1rem; font-weight: 300;">remove</span>
+            </div>
+            <div id="win-max" class="win-btn" style="width: 48px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #ffffff; transition: background 0.2s;">
+                <span class="material-symbols-rounded" style="font-size: 1.1rem; font-weight: 300;">crop_square</span>
+            </div>
+            <div id="win-close" class="win-btn" style="width: 48px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #ffffff; transition: background 0.2s;">
+                <span class="material-symbols-rounded" style="font-size: 1.1rem; font-weight: 300;">close</span>
+            </div>
+        </div>
+    </div>
+    <style>
+        #btn-nav-back:hover, #btn-nav-home:hover { background: rgba(255, 255, 255, 0.2) !important; transform: scale(1.05); }
+        .win-btn:hover { background: rgba(255, 255, 255, 0.15); }
+        #win-close:hover { background: #E81123 !important; color: white !important; }
+        .menu-item-btn { display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.6rem 1rem; border: none; background: transparent; color: var(--md-on-surface); text-align: left; cursor: pointer; border-radius: 6px; font-family: var(--font-body); font-size: 0.95rem; font-weight: 500; transition: background 0.2s; }
+        .menu-item-btn:hover { background: var(--md-surface-variant); color: var(--md-primary); }
+    </style>
+
+    
+    <div id="main-content" style="flex: 1; position: relative; overflow-y: auto; overflow-x: hidden;"></div>
+
+    
+    <div id="status-bar" style="width: 100%; height: 50px; background: var(--md-surface-variant); border-top: 1px solid var(--md-outline-variant); display: flex; align-items: center; padding: 0 2rem; gap: 2rem; z-index: 1000;">
+        <div id="sb-version-container" class="status-item" style="cursor: pointer;" title="Controlla Aggiornamenti">
+            <span class="material-symbols-rounded status-icon">info</span>
+            <span id="sb-version">Versione --</span>
+        </div>
+        <div id="sb-system-container" class="status-item" style="cursor: pointer;" title="Esegui Analisi Diagnostica">
+            <span class="material-symbols-rounded status-icon" style="color: var(--md-success);">check_circle</span>
+            <span id="sb-system">Sistema OK</span>
+        </div>
+        <div id="sb-nodes-container" class="status-item" style="cursor: pointer;" title="Apri Analisi di Rete">
+            <span class="material-symbols-rounded status-icon">router</span>
+            <span id="sb-nodes">Nodi Connessi: 0</span>
+        </div>
+        <div id="sb-ip-container" class="status-item" style="cursor: pointer;" title="Indirizzo IP Locale">
+            <span class="material-symbols-rounded status-icon" style="color: var(--md-secondary);">lan</span>
+            <span id="sb-ip">IP: ---</span>
+        </div>
+        <div id="sb-errors-container" class="status-item" style="cursor: pointer; display: none;" title="Visualizza Log di Sistema (SuperAdmin)">
+            <span class="material-symbols-rounded status-icon" style="color: var(--md-error);">warning</span>
+            <span id="sb-errors" style="color: var(--md-error); font-weight: bold;">Errori: 0</span>
+        </div>
+        <div id="sb-sync-container" class="status-item" style="margin-left: auto; cursor: pointer;" title="Forza Sincronizzazione">
+            <span class="material-symbols-rounded status-icon" id="sb-sync-icon" style="color: var(--md-primary);">sync</span>
+            <span id="sb-sync">Sincronizzato</span>
+        </div>
+    </div>
+    
+    <!-- Modal Consenso Aggiornamento P2P -->
+    <div id="update-consent-modal" class="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.5); z-index: 10500; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+        <div class="modal-content" style="background: var(--md-surface); width: 450px; border-radius: 12px; padding: 2rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 1px solid var(--md-outline-variant);">
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+                <span class="material-symbols-rounded" style="font-size: 2.5rem; color: var(--md-primary);">system_update</span>
+                <h2 style="font-family: var(--font-heading); margin: 0; color: var(--md-on-surface); font-size: 1.5rem;">Aggiornamento Pronto</h2>
+            </div>
+            <p style="color: var(--md-on-surface-variant); margin-bottom: 1rem; font-family: var(--font-body); line-height: 1.5;">
+                <b id="update-consent-version">La nuova versione</b> è stata scaricata e verificata con successo da tutti i PC della rete.
+            </p>
+            <p style="color: var(--md-on-surface-variant); margin-bottom: 2rem; font-family: var(--font-body); line-height: 1.5;">
+                Vuoi chiudere l'applicazione e installarlo ora? L'operazione richiederà pochissimi secondi.
+            </p>
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button id="update-consent-later" style="padding: 0.7rem 1.5rem; border-radius: 8px; border: 1px solid var(--md-outline); background: transparent; color: var(--md-on-surface); font-family: var(--font-body); font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                    Più tardi
+                </button>
+                <button id="update-consent-now" style="padding: 0.7rem 1.5rem; border-radius: 8px; border: none; background: var(--md-primary); color: var(--md-on-primary); font-family: var(--font-body); font-weight: 600; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
+                    Riavvia e Installa
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

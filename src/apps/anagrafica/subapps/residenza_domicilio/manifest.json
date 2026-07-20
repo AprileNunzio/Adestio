@@ -1,0 +1,17 @@
+{
+    "id": "residenza_domicilio",
+    "name": "Residenza e Domicilio",
+    "description": "I tuoi indirizzi di residenza e domicilio",
+    "icon": "icon.png",
+    "main": "app.js",
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza"
+        },
+        {
+            "id": "edit",
+            "label": "Modifica"
+        }
+    ]
+}

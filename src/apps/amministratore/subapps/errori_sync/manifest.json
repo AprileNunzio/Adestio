@@ -1,0 +1,7 @@
+{
+    "id": "errori_sync",
+    "name": "Errori Sincronizzazione",
+    "description": "Visualizzazione e Gestione dei Log di Sistema",
+    "icon": "icona.png",
+    "main": "app.js"
+}

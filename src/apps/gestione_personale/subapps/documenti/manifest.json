@@ -1,0 +1,21 @@
+{
+    "id": "documenti",
+    "name": "Documenti",
+    "description": "Documenti d'identità collegati a una persona",
+    "icon": "icon.png",
+    "main": "app.js",
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza"
+        },
+        {
+            "id": "edit",
+            "label": "Modifica"
+        },
+        {
+            "id": "delete",
+            "label": "Elimina"
+        }
+    ]
+}

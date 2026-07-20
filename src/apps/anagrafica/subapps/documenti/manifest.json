@@ -1,0 +1,17 @@
+{
+    "id": "documenti",
+    "name": "Documenti",
+    "description": "I tuoi documenti d'identità",
+    "icon": "icon.png",
+    "main": "app.js",
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza"
+        },
+        {
+            "id": "edit",
+            "label": "Modifica"
+        }
+    ]
+}

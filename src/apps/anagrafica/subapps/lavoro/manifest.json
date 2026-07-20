@@ -1,0 +1,17 @@
+{
+    "id": "lavoro",
+    "name": "Lavoro",
+    "description": "I tuoi rapporti di lavoro, con storico",
+    "icon": "icon.png",
+    "main": "app.js",
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza"
+        },
+        {
+            "id": "edit",
+            "label": "Modifica"
+        }
+    ]
+}

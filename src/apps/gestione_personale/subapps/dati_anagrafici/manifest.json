@@ -1,0 +1,21 @@
+{
+    "id": "dati_anagrafici",
+    "name": "Dati Anagrafici",
+    "description": "Elenco persone e scheda anagrafica completa",
+    "icon": "icon.png",
+    "main": "app.js",
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza"
+        },
+        {
+            "id": "edit",
+            "label": "Modifica"
+        },
+        {
+            "id": "delete",
+            "label": "Elimina"
+        }
+    ]
+}

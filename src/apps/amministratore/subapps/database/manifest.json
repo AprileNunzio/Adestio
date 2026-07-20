@@ -1,0 +1,8 @@
+{
+    "id": "database",
+    "name": "Database",
+    "description": "Allineamento P2P e Sicurezza Ledger",
+    "icon": "database",
+    "required_roles": ["SuperAdmin"],
+    "version": "1.0.0"
+}

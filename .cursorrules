@@ -1,0 +1,131 @@
+# ADESTIO — Cursor AI Rules
+# Leggi il Progress Tracker per capire lo stato corrente del progetto.
+
+## Stato attuale del progetto
+
+### ✅ Completato
+- **Fase 0** (2026-07-17): Rebrand ADESTIO 4.0 Universal Platform, README/CLAUDE.md/gitignore, versione 4.0.0, git storia resettata
+- **Fase 1** (2026-07-17): Platform Core creato — 5 nuovi moduli in `backend/core/`:
+  - `PlatformContext.js` — contratto app backend (getDB, isLoggedIn, hasPermission, emit, handler)
+  - `AppIpcBridge.js` — registrazione IPC dinamica (register/deregister per appId)
+  - `AppDbManager.js` — DB per-app (app_<namespace>.enc, getOrCreate/get/save)
+  - `DependencyResolver.js` — risoluzione dipendenze (resolve, canUninstall, getMissingDeps)
+  - `AppLoader.js` — carica/scarica app a runtime, aggancio in main.js dopo DB unlock
+
+- **Fase 2** (2026-07-17): App Store Backend completato:
+  - `backend/migrations/store.js` — schema `installed_apps`, `app_dependencies`, `app_install_log`
+  - `store` aggiunto ai domini caricati da `db_manager.unlock()`, `initEmptyDB()`, `importClonedDB()`, `recoverDatabase`
+  - `backend/handlers/store.js` — getAvailable/getInstalled/install/uninstall/checkUpdates (install/uninstall richiedono superadmin)
+  - Canali IPC `store:*` registrati in `ipcRouter.js`, esposti in `preload.js` come `window.electronAPI.store.*`
+  - Uninstall NON cancella `app_<namespace>.enc` (dati preservati per reinstall)
+
+- **Fase 3** (2026-07-17): Store UI completata e TESTATA LIVE (`npm start` reale, non solo sintassi):
+  - `src/js/pages/store.js` — tab Disponibili/Installate, ricerca, card, modal conferma
+  - Registrata in `src/js/main.js` (Pages, pageNames, listener menu) e voce menu in `src/index.html`
+  - Test live: boot pulito (DAG 57/57, AppLoader 5/5 app), install/uninstall end-to-end verificati con screenshot reali, nessun errore in log
+
+- **Fase 4** (2026-07-17): COMPLETA, TESTATA LIVE con scrittura+lettura reale su dati esistenti:
+  - Parte 1 (core vs marketplace): tutte e 5 le app hanno `"core": true` nel manifest; `store.js` backend/frontend distinguono core da terze parti; tile "App Store" in dashboard
+  - Parte 2 (dati anagrafica in dominio dedicato, eseguita su richiesta esplicita utente): `persone`+7 tabelle collegate spostate da `auth.enc` a **nuovo dominio `app_anagrafica.enc`** (condiviso da anagrafica/gestione_personale/presa_di_servizio, di proprietà di anagrafica)
+    - `backend/migrations/anagrafica.js` nuovo, `auth.js` v16 droppa le 8 tabelle
+    - `backend/dag/schema/schema_registry.js#getDomainForTable()` — routing tabella→dominio, usato da `block_applier.js`/`state_rebuilder.js`/`projector.js`
+    - Dominio caricato in TUTTI i boot path (unlock/initEmptyDB/importClonedDB/recoverDatabase) PRIMA del DAG rebuild
+    - 9 handler `anagrafica_*.js` aggiornati (`anagrafica_persone.js` ha ANCHE `coreDb=getDB('auth')` per 2 query cross-domain su `users`)
+    - Migrazione = replay del DAG (ledger.enc = fonte di verità), NON copia manuale righe. Verificato: 70/70 blocchi
+  - **Deliberatamente NON fatto** (motivato, non dimenticato): rename `auth.enc`→`core.enc` (puro cosmetic, ~15 file per zero valore), estrazione `backend.js`/AppIpcBridge per le 5 app core (inutile finché non esistono vere app di terze parti — l'`ipcRouter.js` statico è equivalente per app sempre caricate), `amministratore`→`src/apps/_core/` (il flag `core:true` basta)
+
+### ⚠️ Cambiamenti esterni rilevati (non fatti in questa sessione — leggere prima di toccare Store/AppLoader/boot)
+Durante il test live del 2026-07-17 sono comparsi cambiamenti non miei a: `main.js` (nuovo `backend/core/BootManager.js`), `AppLoader.js` (logica "Strict Loading" + auto-seeding app `bundled`), `store.js` frontend (vista dettaglio `showAppDetails()`), e `src/apps/presa_di_servizio/` è stata **rimossa completamente**. Non documentati in dettaglio qui — leggi lo stato attuale dei file prima di assumere che questo tracker sia aggiornato su quel sotto-sistema.
+Bug noto non investigato: `dashboard.js:117` — `TypeError` su `.map()` di `undefined` in "Impossibile recuperare le app installate".
+
+### ⬜ Da fare
+- **Fase 5**: Frontend restyling universale (rimuovere riferimenti scolastici)
+
+---
+
+## Regole assolute — MAI violare
+
+1. **NO framework UI** — Vanilla JS. Mai React, Vue, Angular, Svelte.
+2. **NO native SQLite** — solo `sql.js` (WASM). Mai `better-sqlite3` o equivalenti.
+3. **NON toccare `backend/dag/` o `backend/p2p/`** senza richiesta esplicita + smoke test.
+4. **Cifratura sempre** — ogni nuovo `.enc` usa `deriveKeyForPurpose(networkCode, namespace)`.
+5. **Manifest v2 è il contratto** — modifiche allo schema = breaking change.
+6. **Nessun commento ovvio** — solo il perché, mai il cosa.
+
+---
+
+## IPC naming convention
+
+| Prefisso | Uso |
+|---|---|
+| `app:<namespace>:<entità>:<azione>` | Nuove marketplace app (v4) |
+| `store:*` | ✅ Store backend attivo: getAvailable, getInstalled, install, uninstall, checkUpdates |
+| `platform:*` | Core platform handlers (futuro) |
+| canali senza prefisso (`loginUser`, `rbac:*`, ecc.) | Legacy v3 in `ipcRouter.js` — resta così anche per le 5 app core dopo la Fase 4 (scelta deliberata) |
+
+## Formato migrations (app e store)
+
+Le migrations di `backend/migrations/*.js` E delle app marketplace usano SEMPRE SQL raw, mai funzioni `up(db)`:
+```js
+module.exports = [
+    { version: 1, sql: `CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY, name TEXT);` }
+];
+```
+`SqlJsAdapter.runMigrations()` esegue `m.sql` via `db.exec()` — un formato diverso rompe silenziosamente il caricamento.
+
+---
+
+## Come scrivere un'app v4
+
+Ogni app in `src/apps/<id>/`:
+- `manifest.json` (v2 spec — vedi CLAUDE.md)
+- `app.js` — renderer
+- `backend.js` — esporta `{ register(context) { return { 'entity:action': handler } } }`
+- `migrations.js` — esporta `[{ version: N, up(db) {} }]`
+
+IPC handler standard:
+```js
+'items:getAll': async (ctx, event, payload) => {
+    if (!ctx.isLoggedIn()) return { success: false, error: 'Non autenticato' };
+    return { success: true, data: ctx.getDB().query('SELECT * FROM items') };
+}
+// oppure con ctx.handler() che wrappa auth + try/catch automaticamente:
+'items:create': context.handler(async (ctx, event, payload) => {
+    ctx.getDB().run('INSERT INTO items (name) VALUES (?)', [payload.name]);
+    return { success: true };
+}),
+```
+
+---
+
+## Stack tecnico
+
+- Electron 30 + Node.js CommonJS
+- sql.js 1.10 (SQLite WASM, no bindings nativi)
+- AES-256-GCM + DPAPI (safeStorage Electron)
+- DAG distribuito, Ed25519, WebSocket P2P (port 34567)
+- bcryptjs + TOTP (otplib) + WebAuthn (@simplewebauthn/server)
+- electron-updater + P2P LAN update consensus
+
+## Struttura chiave
+
+```
+backend/core/
+  PlatformContext.js   ← V4 NUOVO
+  AppIpcBridge.js      ← V4 NUOVO
+  AppDbManager.js      ← V4 NUOVO
+  AppLoader.js         ← V4 NUOVO
+  DependencyResolver.js← V4 NUOVO
+  ipcRouter.js         ← V3 LEGACY + canali store:* (Fase 2)
+backend/handlers/
+  store.js             ← V4 NUOVO — App Store backend
+  anagrafica_*.js       ← Fase 4: usano getDB('app_anagrafica'), non più 'auth'
+backend/migrations/
+  store.js             ← V4 NUOVO — schema store.enc
+  anagrafica.js         ← Fase 4 NUOVO — schema app_anagrafica.enc
+backend/dag/            ← NON TOCCARE liberamente, MA schema_registry.js#getDomainForTable()
+                           e il routing domain-aware in block_applier/state_rebuilder/projector
+                           sono ora parte del contratto — vedi Fase 4 prima di modificare
+backend/p2p/            ← NON TOCCARE
+src/apps/                ← App registry (presa_di_servizio rimossa — vedi nota cambiamenti esterni)
+```

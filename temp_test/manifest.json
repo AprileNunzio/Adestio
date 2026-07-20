@@ -1,0 +1,48 @@
+{
+    "id": "presa_di_servizio",
+    "name": "Presa di Servizio",
+    "description": "Raccogli i dati del personale (modulo Excel offline o via email), importali e genera automaticamente la presa di servizio ATA o Docenti.",
+    "icon": "assignment_turned_in",
+    "main": "app.js",
+    "color": "#3B82F6",
+    "version": "1.0.0",
+    "author": "NunzioTech",
+    "category": "school",
+    "tags": ["scuola", "presa-di-servizio", "onboarding"],
+    "backend": "backend.js",
+    "ipc": {
+        "namespace": "presaServizio"
+    },
+    "apis": [
+        "anagrafica_persone",
+        "anagrafica_documenti",
+        "anagrafica_residenza",
+        "anagrafica_contatti",
+        "anagrafica_lavoro",
+        "anagrafica_titoli_studio",
+        "anagrafica_dati_bancari",
+        "anagrafica_familiari"
+    ],
+    "links": [
+        { "rel": "help", "href": "https://adestio.nunziotech.com/docs/presa_di_servizio" }
+    ],
+    "dependencies": ["anagrafica", "gestione_personale"],
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza Applicazione"
+        },
+        {
+            "id": "send",
+            "label": "Invia moduli di raccolta dati"
+        },
+        {
+            "id": "import",
+            "label": "Importa e modifica dati"
+        },
+        {
+            "id": "generate",
+            "label": "Genera presa di servizio"
+        }
+    ]
+}

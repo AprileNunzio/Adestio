@@ -1,0 +1,17 @@
+{
+    "id": "dati_anagrafici",
+    "name": "I Miei Dati",
+    "description": "I tuoi dati anagrafici personali",
+    "icon": "icon.png",
+    "main": "app.js",
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza"
+        },
+        {
+            "id": "edit",
+            "label": "Modifica"
+        }
+    ]
+}

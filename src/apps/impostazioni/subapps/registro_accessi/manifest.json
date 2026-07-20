@@ -1,0 +1,13 @@
+{
+    "id": "registro_accessi",
+    "name": "Registro Accessi",
+    "icon": "manage_search",
+    "description": "Visualizza il registro degli accessi e dei logout dal sistema.",
+    "main": "app.js",
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza Registro Accessi"
+        }
+    ]
+}

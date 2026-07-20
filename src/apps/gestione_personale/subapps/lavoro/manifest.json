@@ -1,0 +1,21 @@
+{
+    "id": "lavoro",
+    "name": "Lavoro",
+    "description": "Rapporti di lavoro collegati a una persona, con storico",
+    "icon": "icon.png",
+    "main": "app.js",
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza"
+        },
+        {
+            "id": "edit",
+            "label": "Modifica"
+        },
+        {
+            "id": "delete",
+            "label": "Elimina"
+        }
+    ]
+}

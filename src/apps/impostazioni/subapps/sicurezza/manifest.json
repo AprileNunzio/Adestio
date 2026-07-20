@@ -1,0 +1,17 @@
+{
+    "id": "sicurezza",
+    "name": "Sicurezza",
+    "description": "Autenticazione a due fattori e policy di sicurezza per tutti gli utenti",
+    "icon": "shield_person",
+    "main": "app.js",
+    "permissions": [
+        {
+            "id": "view",
+            "label": "Visualizza Sicurezza"
+        },
+        {
+            "id": "edit",
+            "label": "Gestisci Policy 2FA e Registro Accessi"
+        }
+    ]
+}
