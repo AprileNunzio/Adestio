@@ -133,12 +133,11 @@ export default {
             });
 
             // Generation Logic
-            container.querySelector('#da-btn-generate-firma').addEventListener('click', () => {
+            const generateFirmaLive = () => {
                 const text = container.querySelector('#da-firma-text').value.trim();
                 const font = container.querySelector('#da-firma-font').value;
                 if (!text) {
-                    toast('Inserisci il nominativo da firmare.', 'error');
-                    return;
+                    return; // Don't generate empty
                 }
 
                 const canvas = document.createElement('canvas');
@@ -158,7 +157,14 @@ export default {
 
                 b64Firma = canvas.toDataURL('image/png');
                 container.querySelector('#da-preview-firma').style.background = 'url(' + b64Firma + ') center/contain no-repeat';
-                toast('Firma generata! Ricorda di salvare.', 'success');
+            };
+
+            container.querySelector('#da-firma-text').addEventListener('input', generateFirmaLive);
+            container.querySelector('#da-firma-font').addEventListener('change', generateFirmaLive);
+
+            container.querySelector('#da-btn-generate-firma').addEventListener('click', () => {
+                generateFirmaLive();
+                toast('Firma confermata! Ricorda di salvare.', 'success');
             });
 
             const setupUploader = (inputId, previewId, callback) => {
