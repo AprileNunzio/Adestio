@@ -1,70 +1,107 @@
-const { BrowserWindow } = require('electron');
+const { BrowserWindow, app } = require('electron');
+const path = require('path');
 const db = require('../db');
 const sync = require('../sync');
 const syncEngine = require('../sync_engine');
-const blockchain = require('../blockchain');
 const AppLoader = require('./AppLoader');
 const store = require('../handlers/store');
+const peerDiscovery = require('../p2p/discovery/peerDiscovery');
+const fileTransferProtocol = require('../p2p/storage/fileTransferProtocol');
+const crdtEngine = require('../db/crdtEngine');
+const nodeIdentity = require('./node_identity');
+
 class BootManager {
     static async runStartupSequence() {
-        console.log('[BootManager] Inizio sequenza di avvio...');
-        const unlocked = await db.autoUnlockDB();
-        sync.ensureFirewallRule();
-        sync.startSyncServer();
-        try { 
-            require('../diagnostics_api').startDiagnosticsServer(); 
-        } catch(e) { 
-            console.error('[BootManager] Diagnostica fallita:', e); 
-        }
-        if (unlocked) {
+        try {
+            const unlocked = await db.autoUnlockDB();
+            sync.ensureFirewallRule();
+            sync.startSyncServer();
+
             try {
-                blockchain.rebuildStateFromLog();
-            } catch(rbErr) { 
-                console.error('[BootManager] Errore rebuildStateFromLog:', rbErr); 
+                const nodeId = nodeIdentity.getNodeId();
+                crdtEngine.setNodeId(nodeId);
+                peerDiscovery.start(nodeId);
+                
+                const storagePath = path.join(app.getPath('userData'), 'p2p_storage');
+                fileTransferProtocol.startServer(storagePath);
+            } catch (p2pErr) {
+                console.error('[BootManager P2P Init Error]', p2pErr);
             }
-            try {
-                await AppLoader.loadAllInstalledApps();
-            } catch(alErr) { 
-                console.error('[BootManager] Errore AppLoader:', alErr); 
+
+            try { 
+                require('../diagnostics_api').startDiagnosticsServer(); 
+            } catch(e) { 
+                console.error('[BootManager Diagnostica Error]', e); 
             }
-        } else {
-            const registered = db.checkIsRegistered();
-            if (registered) {
-                console.error('[BootManager] DB irrecuperabile localmente, avvio full resync automatico...');
-                setTimeout(async () => {
-                    await this.attemptDatabaseRecovery();
-                }, 8000);
+
+            if (unlocked) {
+                try {
+                    await AppLoader.loadAllInstalledApps();
+                } catch(alErr) { 
+                    console.error('[BootManager AppLoader Error]', alErr); 
+                }
+            } else {
+                try {
+                    const registered = db.checkIsRegistered();
+                    if (registered) {
+                        setTimeout(async () => {
+                            try {
+                                await BootManager.attemptDatabaseRecovery();
+                            } catch (recErr) {
+                                console.error('[BootManager Recovery Timeout Error]', recErr);
+                            }
+                        }, 8000);
+                    }
+                } catch (regErr) {
+                    console.error('[BootManager Check Registration Error]', regErr);
+                }
             }
+        } catch (error) {
+            console.error('[BootManager runStartupSequence Fatal Error]', error);
         }
-        console.log('[BootManager] Sequenza di avvio completata.');
     }
+
     static async attemptDatabaseRecovery() {
         try {
             const nodes = sync.getDetailedNodes().filter(n => n.ip !== '127.0.0.1');
             let recovered = false;
             for (const node of nodes) {
-                const ok = await syncEngine.triggerFullResync(node.ip, node.port);
-                if (ok) { recovered = true; break; }
+                try {
+                    const ok = await syncEngine.triggerFullResync(node.ip, node.port);
+                    if (ok) { recovered = true; break; }
+                } catch (nodeSyncErr) {
+                    console.error('[BootManager nodeSync Error]', nodeSyncErr);
+                }
             }
             if (!recovered) {
                 const win = BrowserWindow.getAllWindows()[0];
                 if (win && !win.isDestroyed()) {
                     win.webContents.send('db-recovery-failed', {
-                        message: 'Database locale irrecuperabile. Connettiti alla rete per ripristinare i dati oppure reimposta il nodo.'
+                        message: 'Database locale irrecuperabile.'
                     });
                 }
             }
         } catch(recErr) { 
-            console.error('[BootManager] Errore Auto recovery:', recErr); 
+            console.error('[BootManager attemptDatabaseRecovery Error]', recErr); 
         }
     }
+
     static runBackgroundTasks() {
-        console.log('[BootManager] Avvio task in background...');
-        setTimeout(() => {
-            store.preloadMarketplaceCache()
-                .then(() => store.syncNetworkApps())
-                .catch(e => console.error('[BootManager] Errore preload/sync Marketplace:', e));
-        }, 5000); 
+        try {
+            setTimeout(() => {
+                try {
+                    store.preloadMarketplaceCache()
+                        .then(() => store.syncNetworkApps())
+                        .catch(e => console.error('[BootManager Marketplace Sync Error]', e));
+                } catch (bgTaskErr) {
+                    console.error('[BootManager Background Task Error]', bgTaskErr);
+                }
+            }, 5000);
+        } catch (error) {
+            console.error('[BootManager runBackgroundTasks Error]', error);
+        }
     }
 }
+
 module.exports = BootManager;
+

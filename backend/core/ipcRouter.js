@@ -42,8 +42,21 @@ function withActorBackend(args) {
     }
     return { actorUserId };
 }
+        ipcMain.removeHandler('adestioNative:callAppApi');
+        ipcMain.handle('adestioNative:callAppApi', async (event, data) => {
+            try {
+                const capabilityBroker = require('../security/capabilityBroker');
+                if (!data || !data.sourceApp || !data.targetApp || !data.action) {
+                    throw new Error('Parametri IPC non validi');
+                }
+                const result = await capabilityBroker.routeIpcCall(data.sourceApp, data.targetApp, data.action, data.payload);
+                return { success: true, data: result };
+            } catch (err) {
+                console.error('[ipcRouter adestioNative:callAppApi Error]', err);
+                return { success: false, error: err.message };
+            }
+        });
 
-        if (windowManager) {
             ipcMain.removeHandler('window-minimize');
             ipcMain.handle('window-minimize', () => {
                 const win = windowManager.getMainWindow();
