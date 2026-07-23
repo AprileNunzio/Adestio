@@ -31,17 +31,21 @@ const storeHandlers = require('../handlers/store');
 const datiAziendaHandlers = require('../handlers/dati_azienda');
 const appsRegistry = require('./appsRegistry');
 const accessGuard = require('./access_guard');
+function withActorBackend(args) {
+    try {
+        const sessionManager = require('./session_manager');
+        const actorUserId = sessionManager.getCurrentUserId() || '';
+        if (args && typeof args === 'object') {
+            return Object.assign({}, args, { actorUserId });
+        }
+        return { actorUserId };
+    } catch (e) {
+        return { actorUserId: '' };
+    }
+}
+
 function registerAllIPCHandlers(windowManager) {
     try {
-
-function withActorBackend(args) {
-    const sessionManager = require('./session_manager');
-    const actorUserId = sessionManager.getCurrentUserId() || '';
-    if (args && typeof args === 'object') {
-        return Object.assign({}, args, { actorUserId });
-    }
-    return { actorUserId };
-}
         ipcMain.removeHandler('adestioNative:callAppApi');
         ipcMain.handle('adestioNative:callAppApi', async (event, data) => {
             try {
@@ -57,25 +61,33 @@ function withActorBackend(args) {
             }
         });
 
+        if (windowManager) {
             ipcMain.removeHandler('window-minimize');
             ipcMain.handle('window-minimize', () => {
-                const win = windowManager.getMainWindow();
-                if (win) win.minimize();
+                try {
+                    const win = windowManager.getMainWindow();
+                    if (win && !win.isDestroyed()) win.minimize();
+                } catch (e) {}
             });
             ipcMain.removeHandler('window-maximize');
             ipcMain.handle('window-maximize', () => {
-                const win = windowManager.getMainWindow();
-                if (win) {
-                    if (win.isMaximized()) win.restore();
-                    else win.maximize();
-                }
+                try {
+                    const win = windowManager.getMainWindow();
+                    if (win && !win.isDestroyed()) {
+                        if (win.isMaximized()) win.restore();
+                        else win.maximize();
+                    }
+                } catch (e) {}
             });
             ipcMain.removeHandler('window-close');
             ipcMain.handle('window-close', () => {
-                const win = windowManager.getMainWindow();
-                if (win) win.close();
+                try {
+                    const win = windowManager.getMainWindow();
+                    if (win && !win.isDestroyed()) win.close();
+                } catch (e) {}
             });
         }
+
         ipcMain.removeHandler('getLocalIPs');
         ipcMain.handle('getLocalIPs', () => {
             try {
