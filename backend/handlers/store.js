@@ -433,7 +433,24 @@ async function getAvailable() {
             const installedVersion = diskManifest ? diskManifest.version : (dbRow ? dbRow.version : null);
             const remoteVersion = remoteManifest ? remoteManifest.version : null;
             const latestVersion = remoteVersion || installedVersion || '1.0.0';
-            const hasUpdate = isInstalled && installedVersion && remoteVersion && (installedVersion !== remoteVersion);
+
+            let hasUpdate = false;
+            if (isInstalled && installedVersion && remoteVersion) {
+                const rParts = String(remoteVersion).split('.').map(n => parseInt(n, 10) || 0);
+                const iParts = String(installedVersion).split('.').map(n => parseInt(n, 10) || 0);
+                for (let i = 0; i < Math.max(rParts.length, iParts.length); i++) {
+                    const r = rParts[i] || 0;
+                    const ins = iParts[i] || 0;
+                    if (r > ins) {
+                        hasUpdate = true;
+                        break;
+                    }
+                    if (r < ins) {
+                        hasUpdate = false;
+                        break;
+                    }
+                }
+            }
 
             const baseApp = remoteManifest || diskManifest || {};
 
