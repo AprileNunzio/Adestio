@@ -1,7 +1,7 @@
 {
     "id": "sicurezza",
     "name": "Sicurezza",
-    "description": "Autenticazione a due fattori e policy di sicurezza per tutti gli utenti",
+    "description": "Cambio password e PIN personali, autenticazione a due fattori e policy di sicurezza",
     "icon": "shield_person",
     "main": "app.js",
     "permissions": [

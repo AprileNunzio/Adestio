@@ -78,7 +78,7 @@ export default {
                         </div>
                     </div>
 
-                    <div id="store-grid" class="apps-grid">
+                    <div id="store-grid" class="app-groups-container">
                         <p style="color: var(--md-on-surface-variant);">Caricamento store in corso...</p>
                     </div>
                 </div>
@@ -108,44 +108,10 @@ export default {
                                     <span>Le applicazioni provenienti da repository di terze parti <strong>non sono verificate da NunzioTech</strong>. Installarle e utilizzarle è a tua esclusiva responsabilità.</span>
                                 </div>
                                 <div class="repo-form-row">
-                                    <label>Tipo</label>
-                                    <select id="repo-type-select" class="input">
-                                        <option value="github">Repository GitHub</option>
-                                        <option value="url">URL diretto (marketplace.json)</option>
-                                    </select>
+                                    <label>URL del repository o del marketplace.json</label>
+                                    <input type="text" id="repo-url-input" class="input" placeholder="https://github.com/utente/repo oppure https://tuosito.it/marketplace.json">
                                 </div>
-                                <div class="repo-form-row">
-                                    <label>Etichetta</label>
-                                    <input type="text" id="repo-label-input" class="input" placeholder="Es. Repository di Mario Rossi">
-                                </div>
-                                <div id="repo-github-fields">
-                                    <div class="repo-form-row repo-form-row-split">
-                                        <div>
-                                            <label>Owner</label>
-                                            <input type="text" id="repo-owner-input" class="input" placeholder="Es. mariorossi">
-                                        </div>
-                                        <div>
-                                            <label>Repository</label>
-                                            <input type="text" id="repo-repo-input" class="input" placeholder="Es. le-mie-app">
-                                        </div>
-                                    </div>
-                                    <div class="repo-form-row repo-form-row-split">
-                                        <div>
-                                            <label>Branch <span style="font-weight:400; opacity:0.7;">(opz., default main)</span></label>
-                                            <input type="text" id="repo-branch-input" class="input" placeholder="main">
-                                        </div>
-                                        <div>
-                                            <label>Percorso file <span style="font-weight:400; opacity:0.7;">(opz.)</span></label>
-                                            <input type="text" id="repo-path-input" class="input" placeholder="marketplace.json">
-                                        </div>
-                                    </div>
-                                </div>
-                                <div id="repo-url-fields" style="display: none;">
-                                    <div class="repo-form-row">
-                                        <label>URL marketplace.json (HTTPS)</label>
-                                        <input type="text" id="repo-url-input" class="input" placeholder="https://tuosito.it/marketplace.json">
-                                    </div>
-                                </div>
+                                <p style="font-size: 0.8rem; color: var(--md-on-surface-variant); margin: -0.4rem 0 1rem;">Basta incollare l'URL: etichetta, branch e percorso vengono rilevati automaticamente.</p>
                                 <button id="btn-add-repo" class="btn-install-large" style="width: 100%; justify-content: center;">
                                     <span class="material-symbols-rounded">add</span> Aggiungi Repository
                                 </button>
@@ -266,6 +232,41 @@ export default {
                         border-radius: 8px; padding: 0.4rem; cursor: pointer; display: flex; align-items: center;
                     }
                     .tile-badge.thirdparty { background: var(--md-error-container); color: var(--md-on-error-container); }
+
+                    .app-groups-container { display: flex; flex-direction: column; gap: 2.2rem; }
+                    .app-group-header {
+                        display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.9rem;
+                    }
+                    .app-group-header .material-symbols-rounded { color: var(--md-primary); font-size: 1.3rem; }
+                    .app-group-header h3 { margin: 0; font-size: 1.1rem; color: var(--md-on-surface); font-weight: 700; }
+                    .app-group-count {
+                        background: var(--md-surface-variant); color: var(--md-on-surface-variant);
+                        font-size: 0.75rem; font-weight: 700; padding: 0.15rem 0.6rem; border-radius: 999px;
+                    }
+                    .app-row-list { display: flex; flex-direction: column; gap: 0.7rem; }
+                    .app-row {
+                        display: flex; align-items: center; gap: 1.2rem; padding: 0.9rem 1.3rem;
+                        background: var(--md-surface); border: 1px solid var(--md-outline-variant); border-radius: 16px;
+                        cursor: pointer; transition: border-color 0.2s ease, box-shadow 0.2s ease; position: relative;
+                    }
+                    .app-row:hover { border-color: var(--md-primary); box-shadow: 0 4px 14px rgba(0,0,0,0.06); }
+                    .app-row.locked { opacity: 0.55; cursor: not-allowed; pointer-events: none; }
+                    .app-row-icon { width: 46px; height: 46px; border-radius: 12px; object-fit: contain; flex-shrink: 0; }
+                    .app-row-info { flex: 1; min-width: 0; }
+                    .app-row-title { font-weight: 700; color: var(--md-on-surface); font-size: 1rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+                    .app-row-desc {
+                        font-size: 0.83rem; color: var(--md-on-surface-variant); margin-top: 0.15rem;
+                        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+                    }
+                    .app-row-versions { display: flex; flex-direction: column; gap: 0.3rem; align-items: flex-end; flex-shrink: 0; }
+                    .version-chip {
+                        font-size: 0.72rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 999px; white-space: nowrap;
+                    }
+                    .version-chip.installed { background: var(--md-success-container); color: var(--md-on-success-container); }
+                    .version-chip.not-installed { background: var(--md-surface-variant); color: var(--md-on-surface-variant); }
+                    .version-chip.online { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
+                    .version-chip.online.has-update { background: var(--md-tertiary-container); color: var(--md-on-tertiary-container); border: 1px solid var(--md-tertiary); }
+                    .app-row-badges { display: flex; gap: 0.4rem; flex-shrink: 0; flex-wrap: wrap; max-width: 140px; justify-content: flex-end; }
                 </style>
             `;
 
@@ -285,9 +286,6 @@ export default {
             const repoModalOverlay = el.querySelector('#repo-modal-overlay');
             const btnCloseRepoModal = el.querySelector('#btn-close-repo-modal');
             const repoListContainer = el.querySelector('#repo-list-container');
-            const repoTypeSelect = el.querySelector('#repo-type-select');
-            const repoGithubFields = el.querySelector('#repo-github-fields');
-            const repoUrlFields = el.querySelector('#repo-url-fields');
             const btnAddRepo = el.querySelector('#btn-add-repo');
 
             let marketApps = [];
@@ -440,6 +438,10 @@ export default {
                         ? (app.icon.includes('//') ? app.icon : (app.core || app.bundled ? `apps/${app.folder}/${app.icon}` : `adestio-app://${app.folder}/${app.icon}`))
                         : `icone/applicazione_generica.png`;
                     const isCore = app.core;
+                    const isUpdatingNow = updateStates[app.id] === 'downloading' || updateStates[app.id] === 'installing';
+                    const openBtnHtml = isUpdatingNow
+                        ? `<button class="btn-open-large" disabled style="background: var(--md-surface-variant); color: var(--md-on-surface-variant); border: none; padding: 12px 24px; border-radius: 12px; font-weight: bold; cursor: not-allowed; display: inline-flex; align-items: center; gap: 8px;"><span class="material-symbols-rounded spin">sync</span> Aggiornamento in corso...</button>`
+                        : `<button id="detail-open-btn" class="btn-open-large" style="background: var(--md-primary); color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;"><span class="material-symbols-rounded">launch</span> Apri Applicazione</button>`;
 
                     let actionBtnHtml = '';
                     if (!isAdmin) {
@@ -448,17 +450,17 @@ export default {
                         actionBtnHtml = `<div style="padding: 1rem; background: var(--md-primary-container); color: var(--md-on-primary-container); border-radius: 12px; font-weight: bold;"><span class="material-symbols-rounded" style="vertical-align: middle;">verified</span> Applicazione Predefinita di Sistema (Non rimovibile)</div>`;
                     } else if (app.installed && app.hasUpdate) {
                         actionBtnHtml = `
-                            <button id="detail-open-btn" class="btn-open-large" style="background: var(--md-primary); color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;"><span class="material-symbols-rounded">launch</span> Apri Applicazione</button>
-                            <button id="detail-action-btn" class="btn-update-large"><span class="material-symbols-rounded">system_update</span> Aggiorna alla v${app.version}</button>
-                            <button id="detail-uninstall-btn" class="btn-uninstall-large"><span class="material-symbols-rounded">delete</span> Disinstalla</button>
+                            ${openBtnHtml}
+                            <button id="detail-action-btn" class="btn-update-large" ${isUpdatingNow ? 'disabled' : ''}><span class="material-symbols-rounded">system_update</span> Aggiorna alla v${app.version}</button>
+                            <button id="detail-uninstall-btn" class="btn-uninstall-large" ${isUpdatingNow ? 'disabled' : ''}><span class="material-symbols-rounded">delete</span> Disinstalla</button>
                         `;
                     } else if (app.installed) {
                         actionBtnHtml = `
-                            <button id="detail-open-btn" class="btn-open-large" style="background: var(--md-primary); color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;"><span class="material-symbols-rounded">launch</span> Apri Applicazione</button>
-                            <button id="detail-uninstall-btn" class="btn-uninstall-large"><span class="material-symbols-rounded">delete</span> Disinstalla Applicazione</button>
+                            ${openBtnHtml}
+                            <button id="detail-uninstall-btn" class="btn-uninstall-large" ${isUpdatingNow ? 'disabled' : ''}><span class="material-symbols-rounded">delete</span> Disinstalla Applicazione</button>
                         `;
                     } else {
-                        actionBtnHtml = `<button id="detail-action-btn" class="btn-install-large"><span class="material-symbols-rounded">download</span> Scarica e Installa (v${app.version || '1.0.0'})</button>`;
+                        actionBtnHtml = `<button id="detail-action-btn" class="btn-install-large" ${isUpdatingNow ? 'disabled' : ''}><span class="material-symbols-rounded">download</span> Scarica e Installa (v${app.version || '1.0.0'})</button>`;
                     }
 
                     detailContent.innerHTML = `
@@ -526,6 +528,7 @@ export default {
 
                     const actionBtn = document.getElementById('detail-action-btn');
                     const uninstallBtn = document.getElementById('detail-uninstall-btn');
+                    const openBtn = document.getElementById('detail-open-btn');
 
                     if (actionBtn && isAdmin && !isCore) {
                         actionBtn.addEventListener('click', () => {
@@ -535,6 +538,11 @@ export default {
                     if (uninstallBtn && isAdmin && !isCore) {
                         uninstallBtn.addEventListener('click', () => {
                             performUninstall(app);
+                        });
+                    }
+                    if (openBtn) {
+                        openBtn.addEventListener('click', () => {
+                            Router.navigate('app_container', { appId: app.folder || app.id });
                         });
                     }
                 } catch (e) {
@@ -631,42 +639,20 @@ export default {
                     if (e.target === repoModalOverlay) closeRepoModal();
                 });
             }
-            if (repoTypeSelect) {
-                repoTypeSelect.addEventListener('change', () => {
-                    const isGithub = repoTypeSelect.value === 'github';
-                    repoGithubFields.style.display = isGithub ? 'block' : 'none';
-                    repoUrlFields.style.display = isGithub ? 'none' : 'block';
-                });
-            }
             if (btnAddRepo) {
                 btnAddRepo.addEventListener('click', async () => {
                     try {
-                        const type = repoTypeSelect.value;
-                        const label = el.querySelector('#repo-label-input').value.trim();
-                        if (!label) { toast('Inserisci un\'etichetta per il repository', 'error'); return; }
-
-                        const payload = { label, type };
-                        if (type === 'github') {
-                            payload.owner = el.querySelector('#repo-owner-input').value.trim();
-                            payload.repo = el.querySelector('#repo-repo-input').value.trim();
-                            payload.branch = el.querySelector('#repo-branch-input').value.trim();
-                            payload.path = el.querySelector('#repo-path-input').value.trim();
-                            if (!payload.owner || !payload.repo) { toast('Owner e Repository sono obbligatori', 'error'); return; }
-                        } else {
-                            payload.url = el.querySelector('#repo-url-input').value.trim();
-                            if (!payload.url) { toast('Inserisci un URL valido', 'error'); return; }
-                        }
+                        const urlInput = el.querySelector('#repo-url-input');
+                        const url = urlInput.value.trim();
+                        if (!url) { toast('Inserisci un URL', 'error'); return; }
 
                         btnAddRepo.disabled = true;
                         btnAddRepo.innerHTML = '<span class="material-symbols-rounded spin">sync</span> Verifica in corso...';
 
-                        const res = await window.electronAPI.store.addRepository(payload);
+                        const res = await window.electronAPI.store.addRepository({ url });
                         if (res && res.success) {
-                            toast(`Repository aggiunto con successo (${(res.data && res.data.appCount) || 0} app trovate).`, 'success');
-                            ['repo-label-input', 'repo-owner-input', 'repo-repo-input', 'repo-branch-input', 'repo-path-input', 'repo-url-input'].forEach(id => {
-                                const field = el.querySelector(`#${id}`);
-                                if (field) field.value = '';
-                            });
+                            toast(`Repository "${res.data.label}" aggiunto con successo (${(res.data && res.data.appCount) || 0} app trovate).`, 'success');
+                            urlInput.value = '';
                             await renderRepoList();
                             if (window.electronAPI.store.checkUpdates) await window.electronAPI.store.checkUpdates();
                             await loadApps();
@@ -727,56 +713,62 @@ export default {
                 }
             }
 
-            function renderMarketCard(app) {
+            function groupAppsByRepository(apps, isCoreTab) {
+                const groups = new Map();
+                apps.forEach(app => {
+                    let key, label, icon;
+                    if (isCoreTab || app.core) {
+                        key = '__core__'; label = 'Sistema (Applicazioni Predefinite)'; icon = 'verified';
+                    } else if (app.__source === 'custom') {
+                        key = app.__sourceId || 'unknown_custom';
+                        label = app.__sourceLabel || 'Repository di Terze Parti';
+                        icon = 'dns';
+                    } else {
+                        key = 'official'; label = 'NunzioTech Ufficiale'; icon = 'verified';
+                    }
+                    if (!groups.has(key)) groups.set(key, { label, icon, apps: [] });
+                    groups.get(key).apps.push(app);
+                });
+                return groups;
+            }
+
+            function renderAppRow(app, isCoreTab) {
                 try {
                     const iconPath = app.icon
                         ? (app.icon.includes('//') ? app.icon : (app.core || app.bundled ? `apps/${app.folder}/${app.icon}` : `adestio-app://${app.folder}/${app.icon}`))
                         : `icone/applicazione_generica.png`;
                     const categoryLabel = CATEGORY_LABELS[app.category] || null;
-                    const card = document.createElement('div');
-                    card.className = 'app-card fade-in-up';
-                    card.dataset.appId = app.id;
-                    card.innerHTML = `
-                        <img src="${iconPath}" class="app-icon" onerror="this.src='icone/applicazione_generica.png'">
-                        <div class="app-title">${app.name}</div>
-                        <div class="app-meta">v${app.version || '1.0.0'} ${app.author ? '• ' + app.author : ''}</div>
-                        <div class="app-desc" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${app.description || ''}</div>
-                        <div class="app-badges">
-                            ${app.installed && !app.hasUpdate ? `<span class="tile-badge installed"><span class="material-symbols-rounded" style="font-size: 0.9rem;">check_circle</span> Installata</span>` : ''}
-                            ${app.hasUpdate ? `<span class="tile-badge update"><span class="material-symbols-rounded" style="font-size: 0.9rem;">system_update</span> Update v${app.version}</span>` : ''}
-                            ${app.__source === 'custom' ? `<span class="tile-badge thirdparty"><span class="material-symbols-rounded" style="font-size: 0.9rem;">warning</span> ${app.__sourceLabel || 'Terze Parti'}</span>` : ''}
-                            ${categoryLabel ? `<span class="tile-badge category">${categoryLabel}</span>` : ''}
-                        </div>
-                    `;
-                    card.addEventListener('click', () => showAppDetails(app, admin));
-                    return card;
-                } catch (e) {
-                    console.error("renderMarketCard error:", e);
-                    return document.createElement('div');
-                }
-            }
+                    const row = document.createElement('div');
+                    row.className = 'app-row fade-in-up';
+                    row.dataset.appId = app.id;
 
-            function renderCoreCard(app) {
-                try {
-                    const iconPath = app.icon ? `apps/${app.folder}/${app.icon}` : `icone/applicazione_generica.png`;
-                    const categoryLabel = CATEGORY_LABELS[app.category] || null;
-                    const card = document.createElement('div');
-                    card.className = 'app-card fade-in-up';
-                    card.dataset.appId = app.id;
-                    card.innerHTML = `
-                        <img src="${iconPath}" class="app-icon" onerror="this.src='icone/applicazione_generica.png'">
-                        <div class="app-title">${app.name}</div>
-                        <div class="app-meta">v${app.version || '1.0.0'} • Sistema</div>
-                        <div class="app-desc" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${app.description || ''}</div>
-                        <div class="app-badges">
-                            <span class="tile-badge core"><span class="material-symbols-rounded" style="font-size: 0.9rem;">verified</span> Predefinita</span>
+                    const installedChip = app.installed
+                        ? `<span class="version-chip installed"><span class="material-symbols-rounded" style="font-size:0.85rem;vertical-align:middle;">check_circle</span> Installata v${app.installedVersion || app.version || '1.0.0'}</span>`
+                        : `<span class="version-chip not-installed">Non installata</span>`;
+                    const onlineChip = `<span class="version-chip online ${app.hasUpdate ? 'has-update' : ''}">Online v${app.version || '1.0.0'}</span>`;
+
+                    row.innerHTML = `
+                        <img src="${iconPath}" class="app-row-icon" onerror="this.src='icone/applicazione_generica.png'">
+                        <div class="app-row-info">
+                            <div class="app-row-title">
+                                ${app.name}
+                                ${app.__source === 'custom' ? `<span class="tile-badge thirdparty" style="font-size:0.68rem;"><span class="material-symbols-rounded" style="font-size:0.8rem;">warning</span> Terze Parti</span>` : ''}
+                            </div>
+                            <div class="app-row-desc">${app.description || ''}</div>
+                        </div>
+                        <div class="app-row-versions">
+                            ${installedChip}
+                            ${onlineChip}
+                        </div>
+                        <div class="app-row-badges">
+                            ${isCoreTab ? `<span class="tile-badge core"><span class="material-symbols-rounded" style="font-size: 0.9rem;">verified</span> Predefinita</span>` : ''}
                             ${categoryLabel ? `<span class="tile-badge category">${categoryLabel}</span>` : ''}
                         </div>
                     `;
-                    card.addEventListener('click', () => showAppDetails(app, admin));
-                    return card;
+                    row.addEventListener('click', () => showAppDetails(app, admin));
+                    return row;
                 } catch (e) {
-                    console.error("renderCoreCard error:", e);
+                    console.error("renderAppRow error:", e);
                     return document.createElement('div');
                 }
             }
@@ -804,16 +796,31 @@ export default {
                             core: 'Nessuna applicazione predefinita trovata.',
                             available: 'Nessuna applicazione di terze parti disponibile al momento.'
                         };
-                        grid.innerHTML = `<p style="color: var(--md-on-surface-variant); grid-column: 1 / -1; text-align: center; padding: 3rem 0; font-size: 1.1rem;">
+                        grid.innerHTML = `<p style="color: var(--md-on-surface-variant); text-align: center; padding: 3rem 0; font-size: 1.1rem;">
                             ${emptyMessages[activeTab] || 'Nessuna applicazione trovata.'}
                         </p>`;
                         return;
                     }
 
+                    const isCoreTab = activeTab === 'core';
+                    const groups = groupAppsByRepository(filtered, isCoreTab);
+
                     grid.innerHTML = '';
-                    filtered.forEach(app => {
-                        const card = activeTab === 'core' ? renderCoreCard(app) : renderMarketCard(app);
-                        grid.appendChild(card);
+                    groups.forEach(group => {
+                        const groupEl = document.createElement('div');
+                        groupEl.className = 'app-group';
+                        groupEl.innerHTML = `
+                            <div class="app-group-header">
+                                <span class="material-symbols-rounded">${group.icon}</span>
+                                <h3>${group.label}</h3>
+                                <span class="app-group-count">${group.apps.length}</span>
+                            </div>
+                        `;
+                        const listEl = document.createElement('div');
+                        listEl.className = 'app-row-list';
+                        group.apps.forEach(app => listEl.appendChild(renderAppRow(app, isCoreTab)));
+                        groupEl.appendChild(listEl);
+                        grid.appendChild(groupEl);
                     });
                     reapplyUpdateStates();
                 } catch (e) {

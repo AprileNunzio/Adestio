@@ -492,5 +492,14 @@ module.exports = [
             DROP TABLE IF EXISTS dati_bancari;
             DROP TABLE IF EXISTS persone;
         `
+    },
+    {
+        version: 17,
+        sql: `
+            CREATE TABLE IF NOT EXISTS permission_defaults (
+                permission_id TEXT PRIMARY KEY,
+                last_modified INTEGER NOT NULL
+            );
+        `
     }
 ];

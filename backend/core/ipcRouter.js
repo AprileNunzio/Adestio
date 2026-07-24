@@ -872,6 +872,8 @@ function registerAllIPCHandlers(windowManager) {
         ipcMain.handle('runDiagnostics', (e) => diagnosticsHandlers.runDiagnostics(e));
         ipcMain.handle('fixDiagnostics', (e) => diagnosticsHandlers.fixDiagnostics(e));
         ipcMain.handle('usersGetAll', (e, args) => usersHandlers.getAll(e, args));
+        ipcMain.handle('usersChangeOwnPassword', (e, args) => usersHandlers.changeOwnPassword(e, args));
+        ipcMain.handle('usersChangeOwnPin', (e, args) => usersHandlers.changeOwnPin(e, args));
         ipcMain.handle('usersCreate', (e, args) => usersHandlers.create(e, withActorBackend(args)));
         ipcMain.handle('usersUpdate', (e, args) => usersHandlers.update(e, withActorBackend(args)));
         ipcMain.handle('usersDelete', (e, args) => usersHandlers.remove(e, withActorBackend(args)));

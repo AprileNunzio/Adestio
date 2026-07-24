@@ -39,8 +39,16 @@ class BootManager {
             if (unlocked) {
                 try {
                     await AppLoader.loadAllInstalledApps();
-                } catch(alErr) { 
-                    console.error('[BootManager AppLoader Error]', alErr); 
+                } catch(alErr) {
+                    console.error('[BootManager AppLoader Error]', alErr);
+                }
+                try {
+                    // Sincronizza automaticamente i permessi dichiarati dai manifest (core +
+                    // terze parti) ad ogni avvio: un nuovo permesso non deve restare invisibile
+                    // finche' un admin non apre manualmente Amministratore > Sistema RBAC.
+                    require('../handlers/rbac').syncPermissionsFromManifests();
+                } catch (rbacErr) {
+                    console.error('[BootManager RBAC Sync Error]', rbacErr);
                 }
             } else {
                 try {

@@ -27,7 +27,8 @@
     "permissions": [
         {
             "id": "view",
-            "label": "Visualizza Applicazione"
+            "label": "Visualizza Applicazione",
+            "default": true
         },
         {
             "id": "edit",

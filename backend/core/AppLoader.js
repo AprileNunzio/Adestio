@@ -57,13 +57,18 @@ async function loadApp(manifest) {
                 try {
                     const { app: electronApp } = require('electron');
                     const { getDB, saveDB } = require('../db');
+                    const adestioConfig = require('../config');
                     const capabilityBroker = require('../security/capabilityBroker');
                     capabilityBroker.generateAppToken(appId, manifest.permissions || []);
                     const registerApi = (action, fn) => {
                         capabilityBroker.registerApiHandler(appId, action, (sourceAppId, payload) => fn(null, payload));
                     };
                     const ok = directBackendModule.registerBackendHandlers(registerApi, electronApp, {
-                        getDB, saveDB, AppDbManager
+                        getDB, saveDB, AppDbManager,
+                        // Sola lettura, deliberatamente: un'app di terze parti puo' leggere i
+                        // Dati Azienda gia' configurati in Adestio (es. per intestare fatture/PDF
+                        // propri), ma non ha alcun modo di scriverli (saveConfig non e' esposta).
+                        readConfig: () => adestioConfig.readConfig()
                     });
                     if (ok === false) throw new Error('registerBackendHandlers ha restituito false');
                     _loaded.set(appId, { manifest: manifest, isProcess: false, directBackend: true });

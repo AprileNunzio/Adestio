@@ -247,43 +247,87 @@ async function listRepositories() {
     }
 }
 
+// Dall'unico URL incollato dall'utente, deriva: 1-2 URL candidati da provare
+// (nel caso di un repo GitHub "nudo" si prova sia il branch main che master),
+// un'etichetta leggibile e un tipo (solo per l'icona in UI). Nessun altro
+// campo va richiesto manualmente: tutto il resto arriva dal marketplace.json.
+function resolveRepositoryInput(rawUrl) {
+    try {
+        const url = String(rawUrl).trim();
+
+        const rawContentMatch = url.match(/^https:\/\/raw\.githubusercontent\.com\/([^\/]+)\/([^\/]+)\/[^\/]+\/.+$/i);
+        if (rawContentMatch) {
+            return { candidates: [url], label: `${rawContentMatch[1]}/${rawContentMatch[2]}`, type: 'github' };
+        }
+
+        const blobMatch = url.match(/^https:\/\/github\.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)$/i);
+        if (blobMatch) {
+            const [, owner, repoName, branch, filePath] = blobMatch;
+            return {
+                candidates: [`https://raw.githubusercontent.com/${owner}/${repoName}/${branch}/${filePath}`],
+                label: `${owner}/${repoName}`,
+                type: 'github'
+            };
+        }
+
+        const bareRepoMatch = url.match(/^https:\/\/github\.com\/([^\/]+)\/([^\/]+?)(?:\.git)?\/?$/i);
+        if (bareRepoMatch) {
+            const [, owner, repoName] = bareRepoMatch;
+            return {
+                candidates: [
+                    `https://raw.githubusercontent.com/${owner}/${repoName}/main/marketplace.json`,
+                    `https://raw.githubusercontent.com/${owner}/${repoName}/master/marketplace.json`
+                ],
+                label: `${owner}/${repoName}`,
+                type: 'github'
+            };
+        }
+
+        let label;
+        try { label = new URL(url).hostname; } catch (e) { label = url; }
+        return { candidates: [url], label, type: 'url' };
+    } catch (e) {
+        return null;
+    }
+}
+
 async function addRepository(event, args) {
     try {
         if (!accessGuard.isSuperadmin()) return { success: false, error: 'Permesso negato' };
 
-        const { label, type, owner, repo, branch, path: repoPath, url } = args || {};
-        if (!label || !label.trim()) return { success: false, error: 'Etichetta obbligatoria' };
-        if (type !== 'github' && type !== 'url') return { success: false, error: 'Tipo repository non valido' };
+        const { url } = args || {};
+        if (!url || !String(url).trim()) return { success: false, error: 'URL obbligatorio' };
+        const trimmedUrl = String(url).trim();
+        if (!/^https:\/\//i.test(trimmedUrl)) {
+            return { success: false, error: 'Solo URL HTTPS sono ammessi per motivi di sicurezza' };
+        }
 
-        let resolvedUrl;
-        if (type === 'github') {
-            if (!owner || !repo) return { success: false, error: 'Owner e Repository sono obbligatori per GitHub' };
-            const cleanOwner = String(owner).trim().replace(/^\/+|\/+$/g, '');
-            const cleanRepo = String(repo).trim().replace(/^\/+|\/+$/g, '').replace(/\.git$/i, '');
-            const cleanBranch = (branch && String(branch).trim()) || 'main';
-            const cleanPath = (repoPath && String(repoPath).trim()) || 'marketplace.json';
-            if (!/^[\w.-]+$/.test(cleanOwner) || !/^[\w.-]+$/.test(cleanRepo) || !/^[\w./-]+$/.test(cleanBranch) || !/^[\w./-]+$/.test(cleanPath)) {
-                return { success: false, error: 'Owner, repository, branch o percorso contengono caratteri non validi' };
-            }
-            resolvedUrl = `https://raw.githubusercontent.com/${cleanOwner}/${cleanRepo}/${cleanBranch}/${cleanPath}`;
-        } else {
-            if (!url || !String(url).trim()) return { success: false, error: 'URL obbligatorio' };
-            const trimmedUrl = String(url).trim();
-            if (!/^https:\/\//i.test(trimmedUrl)) {
-                return { success: false, error: 'Solo URL HTTPS sono ammessi per motivi di sicurezza' };
-            }
-            resolvedUrl = trimmedUrl;
+        const resolved = resolveRepositoryInput(trimmedUrl);
+        if (!resolved || !resolved.candidates || resolved.candidates.length === 0) {
+            return { success: false, error: 'URL non valido' };
         }
 
         const db = getStoreDB();
         if (!db) return { success: false, error: 'Database Store non disponibile' };
 
-        const existing = db.query('SELECT id FROM custom_repositories WHERE url = ?', [resolvedUrl]);
-        if (existing.length > 0) return { success: false, error: 'Questo repository è già stato aggiunto' };
+        let finalUrl = null;
+        let finalValidation = null;
+        let lastError = null;
+        for (const candidateUrl of resolved.candidates) {
+            const existing = db.query('SELECT id FROM custom_repositories WHERE url = ?', [candidateUrl]);
+            if (existing.length > 0) return { success: false, error: 'Questo repository è già stato aggiunto' };
 
-        const validation = await validateMarketplaceSource(resolvedUrl);
-        if (!validation.ok) {
-            return { success: false, error: `Impossibile validare il repository: ${validation.error}` };
+            const validation = await validateMarketplaceSource(candidateUrl);
+            if (validation.ok) {
+                finalUrl = candidateUrl;
+                finalValidation = validation;
+                break;
+            }
+            lastError = validation.error;
+        }
+
+        if (!finalUrl) {
+            return { success: false, error: `Impossibile trovare un marketplace.json valido a questo URL: ${lastError}` };
         }
 
         const id = crypto.randomUUID();
@@ -291,12 +335,12 @@ async function addRepository(event, args) {
         const actorUserId = sessionManager.getCurrentUserId();
         db.run(
             'INSERT INTO custom_repositories (id, label, type, url, added_at, added_by, enabled, last_checked, last_status, last_error) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, NULL)',
-            [id, label.trim(), type, resolvedUrl, ts, actorUserId, ts, 'ok']
+            [id, resolved.label, resolved.type, finalUrl, ts, actorUserId, ts, 'ok']
         );
         await saveDB('store');
         marketplaceCache = null;
 
-        return { success: true, data: { id, label: label.trim(), type, url: resolvedUrl, enabled: true, appCount: validation.count } };
+        return { success: true, data: { id, label: resolved.label, type: resolved.type, url: finalUrl, enabled: true, appCount: finalValidation.count } };
     } catch (e) {
         console.error('[Store] Error in addRepository:', e);
         return { success: false, error: e.message };
@@ -554,6 +598,14 @@ async function install(event, appId) {
             installedNow.push(id);
         }
         await saveDB('store');
+
+        try {
+            // Un'app appena installata/aggiornata puo' introdurre permessi mai visti
+            // prima: sincronizzali subito, non aspettare che un admin apra Sistema RBAC.
+            require('./rbac').syncPermissionsFromManifests();
+        } catch (rbacErr) {
+            console.error('[Store] Errore sync permessi RBAC post-install:', rbacErr);
+        }
 
         AppUpdateManager.endManualOperation(appId, {
             finalState: 'done',

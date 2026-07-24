@@ -17,17 +17,6 @@ function getTimestamp() {
         return 0;
     }
 }
-function rowsToObjects(res) {
-    try {
-        if (!res || res.length === 0) return [];
-        return res[0].values.map(row =>
-            res[0].columns.reduce((obj, col, i) => { obj[col] = row[i]; return obj; }, {})
-        );
-    } catch (e) {
-        console.error(e);
-        return [];
-    }
-}
 function _processAppsDir(basePath, db, ts) {
     if (!fs.existsSync(basePath)) return;
     const dirs = fs.readdirSync(basePath, { withFileTypes: true });
@@ -99,14 +88,53 @@ function _upsertPermission(db, permId, p, description, ts) {
         if (chk.length > 0) return;
         db.run('INSERT INTO permissions (id, name, description, last_modified, is_deleted) VALUES (?, ?, ?, ?, 0)',
             [permId, p.label || p.id, description, ts]);
-        if (p.default_groups && Array.isArray(p.default_groups)) {
-            for (const gName of p.default_groups) {
-                const groupChk = db.query('SELECT id FROM groups WHERE name = ?', [gName]);
-                if (groupChk.length > 0) {
-                    db.run('INSERT INTO group_permissions (group_id, permission_id, last_modified, is_deleted) VALUES (?, ?, ?, 0)', [groupChk[0].id, permId, ts]);
-                }
-            }
+        if (p.default === true) {
+            _grantDefaultPermissionToAllUsers(db, permId, ts);
         }
+    } catch (e) {
+        console.error(e);
+    }
+}
+// Un permesso dichiarato "default: true" nel manifest viene concesso a tutti gli
+// utenti esistenti SOLO qui, alla primissima scoperta (ramo "permesso nuovo" di
+// _upsertPermission, eseguito una volta sola nella vita di quel permesso): se un
+// admin lo revoca in seguito, nessun sync successivo lo riconcedera', perche' la
+// riga in "permissions" esiste gia' e questo ramo non viene piu' eseguito. Viene
+// anche marcato in permission_defaults, cosi' i nuovi utenti creati in futuro lo
+// ricevono automaticamente (vedi grantDefaultPermissionsToUser).
+function _grantDefaultPermissionToAllUsers(db, permId, ts) {
+    try {
+        const existingDefault = db.query('SELECT permission_id FROM permission_defaults WHERE permission_id = ?', [permId]);
+        if (existingDefault.length === 0) {
+            db.run('INSERT INTO permission_defaults (permission_id, last_modified) VALUES (?, ?)', [permId, ts]);
+        }
+        const users = db.query('SELECT id FROM users WHERE is_deleted = 0');
+        users.forEach(u => {
+            const already = db.query('SELECT user_id FROM user_permissions WHERE user_id = ? AND permission_id = ?', [u.id, permId]);
+            if (already.length === 0) {
+                db.run('INSERT INTO user_permissions (user_id, permission_id, last_modified, is_deleted) VALUES (?, ?, ?, 0)', [u.id, permId, ts]);
+            }
+        });
+    } catch (e) {
+        console.error(e);
+    }
+}
+// Concede ad un utente APPENA CREATO tutti i permessi gia' marcati come default dal
+// software, cosi' un nuovo account non parte con una dashboard vuota in attesa che
+// un admin configuri manualmente ogni singolo permesso.
+function grantDefaultPermissionsToUser(userId) {
+    try {
+        const db = getDB();
+        if (!db) return;
+        const ts = getTimestamp();
+        const defaults = db.query('SELECT permission_id FROM permission_defaults');
+        defaults.forEach(d => {
+            const already = db.query('SELECT user_id FROM user_permissions WHERE user_id = ? AND permission_id = ?', [userId, d.permission_id]);
+            if (already.length === 0) {
+                db.run('INSERT INTO user_permissions (user_id, permission_id, last_modified, is_deleted) VALUES (?, ?, ?, 0)', [userId, d.permission_id, ts]);
+            }
+        });
+        saveDB();
     } catch (e) {
         console.error(e);
     }
@@ -115,13 +143,11 @@ function getAllUsers(event) {
     try {
         const db = getDB();
         if (!db) return [];
-        let res;
         try {
-            res = db.exec('SELECT id, username, email, is_superadmin FROM users WHERE is_deleted = 0');
+            return db.query('SELECT id, username, email, is_superadmin FROM users WHERE is_deleted = 0');
         } catch (e) {
-            res = db.exec('SELECT id, username, email FROM users WHERE is_deleted = 0');
+            return db.query('SELECT id, username, email FROM users WHERE is_deleted = 0');
         }
-        return rowsToObjects(res);
     } catch (e) {
         console.error(e);
         return [];
@@ -131,8 +157,7 @@ function getAllRoles(event) {
     try {
         const db = getDB();
         if (!db) return [];
-        const res = db.exec('SELECT * FROM roles WHERE is_deleted = 0');
-        return rowsToObjects(res);
+        return db.query('SELECT * FROM roles WHERE is_deleted = 0');
     } catch (e) {
         console.error(e);
         return [];
@@ -166,13 +191,11 @@ function getAllGroups(event) {
     try {
         const db = getDB();
         if (!db) return [];
-        let res;
         try {
-            res = db.exec('SELECT id, name, description, is_superadmin FROM groups');
+            return db.query('SELECT id, name, description, is_superadmin FROM groups');
         } catch (e) {
-            res = db.exec('SELECT id, name, description FROM groups');
+            return db.query('SELECT id, name, description FROM groups');
         }
-        return rowsToObjects(res);
     } catch (e) {
         console.error(e);
         return [];
@@ -348,5 +371,6 @@ module.exports = {
     setGroupPermission,
     setUserPermission,
     getGroupUsers,
-    updateGroupUsers
+    updateGroupUsers,
+    grantDefaultPermissionsToUser
 };

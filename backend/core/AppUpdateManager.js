@@ -259,6 +259,14 @@ class AppUpdateManager {
                 console.warn('[UpdateManager] App reload warning:', reloadErr.message);
             }
 
+            try {
+                // Un aggiornamento in background puo' introdurre permessi nuovi: sincronizzali
+                // subito, senza aspettare che un admin apra manualmente Sistema RBAC.
+                require('../handlers/rbac').syncPermissionsFromManifests();
+            } catch (rbacErr) {
+                console.warn('[UpdateManager] RBAC sync warning:', rbacErr.message);
+            }
+
             this._setLock(appId, STATES.DONE, {
                 currentVersion,
                 installedVersion: availableVersion
