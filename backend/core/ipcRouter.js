@@ -1099,6 +1099,60 @@ function registerAllIPCHandlers(windowManager) {
                 return {};
             }
         });
+
+        ipcMain.handle('events:publish', async (_, args) => {
+            try {
+                const domainEventStore = require('./domainEventStore');
+                return domainEventStore.publishEvent(args?.eventName, args?.aggregateId, args?.actorId, args?.payload);
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('events:query', async (_, args) => {
+            try {
+                const domainEventStore = require('./domainEventStore');
+                return domainEventStore.getEvents(args?.eventName, args?.aggregateId, args?.limit || 100);
+            } catch (e) {
+                return [];
+            }
+        });
+
+        ipcMain.handle('flightRecorder:dump', async () => {
+            try {
+                const flightRecorder = require('../observability/flightRecorder');
+                return flightRecorder.exportDiagnosticDump();
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('flightRecorder:get', async (_, args) => {
+            try {
+                const flightRecorder = require('../observability/flightRecorder');
+                return flightRecorder.getEvents(args?.limit || 100);
+            } catch (e) {
+                return [];
+            }
+        });
+
+        ipcMain.handle('sso:authenticate', async (_, args) => {
+            try {
+                const ssoProvider = require('../security/ssoProvider');
+                return await ssoProvider.authenticateSsoToken(args);
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('entitlement:check', async (_, args) => {
+            try {
+                const entitlementEngine = require('../security/entitlementEngine');
+                return entitlementEngine.checkEntitlement(args?.appId, args?.tenantId);
+            } catch (e) {
+                return { valid: false, error: e.message };
+            }
+        });
     } catch (e) {}
 }
 module.exports = { registerAllIPCHandlers };

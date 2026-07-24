@@ -81,7 +81,7 @@ function checkDirectory(dir) {
 
 function runModuleTests() {
     try {
-        console.log('--- Esecuzione Test Moduli Core & Sicurezza ---');
+        console.log('--- Esecuzione Test Moduli Core & Sicurezza 2.0 ---');
         
         const cryptoVerifier = require('../backend/security/cryptoVerifier');
         const hash = cryptoVerifier.computeBufferHash(Buffer.from('test-payload'));
@@ -93,14 +93,16 @@ function runModuleTests() {
         if (!status || status.valid === undefined) throw new Error('Test licenseManager fallito');
         console.log('✅ Test licenseManager superato');
 
-        const auditLogger = require('../backend/observability/auditLogger');
-        console.log('✅ Modulo auditLogger caricato');
+        const flightRecorder = require('../backend/observability/flightRecorder');
+        flightRecorder.recordEvent('test', 'PING', { ok: true });
+        const events = flightRecorder.getEvents(10);
+        if (!events || events.length === 0) throw new Error('Test flightRecorder fallito');
+        console.log('✅ Test flightRecorder superato');
 
-        const appMetrics = require('../backend/observability/appMetrics');
-        appMetrics.recordIpcInvocation('testApp', 'testAction', 15, true);
-        const metrics = appMetrics.getAppMetrics('testApp');
-        if (!metrics || metrics.totalInvocations !== 1) throw new Error('Test appMetrics fallito');
-        console.log('✅ Test appMetrics superato');
+        const entitlementEngine = require('../backend/security/entitlementEngine');
+        const entitlement = entitlementEngine.checkEntitlement('app1', 'tenant1');
+        if (!entitlement || entitlement.valid === undefined) throw new Error('Test entitlementEngine fallito');
+        console.log('✅ Test entitlementEngine superato');
 
         return true;
     } catch (e) {
@@ -109,14 +111,14 @@ function runModuleTests() {
     }
 }
 
-console.log('=== Verificatore Qualità del Codice Adestio ===');
+console.log('=== Verificatore Qualità del Codice Adestio 2.0 ===');
 const baseDir = path.join(__dirname, '..');
 const backendErrors = checkDirectory(path.join(baseDir, 'backend'));
 const srcErrors = checkDirectory(path.join(baseDir, 'src'));
 const testsOk = runModuleTests();
 
 if (backendErrors === 0 && srcErrors === 0 && testsOk) {
-    console.log('🎉 TUTTI I CHECK DI QUALITA E SICUREZZA HANNO AVUTO ESITO POSITIVO!');
+    console.log('🎉 TUTTI I CHECK DI QUALITA E SICUREZZA 2.0 HANNO AVUTO ESITO POSITIVO!');
     process.exit(0);
 } else {
     console.error(`❌ Trovati ${backendErrors + srcErrors} errori.`);

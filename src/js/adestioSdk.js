@@ -8,6 +8,7 @@
                     this.appId = null;
                     this.token = null;
                     this.pendingRequests = new Map();
+                    this.eventSubscribers = new Map();
                 } catch (error) {}
             }
 
@@ -48,6 +49,19 @@
                     });
                 } catch (error) {
                     return Promise.reject(error);
+                }
+            }
+
+            publishDomainEvent(eventName, aggregateId, payload) {
+                try {
+                    return this.callAppApi('core', 'events:publish', {
+                        eventName,
+                        aggregateId,
+                        actorId: this.appId,
+                        payload
+                    });
+                } catch (e) {
+                    return Promise.reject(e);
                 }
             }
 
