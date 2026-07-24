@@ -142,7 +142,7 @@ class AppUpdateManager {
                 return;
             }
 
-            const toUpdate = result.data.filter(u => !this.isLocked(u.appId));
+            const toUpdate = result.data.filter(u => !this.isLocked(u.appId) && u.currentVersion && u.availableVersion && u.currentVersion !== u.availableVersion);
             toUpdate.forEach(u => {
                 try {
                     const alreadyQueued = this._queue.find(q => q.appId === u.appId);

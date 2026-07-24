@@ -295,6 +295,14 @@ export default {
 
             function applyUpdateBadge(appId, state) {
                 try {
+                    const targetApp = marketApps.find(a => a.id === appId);
+                    if (targetApp && targetApp.installed && !targetApp.hasUpdate && state !== 'downloading' && state !== 'installing') {
+                        state = 'idle';
+                    }
+                    if (targetApp && targetApp.installed && targetApp.installedVersion === targetApp.version && (state === 'done' || state === 'pending')) {
+                        state = 'idle';
+                    }
+
                     if (state === 'idle' || !UPDATE_BADGE[state]) {
                         delete updateStates[appId];
                     } else {
@@ -691,6 +699,9 @@ export default {
                             app.installed = true;
                             app.installedVersion = inst.version || '1.0.0';
                             app.hasUpdate = app.version && app.installedVersion && app.version !== app.installedVersion;
+                            if (!app.hasUpdate) {
+                                delete updateStates[app.id];
+                            }
                         } else {
                             app.installed = false;
                             app.hasUpdate = false;
