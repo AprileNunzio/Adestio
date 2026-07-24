@@ -381,6 +381,74 @@ function updateGroupUsers(event, groupId, userIds) {
         return false;
     }
 }
+
+function inspectUserPermissionTrace(event, userId, permissionId) {
+    try {
+        const db = getDB();
+        if (!db) return { granted: false, reason: 'Database non disponibile' };
+
+        const superCheck = db.query('SELECT is_superadmin FROM users WHERE id = ?', [userId]);
+        if (superCheck.length > 0 && superCheck[0].is_superadmin === 1) {
+            return { granted: true, source: 'SUPERADMIN', trace: 'Concesso da ruolo globale Superadmin' };
+        }
+
+        const directUserPerm = db.query('SELECT 1 FROM user_permissions WHERE user_id = ? AND permission_id = ? AND is_deleted = 0', [userId, permissionId]);
+        if (directUserPerm.length > 0) {
+            return { granted: true, source: 'DIRECT_USER_PERMISSION', trace: 'Concesso direttamente sul profilo utente' };
+        }
+
+        const groupPerms = db.query(
+            `SELECT g.id, g.name FROM groups g
+             JOIN user_groups ug ON ug.group_id = g.id
+             JOIN group_permissions gp ON gp.group_id = g.id
+             WHERE ug.user_id = ? AND gp.permission_id = ? AND ug.is_deleted = 0 AND gp.is_deleted = 0`,
+            [userId, permissionId]
+        );
+
+        if (groupPerms.length > 0) {
+            return { granted: true, source: 'GROUP_PERMISSION', groupName: groupPerms[0].name, trace: `Concesso dal gruppo ${groupPerms[0].name}` };
+        }
+
+        return { granted: false, source: 'DENIED', trace: 'Permesso non concesso in nessuna regola' };
+    } catch (e) {
+        return { granted: false, error: e.message };
+    }
+}
+
+function generateAuditReport(event) {
+    try {
+        const db = getDB();
+        if (!db) return { success: false, error: 'Database non disponibile' };
+
+        const users = db.query('SELECT id, username, email, is_superadmin FROM users WHERE is_deleted = 0');
+        const groups = db.query('SELECT id, name, description FROM groups WHERE is_deleted = 0');
+        const sodEngine = require('../security/sodEngine');
+
+        const userAudit = users.map(u => {
+            const perms = getEffectiveUserPermissions(null, u.id);
+            const sodCheck = sodEngine.checkConflicts(perms);
+            return {
+                userId: u.id,
+                username: u.username,
+                email: u.email,
+                isSuperadmin: !!u.is_superadmin,
+                effectivePermissionsCount: perms.length,
+                sodConflict: sodCheck.hasConflict ? sodCheck.reason : null
+            };
+        });
+
+        return {
+            success: true,
+            generatedAt: new Date().toISOString(),
+            totalUsers: users.length,
+            totalGroups: groups.length,
+            userAudit
+        };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
 module.exports = {
     getAllUsers,
     getAllRoles,
@@ -397,5 +465,7 @@ module.exports = {
     setUserPermission,
     getGroupUsers,
     updateGroupUsers,
-    grantDefaultPermissionsToUser
+    grantDefaultPermissionsToUser,
+    inspectUserPermissionTrace,
+    generateAuditReport
 };

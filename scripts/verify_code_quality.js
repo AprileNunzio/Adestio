@@ -104,6 +104,16 @@ function runModuleTests() {
         if (!entitlement || entitlement.valid === undefined) throw new Error('Test entitlementEngine fallito');
         console.log('✅ Test entitlementEngine superato');
 
+        const abacGuard = require('../backend/security/abacGuard');
+        const abacRes = abacGuard.evaluateContext('user1', 'app1', 'perm1', { timeWindow: '00:00-23:59' });
+        if (!abacRes || abacRes.allowed === undefined) throw new Error('Test abacGuard fallito');
+        console.log('✅ Test abacGuard superato');
+
+        const sodEngine = require('../backend/security/sodEngine');
+        const sodRes = sodEngine.checkConflicts(['adestio_business_suite:fatture_edit']);
+        if (!sodRes || sodRes.hasConflict === undefined) throw new Error('Test sodEngine fallito');
+        console.log('✅ Test sodEngine superato');
+
         return true;
     } catch (e) {
         console.error('❌ Errore durante i test di modulo:', e.message);

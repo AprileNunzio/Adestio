@@ -1168,6 +1168,42 @@ function registerAllIPCHandlers(windowManager) {
                 return { valid: false, error: e.message };
             }
         });
+
+        ipcMain.handle('rbac:inspectTrace', async (_, args) => {
+            try {
+                const rbac = require('../handlers/rbac');
+                return rbac.inspectUserPermissionTrace(null, args?.userId, args?.permissionId);
+            } catch (e) {
+                return { granted: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('rbac:auditReport', async () => {
+            try {
+                const rbac = require('../handlers/rbac');
+                return rbac.generateAuditReport();
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('abac:evaluate', async (_, args) => {
+            try {
+                const abacGuard = require('../security/abacGuard');
+                return abacGuard.evaluateContext(args?.userId, args?.appId, args?.permissionId, args?.context);
+            } catch (e) {
+                return { allowed: false, reason: e.message };
+            }
+        });
+
+        ipcMain.handle('sod:check', async (_, args) => {
+            try {
+                const sodEngine = require('../security/sodEngine');
+                return sodEngine.checkConflicts(args?.permissions);
+            } catch (e) {
+                return { hasConflict: false, error: e.message };
+            }
+        });
     } catch (e) {}
 }
 module.exports = { registerAllIPCHandlers };
