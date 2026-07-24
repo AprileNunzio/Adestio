@@ -693,6 +693,12 @@ export default {
                     coreApps = (coreRes && coreRes.success) ? coreRes.data : [];
                     const installedAppsMap = (installedRes && installedRes.success && Array.isArray(installedRes.data)) ? installedRes.data : [];
 
+                    coreApps.forEach(app => {
+                        app.installed = true;
+                        app.installedVersion = app.version || '1.0.0';
+                        app.hasUpdate = false;
+                    });
+
                     marketApps.forEach(app => {
                         const inst = installedAppsMap.find(i => i.id === app.id);
                         if (inst) {
@@ -749,14 +755,17 @@ export default {
                         ? (app.icon.includes('//') ? app.icon : (app.core || app.bundled ? `apps/${app.folder}/${app.icon}` : `adestio-app://${app.folder}/${app.icon}`))
                         : `icone/applicazione_generica.png`;
                     const categoryLabel = CATEGORY_LABELS[app.category] || null;
+                    const isSystemApp = !!(app.core || isCoreTab);
                     const row = document.createElement('div');
                     row.className = 'app-row fade-in-up';
                     row.dataset.appId = app.id;
 
-                    const installedChip = app.installed
-                        ? `<span class="version-chip installed"><span class="material-symbols-rounded" style="font-size:0.85rem;vertical-align:middle;">check_circle</span> Installata v${app.installedVersion || app.version || '1.0.0'}</span>`
+                    const installedChip = (isSystemApp || app.installed)
+                        ? `<span class="version-chip installed"><span class="material-symbols-rounded" style="font-size:0.85rem;vertical-align:middle;">${isSystemApp ? 'verified' : 'check_circle'}</span> ${isSystemApp ? 'Predefinita' : 'Installata'} v${app.installedVersion || app.version || '1.0.0'}</span>`
                         : `<span class="version-chip not-installed">Non installata</span>`;
-                    const onlineChip = `<span class="version-chip online ${app.hasUpdate ? 'has-update' : ''}">Online v${app.version || '1.0.0'}</span>`;
+                    const onlineChip = isSystemApp
+                        ? ''
+                        : `<span class="version-chip online ${app.hasUpdate ? 'has-update' : ''}">Online v${app.version || '1.0.0'}</span>`;
 
                     row.innerHTML = `
                         <img src="${iconPath}" class="app-row-icon" onerror="this.src='icone/applicazione_generica.png'">
