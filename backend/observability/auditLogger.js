@@ -2,6 +2,34 @@
 
 const { getDB, saveDB } = require('../db');
 
+function _maskPii(obj) {
+    try {
+        if (!obj) return obj;
+        if (typeof obj === 'string') {
+            return obj.replace(/(password|secret|token|credit_card|iban|codice_fiscale)=[^&,\s]+/gi, '$1=[GDPR_MASKED]');
+        }
+        if (typeof obj !== 'object') return obj;
+
+        const masked = Array.isArray(obj) ? [] : {};
+        for (const [key, val] of Object.entries(obj)) {
+            try {
+                if (/password|pass|secret|token|credit_card|card_number|cvv|iban|codice_fiscale|tax_code/i.test(key)) {
+                    masked[key] = '[GDPR_MASKED]';
+                } else if (val && typeof val === 'object') {
+                    masked[key] = _maskPii(val);
+                } else {
+                    masked[key] = val;
+                }
+            } catch (eKey) {
+                masked[key] = val;
+            }
+        }
+        return masked;
+    } catch (e) {
+        return obj;
+    }
+}
+
 class AuditLogger {
     constructor() {
         try {
@@ -14,7 +42,8 @@ class AuditLogger {
             const db = getDB(this._dbName);
             if (!db) return false;
             const ts = Math.floor(Date.now() / 1000);
-            const detailsStr = details ? (typeof details === 'object' ? JSON.stringify(details) : String(details)) : null;
+            const sanitizedDetails = details ? _maskPii(details) : null;
+            const detailsStr = sanitizedDetails ? (typeof sanitizedDetails === 'object' ? JSON.stringify(sanitizedDetails) : String(sanitizedDetails)) : null;
             
             db.run(
                 `INSERT INTO audit_log (timestamp, actor_id, action, target_type, target_id, details, ip_address, result) 

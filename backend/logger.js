@@ -9,6 +9,36 @@ const MAX_LOGS_PER_WINDOW = 10;
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 let _logTimestamps = [];
 
+function _sanitizePii(obj) {
+    try {
+        if (!obj) return obj;
+        if (typeof obj === 'string') {
+            return obj.replace(/(password|secret|token|credit_card|iban|codice_fiscale)=[^&,\s]+/gi, '$1=[GDPR_MASKED]');
+        }
+        if (typeof obj !== 'object') return obj;
+
+        const masked = Array.isArray(obj) ? [] : {};
+        for (const [key, val] of Object.entries(obj)) {
+            try {
+                if (/password|pass|secret|token|credit_card|card_number|cvv|iban|codice_fiscale|tax_code/i.test(key)) {
+                    masked[key] = '[GDPR_MASKED]';
+                } else if (val && typeof val === 'object') {
+                    masked[key] = _sanitizePii(val);
+                } else if (typeof val === 'string') {
+                    masked[key] = val.replace(/(password|secret|token|credit_card|iban|codice_fiscale)=[^&,\s]+/gi, '$1=[GDPR_MASKED]');
+                } else {
+                    masked[key] = val;
+                }
+            } catch (eKey) {
+                masked[key] = val;
+            }
+        }
+        return masked;
+    } catch (e) {
+        return obj;
+    }
+}
+
 function _canPublishLogToDag() {
     try {
         const now = Date.now();
@@ -25,7 +55,7 @@ function _publishToDag(level, message, meta) {
     try {
         if (!_canPublishLogToDag()) return;
         const bus = require('./core/event_bus');
-        bus.publish('logger:distributed-error', { level, message, meta });
+        bus.publish('logger:distributed-error', { level, message, meta: _sanitizePii(meta) });
     } catch (e) {}
 }
 
@@ -65,8 +95,8 @@ function writeStructuredLog(level, message, meta = null, prefix = 'system_log') 
         const entry = {
             ts: new Date().toISOString(),
             level: String(level).toUpperCase(),
-            msg: typeof message === 'object' ? JSON.stringify(message) : String(message),
-            meta: meta || null
+            msg: typeof message === 'object' ? JSON.stringify(_sanitizePii(message)) : _sanitizePii(String(message)),
+            meta: _sanitizePii(meta) || null
         };
         fs.appendFileSync(file, JSON.stringify(entry) + '\n');
     } catch (e) {}

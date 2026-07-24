@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { getDB, saveDB } = require('../db');
+const auditLogger = require('../observability/auditLogger');
 
 class GdprManager {
     constructor() {
@@ -47,6 +48,30 @@ class GdprManager {
                 await saveDB('anagrafica');
             }
 
+            const dbAuth = getDB('auth');
+            if (dbAuth) {
+                try {
+                    dbAuth.run(
+                        "UPDATE users SET email = 'erased_' || id || '@gdpr.anon', full_name = 'GDPR Anonymized', status = 'disabled' WHERE id = ?",
+                        [personId]
+                    );
+                    results.erasedFromCore.push('users_anonymized');
+                    await saveDB('auth');
+                } catch (eAuth) {}
+            }
+
+            const dbStore = getDB('store');
+            if (dbStore) {
+                try {
+                    dbStore.run(
+                        "UPDATE business_suite_customers SET name = 'Anonimo GDPR', email = NULL, phone = NULL, tax_id = NULL WHERE person_id = ? OR id = ?",
+                        [personId, personId]
+                    );
+                    results.erasedFromCore.push('business_suite_customers_anonymized');
+                    await saveDB('store');
+                } catch (eBs) {}
+            }
+
             try {
                 const capabilityBroker = require('./capabilityBroker');
                 const registeredApps = Array.from(capabilityBroker.registeredHandlers.keys());
@@ -58,6 +83,7 @@ class GdprManager {
                 }
             } catch (eBroker) {}
 
+            auditLogger.logEvent('gdpr', 'GDPR_RIGHT_TO_BE_FORGOTTEN_EXECUTED', 'person', personId, { tenantId });
             return results;
         } catch (e) {
             return { success: false, error: e.message };
@@ -96,6 +122,8 @@ class GdprManager {
                     } catch (e1) {}
                 });
             }
+
+            auditLogger.logEvent('gdpr', 'GDPR_DATA_PORTABILITY_EXPORTED', 'person', personId, { tenantId });
             return exportData;
         } catch (e) {
             return { error: e.message };
@@ -111,6 +139,28 @@ class GdprManager {
                 auditDb.run(`DELETE FROM audit_log WHERE timestamp < ?`, [cutoffTimestamp]);
                 saveDB('audit');
             }
+
+            try {
+                const { app } = require('electron');
+                if (app) {
+                    const logDir = path.join(app.getPath('userData'), 'Log');
+                    if (fs.existsSync(logDir)) {
+                        const files = fs.readdirSync(logDir);
+                        const cutoffMs = Date.now() - (days * 24 * 60 * 60 * 1000);
+                        files.forEach(f => {
+                            try {
+                                const filePath = path.join(logDir, f);
+                                const stats = fs.statSync(filePath);
+                                if (stats.mtimeMs < cutoffMs) {
+                                    fs.unlinkSync(filePath);
+                                }
+                            } catch (eFile) {}
+                        });
+                    }
+                }
+            } catch (eLog) {}
+
+            auditLogger.logEvent('gdpr', 'GDPR_RETENTION_POLICY_APPLIED', 'system', 'retention', { days, cutoffTimestamp });
             return { success: true, cutoffTimestamp };
         } catch (e) {
             return { success: false, error: e.message };
