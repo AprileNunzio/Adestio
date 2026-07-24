@@ -22,6 +22,10 @@
     },
     "rbacPermissions": [
         {
+            "id": "card_view",
+            "label": "Dashboard & Menu: Visualizzazione card e icona applicazione"
+        },
+        {
             "id": "view",
             "label": "Visualizza Applicazione"
         },

@@ -306,22 +306,37 @@ function registerAllIPCHandlers(windowManager) {
             }
         });
         ipcMain.handle('getAppsRegistry', appsRegistry.getAppsRegistry);
-        ipcMain.handle('getUiExtensions', async (event, target) => {
+        ipcMain.handle('getUiExtensions', async (event, target, userId) => {
             try {
                 const manifests = await appsRegistry.getAppsRegistry();
                 const db = require('../db').getDB('store');
                 const installedIds = db.query("SELECT app_id FROM installed_apps WHERE status = 'active'").map(r => r.app_id);
                 
+                const sessionManager = require('./session_manager');
+                const currentUserId = userId || sessionManager.getCurrentUserId();
+                const rbac = require('../handlers/rbac');
+                const perms = currentUserId ? rbac.getEffectiveUserPermissions(null, currentUserId) : ['*'];
+                const isSuper = Array.isArray(perms) && perms.includes('*');
+
                 const extensions = [];
                 for (const manifest of manifests) {
                     if (manifest.core || installedIds.includes(manifest.id)) {
                         if (manifest.ui_injections && Array.isArray(manifest.ui_injections)) {
                             for (const inj of manifest.ui_injections) {
                                 if (inj.target === target) {
-                                    extensions.push({
-                                        appId: manifest.id,
-                                        ...inj
-                                    });
+                                    const requiredPerm = inj.requiredPermission || 'card_view';
+                                    const appId = manifest.id;
+                                    const hasAccess = isSuper || 
+                                        perms.includes(`${appId}:${requiredPerm}`) || 
+                                        perms.includes(`${appId}:card_view`) || 
+                                        perms.includes(`${appId}:view`) || 
+                                        perms.includes(`${appId}:*`);
+                                    if (hasAccess) {
+                                        extensions.push({
+                                            appId: manifest.id,
+                                            ...inj
+                                        });
+                                    }
                                 }
                             }
                         }
