@@ -159,7 +159,7 @@ export default {
                             }
 
                             const iconPath = app.icon
-                                ? (app.icon.includes('//') ? app.icon : `apps/${folderName}/${app.icon}`)
+                                ? (app.icon.includes('//') ? app.icon : (app.core || app.bundled ? `apps/${folderName}/${app.icon}` : `adestio-app://${folderName}/${app.icon}`))
                                 : `icone/applicazione_generica.png`;
                             const newBadgeHtml = app.__isNew
                                 ? `<span class="badge-new">NUOVA</span>`

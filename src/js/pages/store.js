@@ -298,7 +298,9 @@ export default {
                 try {
                     mainView.style.display = 'none';
                     detailView.style.display = 'flex';
-                    const iconPath = app.icon ? (app.icon.includes('//') ? app.icon : `apps/${app.folder}/${app.icon}`) : `icone/applicazione_generica.png`;
+                    const iconPath = app.icon
+                        ? (app.icon.includes('//') ? app.icon : (app.core || app.bundled ? `apps/${app.folder}/${app.icon}` : `adestio-app://${app.folder}/${app.icon}`))
+                        : `icone/applicazione_generica.png`;
                     const isCore = app.core;
 
                     let actionBtnHtml = '';
@@ -441,7 +443,9 @@ export default {
 
             function renderMarketCard(app) {
                 try {
-                    const iconPath = app.icon ? (app.icon.includes('//') ? app.icon : `apps/${app.folder}/${app.icon}`) : `icone/applicazione_generica.png`;
+                    const iconPath = app.icon
+                        ? (app.icon.includes('//') ? app.icon : (app.core || app.bundled ? `apps/${app.folder}/${app.icon}` : `adestio-app://${app.folder}/${app.icon}`))
+                        : `icone/applicazione_generica.png`;
                     const categoryLabel = CATEGORY_LABELS[app.category] || null;
                     const card = document.createElement('div');
                     card.className = 'app-card fade-in-up';
