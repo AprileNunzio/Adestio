@@ -310,13 +310,33 @@ async function addRepository(event, args) {
         const db = getStoreDB();
         if (!db) return { success: false, error: 'Database Store non disponibile' };
 
+        const isOfficial = resolved.candidates.some(c => 
+            c === PRIMARY_MARKETPLACE_URL || 
+            c === FALLBACK_MARKETPLACE_URL || 
+            c.toLowerCase().includes('aprilenunzio/adestio-marketplace')
+        ) || trimmedUrl.toLowerCase().includes('aprilenunzio/adestio-marketplace');
+
+        if (isOfficial) {
+            return { success: false, error: 'Il repository ufficiale NunzioTech è già attivo di default.' };
+        }
+
+        const existingRepos = db.query('SELECT url, label FROM custom_repositories') || [];
+        for (const candidateUrl of resolved.candidates) {
+            const normalizedCand = candidateUrl.toLowerCase().replace(/\/+$/, '');
+            const match = existingRepos.find(r => {
+                const normUrl = (r.url || '').toLowerCase().replace(/\/+$/, '');
+                const normLabel = (r.label || '').toLowerCase();
+                return normUrl === normalizedCand || normLabel === resolved.label.toLowerCase();
+            });
+            if (match) {
+                return { success: false, error: 'Questo repository è già stato aggiunto allo Store.' };
+            }
+        }
+
         let finalUrl = null;
         let finalValidation = null;
         let lastError = null;
         for (const candidateUrl of resolved.candidates) {
-            const existing = db.query('SELECT id FROM custom_repositories WHERE url = ?', [candidateUrl]);
-            if (existing.length > 0) return { success: false, error: 'Questo repository è già stato aggiunto' };
-
             const validation = await validateMarketplaceSource(candidateUrl);
             if (validation.ok) {
                 finalUrl = candidateUrl;
