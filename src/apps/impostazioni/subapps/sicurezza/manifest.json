@@ -4,10 +4,14 @@
     "description": "Cambio password e PIN personali, autenticazione a due fattori e policy di sicurezza",
     "icon": "shield_person",
     "main": "app.js",
-    "permissions": [
+    "rbacPermissions": [
         {
             "id": "view",
             "label": "Visualizza Sicurezza"
+        },
+        {
+            "id": "create",
+            "label": "Configura Nuovi Metodi di Sicurezza"
         },
         {
             "id": "edit",

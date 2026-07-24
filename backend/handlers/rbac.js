@@ -27,8 +27,9 @@ function _processAppsDir(basePath, db, ts) {
             if (fs.existsSync(manifestPath)) {
                 try {
                     const m = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-                    if (m.permissions && Array.isArray(m.permissions)) {
-                        for (const p of m.permissions) {
+                    if (m.rbacPermissions && Array.isArray(m.rbacPermissions)) {
+                        for (const p of m.rbacPermissions) {
+                            if (!p || typeof p !== 'object' || !p.id) continue;
                             _upsertPermission(db, `${d.name}:${p.id}`, p, `Permesso ${p.id} per app ${d.name}`, ts);
                         }
                     }
@@ -43,8 +44,9 @@ function _processAppsDir(basePath, db, ts) {
                         const smPath = path.join(subAppsPath, sd.name, 'manifest.json');
                         if (fs.existsSync(smPath)) {
                             const sm = JSON.parse(fs.readFileSync(smPath, 'utf8'));
-                            if (sm.permissions && Array.isArray(sm.permissions)) {
-                                for (const p of sm.permissions) {
+                            if (sm.rbacPermissions && Array.isArray(sm.rbacPermissions)) {
+                                for (const p of sm.rbacPermissions) {
+                                    if (!p || typeof p !== 'object' || !p.id) continue;
                                     _upsertPermission(db, `${d.name}:${sd.name}:${p.id}`, p, `Permesso ${p.id} per subapp ${d.name}/${sd.name}`, ts);
                                 }
                             }
@@ -61,7 +63,12 @@ function syncPermissionsFromManifests(event) {
         const db = getDB();
         if (!db) throw new Error('DB non inizializzato');
         const ts = getTimestamp();
-        
+
+        // Rimuove le righe "id:undefined" generate da vecchie versioni che leggevano
+        // erroneamente il campo capabilityBroker `permissions` (stringhe) delle app
+        // di terze parti come se fossero oggetti {id,label,default} del sistema RBAC.
+        _cleanupStalePermissions(db);
+
         // App predefinite
         const appsPath = path.join(__dirname, '..', '..', 'src', 'apps');
         _processAppsDir(appsPath, db, ts);
@@ -80,6 +87,24 @@ function syncPermissionsFromManifests(event) {
     } catch (e) {
         console.error(e);
         return false;
+    }
+}
+// Le versioni precedenti leggevano il campo `permissions` di TUTTE le app (incluse
+// quelle di terze parti installate dallo Store) aspettandosi oggetti {id,label,default},
+// ma le app di terze parti usano quel campo per le stringhe di scope del capabilityBroker
+// (es. "businessSuite:*"). Iterando una stringa, `p.id` risultava undefined e produceva
+// una riga fantasma "<app>:undefined" nelle tabelle dei permessi. Questa funzione la ripulisce.
+function _cleanupStalePermissions(db) {
+    try {
+        const stale = db.query("SELECT id FROM permissions WHERE id LIKE '%:undefined'");
+        for (const row of stale) {
+            db.run('DELETE FROM permission_defaults WHERE permission_id = ?', [row.id]);
+            db.run('DELETE FROM user_permissions WHERE permission_id = ?', [row.id]);
+            db.run('DELETE FROM group_permissions WHERE permission_id = ?', [row.id]);
+            db.run('DELETE FROM permissions WHERE id = ?', [row.id]);
+        }
+    } catch (e) {
+        console.error(e);
     }
 }
 function _upsertPermission(db, permId, p, description, ts) {

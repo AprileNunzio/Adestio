@@ -4,10 +4,14 @@
     "description": "Gestione ruoli, permessi e policy",
     "icon": "icon.png",
     "main": "app.js",
-    "permissions": [
+    "rbacPermissions": [
         {
             "id": "view",
             "label": "Visualizza Applicazione"
+        },
+        {
+            "id": "create",
+            "label": "Crea Nuovo Gruppo"
         },
         {
             "id": "edit",

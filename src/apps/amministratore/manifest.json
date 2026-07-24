@@ -8,7 +8,11 @@
     "version": "1.0.0",
     "author": "NunzioTech",
     "category": "utility",
-    "tags": ["admin", "rbac", "sicurezza"],
+    "tags": [
+        "admin",
+        "rbac",
+        "sicurezza"
+    ],
     "core": true,
     "subApps": [
         {
@@ -17,10 +21,14 @@
             "icon": "mail"
         }
     ],
-    "permissions": [
+    "rbacPermissions": [
         {
             "id": "view",
             "label": "Visualizza Applicazione"
+        },
+        {
+            "id": "create",
+            "label": "Crea Nuovi Elementi"
         },
         {
             "id": "edit",

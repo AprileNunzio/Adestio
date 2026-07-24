@@ -4,10 +4,14 @@
     "description": "Regole di alert e avvisi",
     "icon": "icon.png",
     "main": "app.js",
-    "permissions": [
+    "rbacPermissions": [
         {
             "id": "view",
             "label": "Visualizza Applicazione"
+        },
+        {
+            "id": "create",
+            "label": "Crea Nuove Preferenze"
         },
         {
             "id": "edit",

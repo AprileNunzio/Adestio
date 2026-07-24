@@ -5,7 +5,11 @@
     "icon": "bug_report",
     "main": "app.js",
     "color": "#D32F2F",
-    "permissions": [
+    "rbacPermissions": [
+        {
+            "id": "view",
+            "label": "Visualizza Log"
+        },
         {
             "id": "manage",
             "label": "Gestisci e Svuota Log"

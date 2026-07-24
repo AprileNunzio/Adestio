@@ -4,7 +4,7 @@
     "icon": "manage_search",
     "description": "Visualizza il registro degli accessi e dei logout dal sistema.",
     "main": "app.js",
-    "permissions": [
+    "rbacPermissions": [
         {
             "id": "view",
             "label": "Visualizza Registro Accessi"

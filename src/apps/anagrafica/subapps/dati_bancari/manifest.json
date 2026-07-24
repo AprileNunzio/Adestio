@@ -4,10 +4,14 @@
     "description": "Coordinate bancarie per accrediti e pagamenti",
     "icon": "account_balance",
     "main": "app.js",
-    "permissions": [
+    "rbacPermissions": [
         {
             "id": "view",
             "label": "Visualizza"
+        },
+        {
+            "id": "create",
+            "label": "Crea"
         },
         {
             "id": "edit",

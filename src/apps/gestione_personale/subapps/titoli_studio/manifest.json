@@ -4,10 +4,14 @@
     "description": "Titoli di studio e qualifiche della persona selezionata",
     "icon": "school",
     "main": "app.js",
-    "permissions": [
+    "rbacPermissions": [
         {
             "id": "view",
             "label": "Visualizza"
+        },
+        {
+            "id": "create",
+            "label": "Crea"
         },
         {
             "id": "edit",

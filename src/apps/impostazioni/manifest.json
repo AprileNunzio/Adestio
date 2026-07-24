@@ -6,7 +6,11 @@
     "version": "1.0.0",
     "author": "NunzioTech",
     "category": "utility",
-    "tags": ["sistema", "sicurezza", "notifiche"],
+    "tags": [
+        "sistema",
+        "sicurezza",
+        "notifiche"
+    ],
     "core": true,
     "roles": [
         "superadmin",
@@ -24,11 +28,15 @@
             "icon": "notifications"
         }
     ],
-    "permissions": [
+    "rbacPermissions": [
         {
             "id": "view",
             "label": "Visualizza Applicazione",
             "default": true
+        },
+        {
+            "id": "create",
+            "label": "Crea Nuove Configurazioni"
         },
         {
             "id": "edit",

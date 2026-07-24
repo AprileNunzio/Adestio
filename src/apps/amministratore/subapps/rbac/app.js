@@ -136,8 +136,11 @@ export default {
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1.5rem;">
             `;
             appsCache.forEach(app => {
-                const iconHtml = (app.icon && app.icon.includes('.')) 
-                    ? `<img src="apps/${app.folder}/${app.icon}" style="width: 48px; height: 48px; margin-bottom: 1rem; object-fit: contain;">`
+                const iconPath = app.icon
+                    ? (app.icon.includes('//') ? app.icon : (app.core || app.bundled ? `apps/${app.folder}/${app.icon}` : `adestio-app://${app.folder}/${app.icon}`))
+                    : null;
+                const iconHtml = (app.icon && app.icon.includes('.'))
+                    ? `<img src="${iconPath}" style="width: 48px; height: 48px; margin-bottom: 1rem; object-fit: contain;" onerror="this.src='icone/applicazione_generica.png'">`
                     : `<span class="material-symbols-rounded" style="font-size: 3rem; color: var(--md-primary); margin-bottom: 1rem;">${app.icon || 'apps'}</span>`;
                 html += `
                     <div class="app-card fade-in-up" onclick="window.openAppPermissions('${app.id}')">
@@ -162,13 +165,16 @@ export default {
                     targetPerms = await window.electronAPI.rbac.getUserPermissions(currentTarget.id);
                 }
                 const subapps = subAppsCache[appId] || [];
-                const appIconHtml = (app.icon && app.icon.includes('.')) 
-                    ? `<img src="apps/${app.folder}/${app.icon}" style="width: 1.2em; height: 1.2em; object-fit: contain;">`
+                const appIconPath = app.icon
+                    ? (app.icon.includes('//') ? app.icon : (app.core || app.bundled ? `apps/${app.folder}/${app.icon}` : `adestio-app://${app.folder}/${app.icon}`))
+                    : null;
+                const appIconHtml = (app.icon && app.icon.includes('.'))
+                    ? `<img src="${appIconPath}" style="width: 1.2em; height: 1.2em; object-fit: contain;" onerror="this.src='icone/applicazione_generica.png'">`
                     : `<span class="material-symbols-rounded">${app.icon || 'apps'}</span>`;
                 let allPermsList = [];
-                if (app.permissions) app.permissions.forEach(p => allPermsList.push(`${app.id}:${p.id}`));
+                if (app.rbacPermissions) app.rbacPermissions.forEach(p => allPermsList.push(`${app.id}:${p.id}`));
                 subapps.forEach(sub => {
-                    if (sub.permissions) sub.permissions.forEach(p => allPermsList.push(`${app.id}:${sub.id}:${p.id}`));
+                    if (sub.rbacPermissions) sub.rbacPermissions.forEach(p => allPermsList.push(`${app.id}:${sub.id}:${p.id}`));
                 });
                 const allChecked = allPermsList.length > 0 && allPermsList.every(p => targetPerms.includes(p));
                 const globalCheckedAttr = allChecked ? 'checked' : '';
@@ -202,9 +208,9 @@ export default {
                     </div>
                 `;
                 // Permessi App Level
-                if (app.permissions && app.permissions.length > 0) {
+                if (app.rbacPermissions && app.rbacPermissions.length > 0) {
                     html += `<div style="background: var(--md-surface-variant); border-radius: 12px; margin-bottom: 2rem;">`;
-                    app.permissions.forEach(p => {
+                    app.rbacPermissions.forEach(p => {
                         const permId = `${app.id}:${p.id}`;
                         const checked = targetPerms.includes(permId) ? 'checked' : '';
                         html += `
@@ -223,15 +229,18 @@ export default {
                 }
                 // Permessi SubApp Level
                 subapps.forEach(sub => {
-                    if (sub.permissions && sub.permissions.length > 0) {
+                    if (sub.rbacPermissions && sub.rbacPermissions.length > 0) {
+                        const subIconPath = (app.core || app.bundled)
+                            ? `apps/${app.folder}/subapps/${sub.folder}/${sub.icon}`
+                            : `adestio-app://${app.folder}/subapps/${sub.folder}/${sub.icon}`;
                         const subIconHtml = (sub.icon && sub.icon.includes('.'))
-                            ? `<img src="apps/${app.folder}/subapps/${sub.folder}/${sub.icon}" style="width: 1.2em; height: 1.2em; object-fit: contain;">`
+                            ? `<img src="${subIconPath}" style="width: 1.2em; height: 1.2em; object-fit: contain;" onerror="this.src='icone/applicazione_generica.png'">`
                             : `<span class="material-symbols-rounded" style="font-size: 1.2rem;">${sub.icon || 'extension'}</span>`;
                         html += `<h3 style="margin: 1.5rem 0 1rem 0; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
                             ${subIconHtml} Sotto-modulo: ${sub.name}
                         </h3>`;
                         html += `<div style="background: var(--md-surface-variant); border-radius: 12px; margin-bottom: 1rem;">`;
-                        sub.permissions.forEach(p => {
+                        sub.rbacPermissions.forEach(p => {
                             const permId = `${app.id}:${sub.id}:${p.id}`;
                             const checked = targetPerms.includes(permId) ? 'checked' : '';
                             html += `
@@ -249,7 +258,7 @@ export default {
                         html += `</div>`;
                     }
                 });
-                if ((!app.permissions || app.permissions.length === 0) && subapps.every(s => !s.permissions || s.permissions.length === 0)) {
+                if ((!app.rbacPermissions || app.rbacPermissions.length === 0) && subapps.every(s => !s.rbacPermissions || s.rbacPermissions.length === 0)) {
                     html += `<p style="color: var(--md-on-surface-variant); font-style: italic;">Nessun permesso specifico dichiarato da questa applicazione.</p>`;
                 }
                 main.innerHTML = html;
@@ -282,15 +291,15 @@ export default {
                 const app = appsCache.find(a => a.id === appId);
                 const subapps = subAppsCache[appId] || [];
                 const promises = [];
-                if (app && app.permissions) {
-                    app.permissions.forEach(p => {
+                if (app && app.rbacPermissions) {
+                    app.rbacPermissions.forEach(p => {
                         const permId = `${app.id}:${p.id}`;
                         promises.push(window.togglePermission(permId, value, true));
                     });
                 }
                 subapps.forEach(sub => {
-                    if (sub.permissions) {
-                        sub.permissions.forEach(p => {
+                    if (sub.rbacPermissions) {
+                        sub.rbacPermissions.forEach(p => {
                             const permId = `${app.id}:${sub.id}:${p.id}`;
                             promises.push(window.togglePermission(permId, value, true));
                         });

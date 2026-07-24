@@ -4,10 +4,14 @@
     "description": "Elenco persone e scheda anagrafica completa",
     "icon": "icon.png",
     "main": "app.js",
-    "permissions": [
+    "rbacPermissions": [
         {
             "id": "view",
             "label": "Visualizza"
+        },
+        {
+            "id": "create",
+            "label": "Crea"
         },
         {
             "id": "edit",

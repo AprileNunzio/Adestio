@@ -4,10 +4,14 @@
     "description": "Documenti d'identità collegati a una persona",
     "icon": "icon.png",
     "main": "app.js",
-    "permissions": [
+    "rbacPermissions": [
         {
             "id": "view",
             "label": "Visualizza"
+        },
+        {
+            "id": "create",
+            "label": "Crea"
         },
         {
             "id": "edit",

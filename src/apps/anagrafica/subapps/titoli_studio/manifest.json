@@ -4,10 +4,14 @@
     "description": "I tuoi titoli di studio e le qualifiche conseguite",
     "icon": "school",
     "main": "app.js",
-    "permissions": [
+    "rbacPermissions": [
         {
             "id": "view",
             "label": "Visualizza"
+        },
+        {
+            "id": "create",
+            "label": "Crea"
         },
         {
             "id": "edit",

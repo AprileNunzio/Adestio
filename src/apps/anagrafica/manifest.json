@@ -8,15 +8,23 @@
     "version": "1.0.0",
     "author": "NunzioTech",
     "category": "hr",
-    "tags": ["persone", "hr", "anagrafica"],
+    "tags": [
+        "persone",
+        "hr",
+        "anagrafica"
+    ],
     "core": true,
     "licensing": {
         "type": "free"
     },
-    "permissions": [
+    "rbacPermissions": [
         {
             "id": "view",
             "label": "Visualizza Applicazione"
+        },
+        {
+            "id": "create",
+            "label": "Crea Nuovi Dati"
         },
         {
             "id": "edit",

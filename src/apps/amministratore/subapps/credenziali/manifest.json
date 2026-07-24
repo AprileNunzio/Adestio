@@ -4,10 +4,14 @@
     "description": "Visualizza e gestisci le credenziali di rete",
     "icon": "icon.png",
     "main": "app.js",
-    "permissions": [
+    "rbacPermissions": [
         {
             "id": "view",
             "label": "Visualizza Applicazione"
+        },
+        {
+            "id": "create",
+            "label": "Crea Nuove Credenziali"
         },
         {
             "id": "edit",

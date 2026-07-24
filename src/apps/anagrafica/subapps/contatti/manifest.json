@@ -4,10 +4,14 @@
     "description": "Agenda completa recapiti e contatti",
     "icon": "import_contacts",
     "main": "app.js",
-    "permissions": [
+    "rbacPermissions": [
         {
             "id": "view",
             "label": "Visualizza"
+        },
+        {
+            "id": "create",
+            "label": "Crea"
         },
         {
             "id": "edit",

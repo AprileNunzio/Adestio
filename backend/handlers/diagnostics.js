@@ -143,8 +143,8 @@ async function runDiagnostics(event) {
         try {
             const db = getDB();
             if (db) {
-                const res = db.exec("SELECT count(*) FROM users");
-                log(`Database integro e sbloccato. Record Utenti: ${res[0].values[0][0]}`, "success");
+                const res = db.query("SELECT count(*) as c FROM users");
+                log(`Database integro e sbloccato. Record Utenti: ${res[0].c}`, "success");
             } else {
                 log("Database non pronto (nodo vergine).", "info");
             }
