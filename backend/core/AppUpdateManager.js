@@ -374,10 +374,7 @@ class AppUpdateManager {
 
             auditLogger.logEvent('system', 'APP_UPDATE', 'app', appId, { previousVersion: currentVersion, newVersion: availableVersion });
 
-            this._setLock(appId, STATES.DONE, {
-                currentVersion,
-                installedVersion: availableVersion
-            });
+            this._clearLock(appId);
 
             this._broadcast('store:app-updated', {
                 appId,
@@ -385,7 +382,6 @@ class AppUpdateManager {
                 newVersion: availableVersion
             });
 
-            setTimeout(() => { try { this._clearLock(appId); } catch (e) {} }, 5000);
         } catch (e) {
             if (attempt < MAX_RETRIES) {
                 const backoff = RETRY_BASE_MS * Math.pow(2, attempt - 1);

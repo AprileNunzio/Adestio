@@ -296,10 +296,7 @@ export default {
             function applyUpdateBadge(appId, state) {
                 try {
                     const targetApp = marketApps.find(a => a.id === appId);
-                    if (targetApp && targetApp.installed && !targetApp.hasUpdate && state !== 'downloading' && state !== 'installing') {
-                        state = 'idle';
-                    }
-                    if (targetApp && targetApp.installed && targetApp.installedVersion === targetApp.version && (state === 'done' || state === 'pending')) {
+                    if (targetApp && targetApp.installed && (!targetApp.hasUpdate || targetApp.installedVersion === targetApp.version)) {
                         state = 'idle';
                     }
 
