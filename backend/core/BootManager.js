@@ -9,6 +9,8 @@ const peerDiscovery = require('../p2p/discovery/peerDiscovery');
 const fileTransferProtocol = require('../p2p/storage/fileTransferProtocol');
 const crdtEngine = require('../db/crdtEngine');
 const nodeIdentity = require('./node_identity');
+const AppUpdateManager = require('./AppUpdateManager');
+
 
 class BootManager {
     static async runStartupSequence() {
@@ -92,7 +94,8 @@ class BootManager {
                 try {
                     store.preloadMarketplaceCache()
                         .then(() => store.syncNetworkApps())
-                        .catch(e => console.error('[BootManager Marketplace Sync Error]', e));
+                        .then(() => AppUpdateManager.startBackgroundCheck())
+                        .catch(e => console.error('[BootManager Background Task Error]', e));
                 } catch (bgTaskErr) {
                     console.error('[BootManager Background Task Error]', bgTaskErr);
                 }

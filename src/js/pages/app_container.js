@@ -1,4 +1,5 @@
 import { Router } from '../utils.js';
+
 export default {
     render: async (el, params) => {
         try {
@@ -40,20 +41,66 @@ export default {
                         return;
                     }
                 }
+
+                try {
+                    const lockRes = await window.electronAPI.store.isAppLocked(appId);
+                    if (lockRes && lockRes.locked) {
+                        mountPoint.innerHTML = `
+                            <div class="card" style="text-align:center;max-width:480px;margin:4rem auto;padding:3rem;border:2px solid var(--md-primary);background:rgba(var(--md-primary-rgb,59,130,246),0.04);">
+                                <span class="material-symbols-rounded spin" style="font-size:4rem;color:var(--md-primary);">system_update</span>
+                                <h2 style="color:var(--md-primary);margin-top:1.2rem;letter-spacing:-0.02em;">Aggiornamento in corso</h2>
+                                <p style="color:var(--md-on-surface-variant);margin:0.8rem 0 2rem;line-height:1.6;">L'applicazione <strong>${appId}</strong> è in fase di aggiornamento in background. Sarà disponibile al termine del processo.</p>
+                                <div style="display:flex;gap:1rem;justify-content:center;">
+                                    <button id="btn-back-updating" class="btn btn-secondary">Torna alla Dashboard</button>
+                                </div>
+                            </div>
+                        `;
+                        mountPoint.querySelector('#btn-back-updating')?.addEventListener('click', () => {
+                            Router.navigate('dashboard');
+                        });
+                        if (window.electronAPI.store.onAppUpdated) {
+                            window.electronAPI.store.onAppUpdated(data => {
+                                try {
+                                    if (data && data.appId === appId) {
+                                        el.innerHTML = '';
+                                        Router.navigate('app_container', { appId });
+                                    }
+                                } catch (e) {}
+                            });
+                        }
+                        return;
+                    }
+                } catch (lockErr) {}
             }
+
             try {
                 let modulePath = `../../apps/${appId}/app.js`;
+                let appFolder = appId;
                 if (window.electronAPI) {
                     const allApps = await window.electronAPI.getAppsRegistry();
                     const appManifest = allApps.find(a => a.folder === appId || a.id === appId);
                     if (appManifest && !appManifest.core && !appManifest.bundled) {
                         const mainFile = appManifest.main || 'app.js';
-                        modulePath = `adestio-app://${appId}/${mainFile}`;
+                        appFolder = appManifest.folder || appId;
+                        modulePath = `adestio-app://${appFolder}/${mainFile}`;
+
+                        const cssPath = `adestio-app://${appFolder}/css/style.css`;
+                        if (!document.querySelector(`link[data-app-css="${appFolder}"]`)) {
+                            const link = document.createElement('link');
+                            link.rel = 'stylesheet';
+                            link.href = cssPath;
+                            link.setAttribute('data-app-css', appFolder);
+                            document.head.appendChild(link);
+                        }
                     }
                 }
                 const appModule = await import(modulePath);
-                if (appModule && appModule.default && typeof appModule.default.render === 'function') {
-                    await appModule.default.render(mountPoint, params);
+                const targetRender = (appModule && appModule.default && typeof appModule.default.render === 'function') 
+                    ? appModule.default.render 
+                    : (appModule && typeof appModule.render === 'function' ? appModule.render : null);
+
+                if (targetRender) {
+                    await targetRender(mountPoint, params);
                 } else {
                     mountPoint.innerHTML = `
                         <div class="card" style="text-align: center;">

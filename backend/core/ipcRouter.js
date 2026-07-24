@@ -339,9 +339,43 @@ function registerAllIPCHandlers(windowManager) {
         ipcMain.handle('store:install', (e, appId) => storeHandlers.install(e, appId));
         ipcMain.handle('store:uninstall', (e, appId) => storeHandlers.uninstall(e, appId));
         ipcMain.handle('store:checkUpdates', () => storeHandlers.checkUpdates());
+        ipcMain.handle('store:getUpdateQueue', () => {
+            try {
+                const AppUpdateManager = require('./AppUpdateManager');
+                return { success: true, data: AppUpdateManager.getQueueStatus() };
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+        ipcMain.handle('store:getAppUpdateState', (e, appId) => {
+            try {
+                const AppUpdateManager = require('./AppUpdateManager');
+                return { success: true, data: AppUpdateManager.getAppState(appId) };
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+        ipcMain.handle('store:isAppLocked', (e, appId) => {
+            try {
+                const AppUpdateManager = require('./AppUpdateManager');
+                return { success: true, locked: AppUpdateManager.isLocked(appId) };
+            } catch (e) {
+                return { success: false, locked: false };
+            }
+        });
+        ipcMain.handle('store:forceCheckUpdates', () => {
+            try {
+                const AppUpdateManager = require('./AppUpdateManager');
+                AppUpdateManager.forceCheckNow();
+                return { success: true };
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
         ipcMain.handle('get_system_logs', () => storeHandlers.getSystemLogs());
         ipcMain.handle('clear_system_logs', () => storeHandlers.clearSystemLogs());
         ipcMain.handle('delete_system_log', (e, id) => storeHandlers.deleteSystemLog(id));
+
         ipcMain.handle('forceNetworkDatabaseSync', async (event) => {
             try {
                 if (!accessGuard.isSuperadmin()) return { success: false, error: 'Permesso negato' };

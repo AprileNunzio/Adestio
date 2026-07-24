@@ -18,42 +18,11 @@ export default {
                                 <input type="text" id="subapp-search" class="input" placeholder="Cerca modulo..." style="padding-left: 3rem; padding-top: 0.8rem; padding-bottom: 0.8rem; width: 100%; border-radius: 28px; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant); font-size: 1.05rem; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); transition: all 0.2s ease;">
                             </div>
                         </div>
-                        <div id="subapps-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 2rem;">
+                        <div id="subapps-grid" class="subapps-grid">
                             <!-- Grid popolata via JS -->
                         </div>
                     </div>
-                    <style>
-                        .app-card {
-                            background: var(--md-surface);
-                            border-radius: 16px;
-                            padding: 1.5rem;
-                            text-align: center;
-                            border: 1px solid var(--md-outline);
-                            cursor: pointer;
-                            transition: all 0.2s ease;
-                            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-                        }
-                        .app-card:hover {
-                            transform: translateY(-5px);
-                            box-shadow: 0 8px 12px rgba(103, 80, 164, 0.15);
-                            border-color: var(--md-primary);
-                        }
-                        .app-icon {
-                            width: 64px;
-                            height: 64px;
-                            object-fit: contain;
-                            margin-bottom: 1rem;
-                        }
-                        .app-title {
-                            font-weight: 600;
-                            color: var(--md-on-surface);
-                            margin-bottom: 0.2rem;
-                        }
-                        .app-desc {
-                            font-size: 0.8rem;
-                            color: var(--md-on-surface-variant);
-                        }
-                    </style>
+
                 `;
                 const grid = el.querySelector('#subapps-grid');
                 const searchInput = el.querySelector('#subapp-search');

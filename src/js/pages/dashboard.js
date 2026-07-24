@@ -1,102 +1,37 @@
 import { Router } from '../utils.js';
+
 export default {
     render: async (el) => {
         try {
-            const userId = sessionStorage.getItem('currentUserId');
-            if (!window.currentUser && !userId) {
-                Router.navigate('auth_login');
-                return;
-            }
-            let lastLoginHtml = '';
-            try {
-                if (window.electronAPI) {
-                    const res = await window.electronAPI.getAccessLogs(userId);
-                    if (res.success && res.logs.length > 1) {
-                        const last = res.logs[1]; // The previous login (0 is the current one)
-                        const { dtFormat } = await import('../utils.js');
-                        lastLoginHtml = `
-                            <div class="last-login-widget" onclick="window.Router.navigate('app_container', { appId: 'impostazioni', subAppId: 'registro_accessi' })" style="cursor: pointer; background: var(--md-surface-variant); padding: 0.8rem 1.2rem; border-radius: 12px; display: inline-flex; align-items: center; gap: 0.8rem; margin-top: 1rem; border: 1px solid var(--md-outline-variant); transition: all 0.2s ease;">
-                                <span class="material-symbols-rounded" style="color: var(--md-primary); font-size: 1.5rem;">history</span>
-                                <div>
-                                    <div style="font-size: 0.8rem; font-weight: 600; color: var(--md-on-surface-variant); text-transform: uppercase; letter-spacing: 0.5px;">Ultimo Accesso</div>
-                                    <div style="font-size: 0.95rem; color: var(--md-on-surface);"><strong>${last.node_name || 'Sconosciuto'}</strong> il ${dtFormat(last.timestamp)}</div>
-                                </div>
-                                <span class="material-symbols-rounded" style="color: var(--md-on-surface-variant); margin-left: 0.5rem; opacity: 0.5;">chevron_right</span>
-                            </div>
-                        `;
-                    }
-                }
-            } catch(e) { console.error('Error fetching access logs', e); }
             el.innerHTML = `
-                <div class="fade-in-up" style="width: 100%; flex: 1; display: flex; flex-direction: column;">
-                    <div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1.5rem; margin-bottom: 3rem; width: 100%;">
-                        <div style="flex: 1; min-width: 300px;">
-                            <h1 class="text-title" style="font-size: 2.4rem; color: var(--md-primary); margin-bottom: 0.2rem; letter-spacing: -0.02em; text-align: left;">Applicazioni</h1>
-                            <p class="text-body" style="color: var(--md-on-surface-variant); font-size: 1.1rem; text-align: left;">Seleziona un modulo per iniziare.</p>
-                            ${lastLoginHtml}
+                <div class="page-container">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2.5rem; flex-wrap: wrap; gap: 1rem;">
+                        <div>
+                            <h1 class="text-title" style="margin-bottom: 0.3rem; font-size: 2.2rem; font-weight: 800; letter-spacing: -0.03em;">Dashboard Principale</h1>
+                            <p class="text-body" style="color: var(--md-on-surface-variant); font-size: 1rem;">Seleziona un'applicazione per iniziare a lavorare</p>
                         </div>
-                        <div style="position: relative; flex-shrink: 0; width: 100%; max-width: 350px;">
-                            <span class="material-symbols-rounded" style="position: absolute; left: 1rem; top: 0.9rem; color: var(--md-on-surface-variant);">search</span>
-                            <input type="text" id="app-search" class="input" placeholder="Cerca applicativo..." style="padding-left: 3rem; padding-top: 0.8rem; padding-bottom: 0.8rem; width: 100%; border-radius: 28px; background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant); font-size: 1.05rem; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); transition: all 0.2s ease;">
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <div class="search-box" style="position: relative; width: 280px;">
+                                <span class="material-symbols-rounded" style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); color: var(--md-on-surface-variant); pointer-events: none;">search</span>
+                                <input type="text" id="app-search" class="input" placeholder="Cerca applicativo..." style="padding-left: 2.8rem; width: 100%; border-radius: 20px; border: 1px solid var(--md-outline-variant); background: rgba(255, 255, 255, 0.7); color: var(--md-on-surface); height: 44px; font-size: 0.95rem;">
+                            </div>
                         </div>
                     </div>
-                    <div id="apps-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 2rem;">
-                        <p>Caricamento app in corso...</p>
+
+                    <div id="apps-grid" class="apps-grid">
+                        <div style="grid-column: 1 / -1; text-align: center; padding: 3rem;">
+                            <span class="material-symbols-rounded spin" style="font-size: 3rem; color: var(--md-primary);">sync</span>
+                            <p style="margin-top: 1rem; color: var(--md-on-surface-variant);">Caricamento applicativi in corso...</p>
+                        </div>
                     </div>
                 </div>
-                <style>
-                    .app-card {
-                        background: var(--md-surface);
-                        border-radius: 16px;
-                        padding: 1.5rem;
-                        text-align: center;
-                        border: 1px solid var(--md-outline);
-                        cursor: pointer;
-                        transition: all 0.2s ease;
-                        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-                    }
-                    .app-card:hover {
-                        transform: translateY(-5px);
-                        box-shadow: 0 8px 12px rgba(103, 80, 164, 0.15);
-                        border-color: var(--md-primary);
-                    }
-                    .app-icon {
-                        width: 64px;
-                        height: 64px;
-                        object-fit: contain;
-                        margin-bottom: 1rem;
-                    }
-                    .app-icon-glyph {
-                        width: 64px;
-                        height: 64px;
-                        border-radius: 16px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        margin: 0 auto 1rem;
-                        background: var(--md-primary-container);
-                        color: var(--md-primary);
-                        font-size: 2.1rem;
-                    }
-                    .app-title {
-                        font-weight: 600;
-                        color: var(--md-on-surface);
-                        margin-bottom: 0.2rem;
-                    }
-                    .app-desc {
-                        font-size: 0.8rem;
-                        color: var(--md-on-surface-variant);
-                    }
-                    .last-login-widget:hover {
-                        background: var(--md-surface);
-                        border-color: var(--md-primary);
-                        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-                    }
-                </style>
+
             `;
+
             const grid = el.querySelector('#apps-grid');
             const searchInput = el.querySelector('#app-search');
             let apps = [];
+
             if (window.electronAPI) {
                 const allApps = await window.electronAPI.getAppsRegistry();
                 const userId = sessionStorage.getItem('currentUserId');
@@ -104,101 +39,218 @@ export default {
                 if (userId) {
                     userPerms = await window.electronAPI.rbac.getEffectiveUserPermissions(userId);
                 }
+
                 let installedApps = [];
                 let installedAppsData = [];
                 try {
                     const storeRes = await window.electronAPI.store.getInstalled();
-                    if (storeRes.success && storeRes.data) {
+                    if (storeRes && storeRes.success && Array.isArray(storeRes.data)) {
                         installedAppsData = storeRes.data;
-                        installedApps = storeRes.data.map(a => a.app_id);
+                        installedApps = storeRes.data.map(a => a.id || a.app_id || a.folder);
                     }
-                } catch(e) { console.warn("Impossibile recuperare le app installate", e); }
-                
+                } catch (e) {
+                    console.warn("Impossibile recuperare le app installate", e);
+                }
+
                 const now = Date.now();
                 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
                 apps = allApps.filter(app => {
-                    const appId = app.folder;
-                    if (!app.core && !app.bundled && !installedApps.includes(appId)) {
+                    try {
+                        const targetId = app.id || app.folder;
+                        if (!app.core && !app.bundled && !installedApps.includes(targetId)) {
+                            return false;
+                        }
+                        if (userPerms.includes('*')) return true;
+                        const viewPermId = `${targetId}:view`;
+                        return userPerms.includes(viewPermId) || userPerms.some(p => p.startsWith(`${targetId}:`));
+                    } catch (err) {
                         return false;
                     }
-                    const viewPermId = `${appId}:view`;
-                    if (userPerms.includes('*')) return true;
-                    if (userPerms.includes(viewPermId)) return true;
-                    if (userPerms.some(p => p.startsWith(`${appId}:`))) return true;
-                    return false;
-                }).map(app => {
-                    const appId = app.folder;
-                    const instData = installedAppsData.find(a => a.app_id === appId);
-                    if (instData && instData.installed_at) {
-                        const t = new Date(instData.installed_at).getTime();
-                        if (now - t < SEVEN_DAYS_MS) {
-                            app.__isNew = true;
-                        }
-                    }
-                    return app;
                 });
-                
-                apps.sort((a, b) => a.name.localeCompare(b.name));
+
+                installedAppsData.forEach(installedApp => {
+                    try {
+                        const targetId = installedApp.id || installedApp.app_id || installedApp.folder;
+                        const exists = apps.some(a => (a.id || a.folder) === targetId);
+                        if (!exists) {
+                            apps.push({
+                                id: targetId,
+                                folder: installedApp.folder || targetId,
+                                name: installedApp.name || targetId,
+                                description: installedApp.description || '',
+                                icon: installedApp.icon || 'icone/applicazione_generica.png',
+                                installedAt: installedApp.installedAt || null
+                            });
+                        }
+                    } catch (err) {}
+                });
+
+                apps.forEach(app => {
+                    try {
+                        const targetId = app.id || app.folder;
+                        const matchInstalled = installedAppsData.find(i => (i.id || i.app_id || i.folder) === targetId);
+                        if (matchInstalled && matchInstalled.installedAt) {
+                            const installedTime = new Date(matchInstalled.installedAt).getTime();
+                            if (!isNaN(installedTime) && (now - installedTime) < SEVEN_DAYS_MS) {
+                                app.__isNew = true;
+                            }
+                        }
+                    } catch (err) {}
+                });
+
+                apps.sort((a, b) => {
+                    try {
+                        if (a.core && !b.core) return -1;
+                        if (!a.core && b.core) return 1;
+                        return (a.name || '').localeCompare(b.name || '');
+                    } catch (err) {
+                        return 0;
+                    }
+                });
 
                 apps.unshift({
-                    __isStorePinned: true,
+                    id: '__store__',
                     name: 'App Store',
-                    description: 'Installa applicazioni di terze parti o gestisci quelle presenti sul nodo'
+                    description: 'Installa applicazioni di terze parti o gestisci quelle presenti sul nodo',
+                    icon: 'icone/store.png',
+                    __isStorePinned: true
                 });
             }
+
+            const UPDATE_BADGE = {
+                pending:     { cls: 'badge-updating', icon: 'schedule',      text: 'In coda' },
+                downloading: { cls: 'badge-updating', icon: 'download',       text: 'Scaricamento...' },
+                installing:  { cls: 'badge-updating', icon: 'system_update',  text: 'Installazione...' },
+                done:        { cls: 'badge-done',     icon: 'check_circle',   text: 'Aggiornato' },
+                error:       { cls: 'badge-error',    icon: 'error',          text: 'Errore' }
+            };
+
             const renderApps = (filterText = '') => {
-                grid.innerHTML = '';
-                const filtered = apps.filter(app => 
-                    app.name.toLowerCase().includes(filterText.toLowerCase()) || 
-                    (app.description && app.description.toLowerCase().includes(filterText.toLowerCase()))
-                );
-                if (filtered.length === 0) {
-                    grid.innerHTML = '<p style="color: var(--md-on-surface-variant); grid-column: 1 / -1; text-align: center;">Nessun applicativo trovato.</p>';
-                    return;
-                }
-                filtered.forEach(app => {
-                    const card = document.createElement('div');
-                    card.className = 'app-card fade-in-up';
-                    card.style.position = 'relative';
-                    
-                    if (app.__isStorePinned) {
-                        card.innerHTML = `
-                            <img src="icone/store.png" class="app-icon" onerror="this.src='icone/applicazione_generica.png'">
-                            <div class="app-title">${app.name}</div>
-                            ${app.description ? `<div class="app-desc">${app.description}</div>` : ''}
-                        `;
-                        card.addEventListener('click', () => {
-                            Router.navigate('store');
-                        });
-                        grid.appendChild(card);
+                try {
+                    grid.innerHTML = '';
+                    const searchLower = filterText.toLowerCase().trim();
+                    const filtered = apps.filter(a =>
+                        (a.name && a.name.toLowerCase().includes(searchLower)) ||
+                        (a.description && a.description.toLowerCase().includes(searchLower))
+                    );
+
+                    if (filtered.length === 0) {
+                        grid.innerHTML = '<p style="color: var(--md-on-surface-variant); grid-column: 1 / -1; text-align: center; padding: 2rem;">Nessun applicativo trovato.</p>';
                         return;
                     }
-                    
-                    const iconPath = app.icon ? `apps/${app.folder}/${app.icon}` : `icone/applicazione_generica.png`;
-                    const newBadgeHtml = app.__isNew ? `<div style="position:absolute; top:10px; right:10px; background:var(--md-primary); color:white; font-size:0.7rem; font-weight:bold; padding:0.2rem 0.5rem; border-radius:12px; box-shadow:0 2px 4px rgba(0,0,0,0.2);">NUOVA</div>` : '';
-                    
-                    card.innerHTML = `
-                        ${newBadgeHtml}
-                        <img src="${iconPath}" class="app-icon" onerror="this.src='icone/applicazione_generica.png'">
-                        <div class="app-title">${app.name}</div>
-                        ${app.description ? `<div class="app-desc">${app.description}</div>` : ''}
-                    `;
-                    card.addEventListener('click', () => {
-                        Router.navigate('app_container', { appId: app.folder });
+
+                    filtered.forEach(app => {
+                        try {
+                            const folderName = app.folder || app.id;
+                            const card = document.createElement('div');
+                            card.className = 'app-card fade-in-up';
+                            card.dataset.appId = folderName;
+
+                            if (app.__isStorePinned) {
+                                card.innerHTML = `
+                                    <img src="icone/store.png" class="app-icon" onerror="this.src='icone/applicazione_generica.png'">
+                                    <div class="app-title">${app.name}</div>
+                                    ${app.description ? `<div class="app-desc">${app.description}</div>` : ''}
+                                `;
+                                card.addEventListener('click', () => { Router.navigate('store'); });
+                                grid.appendChild(card);
+                                return;
+                            }
+
+                            const iconPath = app.icon
+                                ? (app.icon.includes('//') ? app.icon : `apps/${folderName}/${app.icon}`)
+                                : `icone/applicazione_generica.png`;
+                            const newBadgeHtml = app.__isNew
+                                ? `<span class="badge-new">NUOVA</span>`
+                                : '';
+
+                            card.innerHTML = `
+                                ${newBadgeHtml}
+                                <img src="${iconPath}" class="app-icon" onerror="this.src='icone/applicazione_generica.png'">
+                                <div class="app-title">${app.name}</div>
+                                ${app.description ? `<div class="app-desc">${app.description}</div>` : ''}
+                            `;
+                            card.addEventListener('click', () => {
+                                Router.navigate('app_container', { appId: folderName });
+                            });
+                            grid.appendChild(card);
+                        } catch (err) {}
                     });
-                    grid.appendChild(card);
-                });
+                } catch (e) {}
             };
-            renderApps();
-            searchInput.addEventListener('input', (e) => {
+
+            const applyUpdateBadge = (appId, state) => {
                 try {
+                    const card = grid.querySelector(`[data-app-id="${appId}"]`);
+                    if (!card) return;
+
+                    let badge = card.querySelector('.update-badge');
+                    if (state === 'idle' || !UPDATE_BADGE[state]) {
+                        if (badge) badge.remove();
+                        card.classList.remove('locked');
+                        return;
+                    }
+
+                    const { cls, icon, text } = UPDATE_BADGE[state];
+                    if (!badge) {
+                        badge = document.createElement('span');
+                        badge.className = `update-badge ${cls}`;
+                        card.appendChild(badge);
+                    } else {
+                        badge.className = `update-badge ${cls}`;
+                    }
+                    badge.innerHTML = `<span class="material-symbols-rounded" style="font-size:0.9rem;vertical-align:middle;">${icon}</span> ${text}`;
+
+                    const isActive = state === 'downloading' || state === 'installing';
+                    card.classList.toggle('locked', isActive);
+                } catch (e) {}
+            };
+
+            renderApps();
+
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
                     renderApps(e.target.value);
-                } catch(err) { console.error(err); }
-            });
+                });
+            }
+
+            if (window.electronAPI && window.electronAPI.store) {
+                try {
+                    window.electronAPI.store.getUpdateQueue().then(res => {
+                        try {
+                            if (res && res.success && res.data && Array.isArray(res.data.queue)) {
+                                res.data.queue.forEach(item => {
+                                    applyUpdateBadge(item.appId, item.state);
+                                });
+                            }
+                        } catch (e) {}
+                    }).catch(() => {});
+                } catch (e) {}
+
+                try {
+                    window.electronAPI.store.onAppUpdateEvent(data => {
+                        try {
+                            if (data && data.appId) {
+                                applyUpdateBadge(data.appId, data.state);
+                            }
+                        } catch (e) {}
+                    });
+                } catch (e) {}
+
+                try {
+                    window.electronAPI.store.onAppUpdated(data => {
+                        try {
+                            if (data && data.appId) {
+                                setTimeout(() => { applyUpdateBadge(data.appId, 'idle'); }, 5000);
+                            }
+                        } catch (e) {}
+                    });
+                } catch (e) {}
+            }
         } catch (e) {
-            console.error(e);
-            el.innerHTML = `<p>Errore caricamento dashboard</p>`;
+            console.error('Dashboard render error:', e);
+            el.innerHTML = '<p>Errore durante il caricamento della Dashboard.</p>';
         }
     }
 };

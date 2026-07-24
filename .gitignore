@@ -74,6 +74,9 @@ coverage/
 .nyc_output/
 *.lcov
 
+# ── Script di test occasionali in root (usare scratch/ per prove rapide) ──
+/test_*.js
+
 # ── Cache ────────────────────────────────────────────────────
 .cache/
 .parcel-cache/

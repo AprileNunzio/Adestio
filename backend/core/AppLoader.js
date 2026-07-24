@@ -36,16 +36,53 @@ async function loadApp(manifest) {
         const backendPath = path.join(appDir, manifest.backend || 'backend.js');
 
         if (fs.existsSync(backendPath)) {
+            let directBackendModule = null;
             try {
-                const spawned = appProcessManager.spawnAppProcess(appId, manifest, appDir);
-                if (spawned) {
-                    _loaded.set(appId, { manifest: manifest, isProcess: true });
-                } else {
-                    throw new Error('Impossibile avviare il processo child');
+                delete require.cache[require.resolve(backendPath)];
+                directBackendModule = require(backendPath);
+            } catch (requireErr) {
+                console.error(`[AppLoader Backend Require Error: ${appId}]`, requireErr);
+            }
+
+            if (directBackendModule && typeof directBackendModule.registerBackendHandlers === 'function') {
+                // App di terze parti "leggera": il suo backend.js registra le proprie
+                // azioni nel processo main (nessun sandboxing a processo separato), ma
+                // SENZA aggiungere canali ipcMain propri: il frontend dell'app non ha
+                // nessun altro modo di raggiungerli oltre al ponte generico gia'
+                // esposto in preload.js (window.adestioNative.callAppApi ->
+                // capabilityBroker), quindi le azioni vengono registrate li'.
+                // Riceve in dono l'accesso al DB cifrato di Adestio tramite AppDbManager,
+                // cosi' non deve portarsi dietro un proprio driver sqlite nativo (che non
+                // sarebbe comunque risolvibile da node_modules fuori dall'albero di Adestio).
+                try {
+                    const { app: electronApp } = require('electron');
+                    const { getDB, saveDB } = require('../db');
+                    const capabilityBroker = require('../security/capabilityBroker');
+                    capabilityBroker.generateAppToken(appId, manifest.permissions || []);
+                    const registerApi = (action, fn) => {
+                        capabilityBroker.registerApiHandler(appId, action, (sourceAppId, payload) => fn(null, payload));
+                    };
+                    const ok = directBackendModule.registerBackendHandlers(registerApi, electronApp, {
+                        getDB, saveDB, AppDbManager
+                    });
+                    if (ok === false) throw new Error('registerBackendHandlers ha restituito false');
+                    _loaded.set(appId, { manifest: manifest, isProcess: false, directBackend: true });
+                } catch (directErr) {
+                    console.error(`[AppLoader Direct Backend Load Error: ${appId}]`, directErr);
+                    throw directErr;
                 }
-            } catch (backendErr) {
-                console.error(`[AppLoader Process Spawn Error: ${appId}]`, backendErr);
-                throw backendErr;
+            } else {
+                try {
+                    const spawned = appProcessManager.spawnAppProcess(appId, manifest, appDir);
+                    if (spawned) {
+                        _loaded.set(appId, { manifest: manifest, isProcess: true });
+                    } else {
+                        throw new Error('Impossibile avviare il processo child');
+                    }
+                } catch (backendErr) {
+                    console.error(`[AppLoader Process Spawn Error: ${appId}]`, backendErr);
+                    throw backendErr;
+                }
             }
         } else {
             _loaded.set(appId, { manifest: manifest, isProcess: false });
@@ -62,6 +99,15 @@ async function unloadApp(appId) {
     try {
         if (!_loaded.has(appId)) return false;
 
+        const entry = _loaded.get(appId);
+        if (entry && entry.directBackend) {
+            try {
+                const capabilityBroker = require('../security/capabilityBroker');
+                capabilityBroker.revokeAppToken(appId);
+            } catch (revokeErr) {
+                console.error(`[AppLoader revokeAppToken Error: ${appId}]`, revokeErr);
+            }
+        }
         appProcessManager.terminateAppProcess(appId);
         _loaded.delete(appId);
         return true;

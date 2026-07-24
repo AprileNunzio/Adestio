@@ -3,101 +3,126 @@ const { protocol, net, app } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
+function getMimeType(filePath) {
+    try {
+        const ext = path.extname(filePath).toLowerCase();
+        if (ext === '.css') return 'text/css; charset=utf-8';
+        if (ext === '.js') return 'text/javascript; charset=utf-8';
+        if (ext === '.html') return 'text/html; charset=utf-8';
+        if (ext === '.json') return 'application/json; charset=utf-8';
+        if (ext === '.png') return 'image/png';
+        if (ext === '.jpg' || ext === '.jpeg') return 'image/jpeg';
+        if (ext === '.svg') return 'image/svg+xml';
+        if (ext === '.woff2') return 'font/woff2';
+        return null;
+    } catch (e) {
+        return null;
+    }
+}
+
 function registerCustomProtocol() {
-    protocol.handle('adestio', async (request) => {
-        try {
-            const url = new URL(request.url);
-            let filePath = decodeURIComponent(url.pathname);
-            if (filePath.startsWith('/')) {
-                filePath = filePath.substring(1);
-            }
-            if (!filePath) filePath = 'index.html';
-            
-            const coreSrcPath = app.isPackaged 
-                ? path.join(process.resourcesPath, 'app.asar', 'src')
-                : path.join(__dirname, '..', '..', 'src');
+    try {
+        protocol.handle('adestio', async (request) => {
+            try {
+                const url = new URL(request.url);
+                let filePath = decodeURIComponent(url.pathname);
+                if (filePath.startsWith('/')) {
+                    filePath = filePath.substring(1);
+                }
+                if (!filePath) filePath = 'index.html';
                 
-            const absolutePath = path.resolve(coreSrcPath, filePath);
-            
-            if (!absolutePath.startsWith(path.resolve(coreSrcPath))) {
-                return new Response('Accesso negato', { status: 403 });
-            }
-            
-            if (!fs.existsSync(absolutePath)) {
-                return new Response('File non trovato', { status: 404 });
-            }
-            const response = await net.fetch(`file:///${absolutePath.replace(/\\/g, '/')}`);
-            return response;
-        } catch (e) {
-            console.error('[CustomProtocol] Errore adestio:', e);
-            return new Response('Internal Server Error', { status: 500 });
-        }
-    });
-
-    // Protocollo per servire le app di terze parti in modo sicuro
-    protocol.handle('adestio-app', async (request) => {
-        try {
-            const url = new URL(request.url);
-            // Il formato atteso è adestio-app://<app_id>/<file_path>
-            const appId = url.hostname;
-            let filePath = decodeURIComponent(url.pathname);
-            if (filePath.startsWith('/')) {
-                filePath = filePath.substring(1);
-            }
-
-            const appsDir = path.join(app.getPath('userData'), 'installed_apps');
-            const targetAppDir = path.join(appsDir, appId);
-
-            if (!fs.existsSync(targetAppDir)) {
-                return new Response('App non trovata', { status: 404 });
-            }
-
-            // Evita directory traversal attacks (es. ../../)
-            let absolutePath = path.resolve(targetAppDir, filePath);
-            
-            // Permetti alle app esterne di importare utility core (es. ../../js/utils.js)
-            // che il browser risolve in adestio-app://<app_id>/js/utils.js
-            if (filePath.startsWith('js/') || filePath.startsWith('css/') || filePath.startsWith('assets/')) {
                 const coreSrcPath = app.isPackaged 
                     ? path.join(process.resourcesPath, 'app.asar', 'src')
                     : path.join(__dirname, '..', '..', 'src');
-                absolutePath = path.resolve(coreSrcPath, filePath);
-            } else {
-                if (!absolutePath.startsWith(path.resolve(targetAppDir))) {
+                    
+                const absolutePath = path.resolve(coreSrcPath, filePath);
+                
+                if (!absolutePath.startsWith(path.resolve(coreSrcPath))) {
                     return new Response('Accesso negato', { status: 403 });
                 }
-            }
+                
+                if (!fs.existsSync(absolutePath)) {
+                    return new Response('File non trovato', { status: 404 });
+                }
+                const response = await net.fetch(`file:///${absolutePath.replace(/\\/g, '/')}`);
+                const newHeaders = new Headers(response.headers);
+                const mime = getMimeType(absolutePath);
+                if (mime) newHeaders.set('Content-Type', mime);
+                newHeaders.set('Access-Control-Allow-Origin', '*');
 
-            if (!fs.existsSync(absolutePath)) {
-                return new Response('File non trovato', { status: 404 });
-            }
-
-            if (request.method === 'OPTIONS') {
-                return new Response(null, {
-                    status: 204,
-                    headers: {
-                        'Access-Control-Allow-Origin': '*',
-                        'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-                        'Access-Control-Allow-Headers': '*'
-                    }
+                return new Response(response.body, {
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: newHeaders
                 });
+            } catch (e) {
+                console.error('[CustomProtocol] Errore adestio:', e);
+                return new Response('Internal Server Error', { status: 500 });
             }
+        });
 
-            // Otteniamo il file usando net.fetch (che gestisce automaticamente il MIME type)
-            const response = await net.fetch(`file:///${absolutePath.replace(/\\/g, '/')}`);
-            const newHeaders = new Headers(response.headers);
-            newHeaders.set('Access-Control-Allow-Origin', '*');
-            
-            return new Response(response.body, {
-                status: response.status,
-                statusText: response.statusText,
-                headers: newHeaders
-            });
-        } catch (e) {
-            console.error('[CustomProtocol] Errore:', e);
-            return new Response('Internal Server Error', { status: 500 });
-        }
-    });
+        protocol.handle('adestio-app', async (request) => {
+            try {
+                const url = new URL(request.url);
+                const appId = url.hostname;
+                let filePath = decodeURIComponent(url.pathname);
+                if (filePath.startsWith('/')) {
+                    filePath = filePath.substring(1);
+                }
+
+                const appsDir = path.join(app.getPath('userData'), 'installed_apps');
+                const targetAppDir = path.join(appsDir, appId);
+
+                if (!fs.existsSync(targetAppDir)) {
+                    return new Response('App non trovata', { status: 404 });
+                }
+
+                let absolutePath = path.resolve(targetAppDir, filePath);
+
+                if (!fs.existsSync(absolutePath)) {
+                    const coreSrcPath = app.isPackaged 
+                        ? path.join(process.resourcesPath, 'app.asar', 'src')
+                        : path.join(__dirname, '..', '..', 'src');
+                    const fallbackPath = path.resolve(coreSrcPath, filePath);
+                    if (fs.existsSync(fallbackPath)) {
+                        absolutePath = fallbackPath;
+                    }
+                }
+
+                if (!fs.existsSync(absolutePath)) {
+                    return new Response('File non trovato', { status: 404 });
+                }
+
+                if (request.method === 'OPTIONS') {
+                    return new Response(null, {
+                        status: 204,
+                        headers: {
+                            'Access-Control-Allow-Origin': '*',
+                            'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+                            'Access-Control-Allow-Headers': '*'
+                        }
+                    });
+                }
+
+                const response = await net.fetch(`file:///${absolutePath.replace(/\\/g, '/')}`);
+                const newHeaders = new Headers(response.headers);
+                const mime = getMimeType(absolutePath);
+                if (mime) newHeaders.set('Content-Type', mime);
+                newHeaders.set('Access-Control-Allow-Origin', '*');
+                
+                return new Response(response.body, {
+                    status: response.status,
+                    statusText: response.statusText,
+                    headers: newHeaders
+                });
+            } catch (e) {
+                console.error('[CustomProtocol] Errore adestio-app:', e);
+                return new Response('Internal Server Error', { status: 500 });
+            }
+        });
+    } catch (e) {
+        console.error('[CustomProtocol] Errore durante registrazione:', e);
+    }
 }
 
 module.exports = { registerCustomProtocol };
