@@ -522,7 +522,6 @@ export const STYLES = `
     border-radius: 2px;
     transition: width 0.4s ease;
 }
-/* Responsive Layout */
 @media (max-width: 1200px) {
     .nodes-stats-row {
         grid-template-columns: repeat(3, 1fr);

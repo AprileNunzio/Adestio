@@ -96,9 +96,9 @@ async function create(event, args) {
         const coreDb = getDB('auth');
         const userId = (args.user_id || '').trim();
         const now = Date.now();
-        // Una persona con questo CF potrebbe già esistere in uno stato "non recuperabile"
-        // dalla UI (eliminata logicamente, non collegata, oppure collegata a un utente
-        // non più attivo). In tutti questi casi la adottiamo per l'utente corrente invece
+        
+        
+        
         const existingRows = db.query('SELECT * FROM persone WHERE id = ?', [codiceFiscale]);
         if (existingRows.length > 0) {
             const existing = existingRows[0];

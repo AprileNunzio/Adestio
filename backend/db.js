@@ -1,6 +1,12 @@
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
 const crypto = require('crypto');
+const { app } = require('electron');
 const dbManager = require('./db/db_manager');
 const { deriveKeyForPurpose } = require('./security/network_key_derivation');
+
 function hashNetworkCode(code) {
     try {
         return deriveKeyForPurpose(code, 'network-membership-hash');
@@ -8,6 +14,7 @@ function hashNetworkCode(code) {
         return '';
     }
 }
+
 function generateNetworkCode() {
     try {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -18,6 +25,7 @@ function generateNetworkCode() {
         return '';
     }
 }
+
 function checkIsRegistered() {
     try {
         return dbManager.isRegistered();
@@ -25,13 +33,22 @@ function checkIsRegistered() {
         return false;
     }
 }
+
 async function unlockDB() {
     try {
-        return await dbManager.unlock();
+        const unlocked = await dbManager.unlock();
+        if (unlocked) {
+            try {
+                const mAudit = require('./migrations/audit');
+                await dbManager.loadDatabase('audit', mAudit);
+            } catch (eAudit) {}
+        }
+        return unlocked;
     } catch (e) {
         return false;
     }
 }
+
 async function autoUnlockDB() {
     try {
         if (checkIsRegistered()) {
@@ -42,6 +59,7 @@ async function autoUnlockDB() {
         return false;
     }
 }
+
 async function initEmptyDB(networkName) {
     try {
         const networkCode = generateNetworkCode();
@@ -56,6 +74,7 @@ async function initEmptyDB(networkName) {
         const mStore = require('./migrations/store');
         const mAnagrafica = require('./migrations/anagrafica');
         const mAzienda = require('./migrations/azienda');
+        const mAudit = require('./migrations/audit');
         await dbManager.loadDatabase('auth', mAuth);
         await dbManager.loadDatabase('config', mConfig);
         await dbManager.loadDatabase('ledger', mLedger);
@@ -63,6 +82,7 @@ async function initEmptyDB(networkName) {
         await dbManager.loadDatabase('store', mStore);
         await dbManager.loadDatabase('app_anagrafica', mAnagrafica);
         await dbManager.loadDatabase('app_azienda', mAzienda);
+        await dbManager.loadDatabase('audit', mAudit);
         const hashedCode = hashNetworkCode(networkCode);
         const nodeId = crypto.randomBytes(16).toString('hex');
         const configDb = dbManager.getDB('config');
@@ -76,6 +96,7 @@ async function initEmptyDB(networkName) {
         throw e;
     }
 }
+
 function getDB(domain = 'auth') {
     try {
         return dbManager.getDB(domain);
@@ -83,6 +104,7 @@ function getDB(domain = 'auth') {
         throw e;
     }
 }
+
 async function saveDB(domain = null) {
     try {
         if (domain) {
@@ -95,6 +117,7 @@ async function saveDB(domain = null) {
         return false;
     }
 }
+
 async function forceResetDB() {
     try {
         return await dbManager.reset();
@@ -102,6 +125,7 @@ async function forceResetDB() {
         return false;
     }
 }
+
 async function verifyNetworkCodeLocally(code) {
     try {
         const configDb = dbManager.getDB('config');
@@ -110,10 +134,11 @@ async function verifyNetworkCodeLocally(code) {
             return hashNetworkCode(code) === res[0].key_value;
         }
         return false;
-    } catch(e) {
+    } catch (e) {
         return false;
     }
 }
+
 async function importClonedDB(buffer, networkCode, networkName) {
     try {
         dbManager.setActiveNode(networkName);
@@ -126,11 +151,13 @@ async function importClonedDB(buffer, networkCode, networkName) {
         const mApp = require('./migrations/app_data');
         const mStore = require('./migrations/store');
         const mAnagrafica = require('./migrations/anagrafica');
+        const mAudit = require('./migrations/audit');
         await dbManager.loadDatabase('auth', mAuth);
         await dbManager.loadDatabase('config', mConfig);
         await dbManager.loadDatabase('app', mApp);
         await dbManager.loadDatabase('store', mStore);
         await dbManager.loadDatabase('app_anagrafica', mAnagrafica);
+        await dbManager.loadDatabase('audit', mAudit);
         const SqlJsAdapter = require('./db/SqlJsAdapter');
         const ledgerAdapter = new SqlJsAdapter();
         await ledgerAdapter.connect({ buffer });
@@ -155,10 +182,11 @@ async function importClonedDB(buffer, networkCode, networkName) {
         } catch (e) {}
         dbManager.setActiveNode(finalNetworkName);
         return true;
-    } catch(e) {
+    } catch (e) {
         return false;
     }
 }
+
 async function getNodeId() {
     try {
         const configDb = dbManager.getDB('config');
@@ -169,6 +197,7 @@ async function getNodeId() {
         return null;
     }
 }
+
 async function getNetworkCodeHash() {
     try {
         const configDb = dbManager.getDB('config');
@@ -179,22 +208,29 @@ async function getNetworkCodeHash() {
         return null;
     }
 }
+
 function _isSafeIdentifier(name) {
-    return typeof name === 'string' && /^[a-z_][a-z0-9_]{0,62}$/i.test(name);
+    try {
+        return typeof name === 'string' && /^[a-z_][a-z0-9_]{0,62}$/i.test(name);
+    } catch (e) {
+        return false;
+    }
 }
+
 async function getRowsSince(domain, tableName, timestamp) {
     try {
         if (!_isSafeIdentifier(tableName)) return [];
         const db = dbManager.getDB(domain);
         return await db.query(`SELECT * FROM ${tableName} WHERE last_modified > ?`, [timestamp]);
-    } catch(e) {
+    } catch (e) {
         return [];
     }
 }
+
 async function upsertRows(domain, tableName, rows) {
     try {
         if (!rows || rows.length === 0) return;
-        if (!_isSafeIdentifier(tableName)) { console.error('[DB] upsertRows: tableName non valido:', tableName); return; }
+        if (!_isSafeIdentifier(tableName)) return;
         const db = dbManager.getDB(domain);
         await db.execute('BEGIN TRANSACTION;');
         let changesMade = false;
@@ -221,17 +257,15 @@ async function upsertRows(domain, tableName, rows) {
                     }
                     changesMade = true;
                 }
-            } catch (err) {
-                console.error(`[DB] upsertRows: errore riga in ${tableName}:`, err.message);
-            }
+            } catch (err) {}
         }
         await db.execute('COMMIT;');
         if (changesMade) await dbManager.saveDatabase(domain);
-    } catch(e) {
-        try { const db = dbManager.getDB(domain); await db.execute('ROLLBACK;'); } catch(_) {}
-        console.error(`[DB] upsertRows: errore transazione in ${tableName}:`, e.message);
+    } catch (e) {
+        try { const db = dbManager.getDB(domain); await db.execute('ROLLBACK;'); } catch (_) {}
     }
 }
+
 function notifyDataChanged(tableName, modifiedRows) {
     try {
         const { triggerLegacyPush } = require('./sync_engine');
@@ -245,28 +279,64 @@ function notifyDataChanged(tableName, modifiedRows) {
         if (tableName === 'installed_apps') {
             const store = require('./handlers/store');
             if (typeof store.syncNetworkApps === 'function') {
-                store.syncNetworkApps().catch(e => console.error('[Store] syncNetworkApps from notifyDataChanged error:', e));
+                store.syncNetworkApps().catch(e => {});
             }
         }
-    } catch (e) {
-        console.error(`[DB] notifyDataChanged errore per tabella ${tableName}:`, e.message);
-    }
+    } catch (e) {}
 }
+
 function wrapMutationWithEvent(eventType, tableName, recordId, payload) {
     try {
         const { createBlock } = require('./blockchain');
         const block = createBlock(eventType, tableName, String(recordId), payload);
-        if (!block) { console.error(`[DB] wrapMutationWithEvent: createBlock ha restituito null per ${tableName}/${recordId}`); return; }
+        if (!block) return;
         try {
             const { triggerEventDrivenPush } = require('./sync_engine');
             triggerEventDrivenPush(block);
-        } catch (pushErr) {
-            console.error(`[DB] wrapMutationWithEvent: errore propagazione blocco ${tableName}/${recordId}:`, pushErr.message);
+        } catch (pushErr) {}
+    } catch (e) {}
+}
+
+function backupAllDatabases() {
+    try {
+        const dbDir = path.join(app.getPath('userData'), 'db');
+        if (!fs.existsSync(dbDir)) return false;
+        const backupDir = path.join(app.getPath('userData'), 'db_backups', new Date().toISOString().split('T')[0]);
+        if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+
+        const files = fs.readdirSync(dbDir);
+        for (const f of files) {
+            try {
+                fs.copyFileSync(path.join(dbDir, f), path.join(backupDir, f));
+            } catch (eCopy) {}
         }
+        return true;
     } catch (e) {
-        console.error(`[DB] wrapMutationWithEvent: errore creazione blocco per ${tableName}/${recordId}:`, e.message);
+        return false;
     }
 }
+
+function verifyDatabasesIntegrity() {
+    try {
+        const domains = ['auth', 'config', 'ledger', 'app', 'store', 'anagrafica', 'azienda', 'audit'];
+        const results = {};
+        for (const domain of domains) {
+            try {
+                const db = dbManager.getDB(domain);
+                if (db && typeof db.query === 'function') {
+                    const res = db.query('PRAGMA integrity_check');
+                    results[domain] = res && res[0] ? (res[0].integrity_check || res[0]['PRAGMA integrity_check']) : 'ok';
+                }
+            } catch (eDom) {
+                results[domain] = eDom.message;
+            }
+        }
+        return results;
+    } catch (e) {
+        return { error: e.message };
+    }
+}
+
 module.exports = {
     checkIsRegistered,
     initEmptyDB,
@@ -283,5 +353,7 @@ module.exports = {
     notifyDataChanged,
     wrapMutationWithEvent,
     getNodeId,
-    getNetworkCodeHash
+    getNetworkCodeHash,
+    backupAllDatabases,
+    verifyDatabasesIntegrity
 };

@@ -101,7 +101,7 @@ export default {
                 });
             });
 
-            // Initial render
+            
             renderTab('generali');
 
         } catch (e) {

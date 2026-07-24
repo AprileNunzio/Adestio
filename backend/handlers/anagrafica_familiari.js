@@ -50,7 +50,7 @@ function verifyGdprConsistency(db, args, codiceFiscale) {
         const cognomeUpper = (args.cognome || '').trim().toUpperCase();
         const pNomeUpper = (p.nome || '').trim().toUpperCase();
         const pCognomeUpper = (p.cognome || '').trim().toUpperCase();
-        // Verifica corrispondenza. Se c'è una discrepanza, generiamo un errore generico per non divulgare i dati reali
+        
         if (nomeUpper !== pNomeUpper || cognomeUpper !== pCognomeUpper) {
             throw new Error("I dati anagrafici forniti non corrispondono a quelli registrati a sistema per questo Codice Fiscale.");
         }

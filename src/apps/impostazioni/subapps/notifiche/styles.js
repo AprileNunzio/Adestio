@@ -136,7 +136,6 @@ export const STYLES = `
     gap: 1rem;
     flex-shrink: 0;
 }
-/* Preferences Panel */
 .not-panel {
     background: var(--md-surface);
     backdrop-filter: blur(20px);
@@ -164,8 +163,6 @@ export const STYLES = `
 }
 .not-prefs-list {
     display: grid;
-    /* min 420px: card spaziose che vanno a capo su piu righe quando serve
-       (2 colonne su schermi larghi, 1 su schermi stretti) */
     grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
     gap: 1rem;
     padding: 1rem;
@@ -195,8 +192,6 @@ export const STYLES = `
     color: var(--md-primary);
     flex-shrink: 0;
 }
-/* min-width:0 permette al testo di comprimersi: assorbe lo spazio mancante
-   così i toggle a destra restano sempre visibili invece di venire tagliati */
 .not-cat-info { flex: 1; min-width: 0; }
 .not-cat-title {
     font-weight: 700;
@@ -215,7 +210,6 @@ export const STYLES = `
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
-/* flex-shrink:0 sui toggle: hanno priorità, non si comprimono mai */
 .not-cat-toggles { display: flex; gap: 0.85rem; flex-shrink: 0; }
 .not-toggle {
     display: flex;
@@ -252,7 +246,6 @@ export const STYLES = `
 }
 .not-switch input:checked + .not-switch-track { background: var(--md-primary); }
 .not-switch input:checked + .not-switch-track::before { transform: translateX(16px); }
-/* History Table Section */
 .not-table-section {
     flex-shrink: 0;
     animation: notFadeIn 0.5s ease-out 0.25s backwards;

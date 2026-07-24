@@ -1,15 +1,33 @@
 'use strict';
 
 const crypto = require('crypto');
+const appMetrics = require('../observability/appMetrics');
+const auditLogger = require('../observability/auditLogger');
+
+const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 class CapabilityBroker {
     constructor() {
         try {
             this.appTokens = new Map();
             this.registeredHandlers = new Map();
-        } catch (error) {
-            console.error('[CapabilityBroker constructor Error]', error);
-        }
+            this._startGarbageCollector();
+        } catch (error) {}
+    }
+
+    _startGarbageCollector() {
+        try {
+            setInterval(() => {
+                try {
+                    const now = Date.now();
+                    this.appTokens.forEach((info, appId) => {
+                        if (info.expiresAt && now > info.expiresAt) {
+                            this.revokeAppToken(appId);
+                        }
+                    });
+                } catch (e) {}
+            }, 60 * 60 * 1000);
+        } catch (e) {}
     }
 
     generateAppToken(appId, permissions) {
@@ -19,12 +37,12 @@ class CapabilityBroker {
                 appId: appId,
                 secret: secret,
                 permissions: new Set(permissions || []),
-                createdAt: Date.now()
+                createdAt: Date.now(),
+                expiresAt: Date.now() + TOKEN_TTL_MS
             };
             this.appTokens.set(appId, tokenInfo);
             return secret;
         } catch (error) {
-            console.error(`[CapabilityBroker generateAppToken Error: ${appId}]`, error);
             return null;
         }
     }
@@ -33,9 +51,7 @@ class CapabilityBroker {
         try {
             this.appTokens.delete(appId);
             this.registeredHandlers.delete(appId);
-        } catch (error) {
-            console.error(`[CapabilityBroker revokeAppToken Error: ${appId}]`, error);
-        }
+        } catch (error) {}
     }
 
     verifyCapability(appId, requiredPermission) {
@@ -43,9 +59,12 @@ class CapabilityBroker {
             if (!this.appTokens.has(appId)) return false;
             const tokenInfo = this.appTokens.get(appId);
             if (!tokenInfo || !tokenInfo.permissions) return false;
+            if (tokenInfo.expiresAt && Date.now() > tokenInfo.expiresAt) {
+                this.revokeAppToken(appId);
+                return false;
+            }
             return tokenInfo.permissions.has(requiredPermission) || tokenInfo.permissions.has('*');
         } catch (error) {
-            console.error(`[CapabilityBroker verifyCapability Error: ${appId}]`, error);
             return false;
         }
     }
@@ -59,14 +78,15 @@ class CapabilityBroker {
             appMap.set(action, handlerFn);
             return true;
         } catch (error) {
-            console.error(`[CapabilityBroker registerApiHandler Error: ${appId}]`, error);
             return false;
         }
     }
 
     async routeIpcCall(sourceAppId, targetAppId, action, payload) {
+        const start = Date.now();
         try {
-            if (!this.appTokens.has(sourceAppId)) {
+            if (sourceAppId !== 'core' && sourceAppId !== 'core:gdpr' && !this.appTokens.has(sourceAppId)) {
+                auditLogger.logEvent(sourceAppId, 'UNAUTHORIZED_IPC', 'app', targetAppId, { action }, 'FAILURE');
                 throw new Error(`Non autorizzato: sorgente ${sourceAppId} non valida`);
             }
             if (!this.registeredHandlers.has(targetAppId)) {
@@ -79,13 +99,14 @@ class CapabilityBroker {
 
             const handler = targetMap.get(action);
             if (typeof handler !== 'function') {
-                throw new Error(`Handler non valido per aziona ${action}`);
+                throw new Error(`Handler non valido per azione ${action}`);
             }
 
             const result = await Promise.resolve(handler(sourceAppId, payload));
+            appMetrics.recordIpcInvocation(targetAppId, action, Date.now() - start, true);
             return result;
         } catch (error) {
-            console.error(`[CapabilityBroker routeIpcCall Error ${sourceAppId} -> ${targetAppId}]`, error);
+            appMetrics.recordIpcInvocation(targetAppId, action, Date.now() - start, false, error.message);
             throw error;
         }
     }

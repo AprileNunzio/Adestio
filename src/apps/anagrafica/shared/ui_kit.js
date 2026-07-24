@@ -53,10 +53,6 @@ export function guidaHtml(o) {
             </div>
         </details>
     `;
-}
-/* ---- Campo di form condiviso: etichetta statica + icona + suggerimento ---- */
-/* Uso label statica (sempre visibile) invece di floating label: più chiara per
-   qualsiasi utente e pienamente accessibile via <label for>. */
 export function campoHtml(field, value, idPrefix = 'crud-field-') {
     const id = `${idPrefix}${field.key}`;
     const val = value === undefined || value === null ? '' : value;
@@ -134,7 +130,6 @@ export function leggiCampo(el, field, idPrefix = 'crud-field-') {
 export const AK_STYLES = `
 <style>
     .ak-root { width:100%; height:100%; display:flex; flex-direction:column; gap:1rem; min-height:0; }
-    /* ---------- HERO ---------- */
     .ak-hero {
         position:relative; overflow:hidden; border-radius:20px;
         background:var(--ak-grad); padding:1rem 1.4rem;
@@ -164,7 +159,6 @@ export const AK_STYLES = `
     .ak-hero-btn:hover { transform:translateY(-2px); box-shadow:0 8px 18px rgba(0,0,0,0.25); }
     .ak-hero-btn:active { transform:translateY(0); }
     .ak-hero-btn .material-symbols-rounded { font-size:1.2rem; }
-    /* ---------- GUIDA (istruzioni) ---------- */
     .ak-guide {
         border:1px solid var(--md-outline-variant); border-left:4px solid var(--ak-accent);
         border-radius:14px; background:var(--md-surface-container-lowest); overflow:hidden;
@@ -189,7 +183,6 @@ export const AK_STYLES = `
         flex-shrink:0; width:22px; height:22px; border-radius:50%; background:var(--ak-accent); color:#fff;
         font-size:0.75rem; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:1px;
     }
-    /* ---------- PANNELLO / CARD ---------- */
     .ak-panel {
         flex:1; min-height:0; display:flex; flex-direction:column;
         background:var(--md-surface); border:1px solid var(--md-outline-variant);
@@ -201,7 +194,6 @@ export const AK_STYLES = `
     .ak-toolbar h3 { margin:0; font-family:var(--font-heading); font-size:1.05rem; color:var(--md-on-surface); }
     .ak-count { font-size:0.8rem; color:var(--md-on-surface-variant); font-weight:600;
         background:var(--md-surface-variant); padding:0.15rem 0.6rem; border-radius:999px; margin-left:0.5rem; }
-    /* ---------- CAMPI FORM ---------- */
     .ak-form-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:0.9rem 1rem; }
     .ak-section { border:1px solid var(--md-outline-variant); border-radius:14px; padding:1rem 1.1rem 1.1rem;
         background:var(--md-surface-container-lowest); margin-bottom:1rem; }
@@ -233,7 +225,6 @@ export const AK_STYLES = `
     .ak-input:focus { border-color:var(--md-primary); box-shadow:0 0 0 3px var(--md-outline-focus); background:var(--md-surface); }
     .ak-input:disabled { background:var(--md-surface-variant); color:var(--md-on-surface-variant); cursor:not-allowed; }
     .ak-hint { font-size:0.74rem; color:var(--md-on-surface-variant); padding-left:0.15rem; line-height:1.35; }
-    /* Checkbox custom accessibile */
     .ak-check { display:flex; align-items:flex-start; gap:0.6rem; cursor:pointer; padding:0.55rem 0.2rem; }
     .ak-check input { position:absolute; opacity:0; width:1px; height:1px; }
     .ak-check-box { flex-shrink:0; width:22px; height:22px; border-radius:7px; border:2px solid var(--md-outline);
@@ -245,7 +236,6 @@ export const AK_STYLES = `
     .ak-check input:focus-visible + .ak-check-box { outline:3px solid var(--md-outline-focus); outline-offset:2px; }
     .ak-check-text { font-size:0.9rem; font-weight:600; color:var(--md-on-surface); line-height:1.3; }
     .ak-check-text .ak-hint { font-weight:400; }
-    /* ---------- CARD ELENCO ---------- */
     .ak-cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(clamp(230px, 27vw, 300px), 1fr)); gap:1rem; }
     .ak-card {
         position:relative; background:var(--md-surface-container-lowest);
@@ -269,12 +259,10 @@ export const AK_STYLES = `
     .ak-iconbtn.danger { color:var(--md-error); }
     .ak-iconbtn.danger:hover { background:var(--md-error); border-color:var(--md-error); color:#fff; }
     .ak-iconbtn .material-symbols-rounded { font-size:1.15rem; }
-    /* ---------- STATO VUOTO ---------- */
     .ak-empty { text-align:center; padding:2.5rem 1rem; color:var(--md-on-surface-variant); display:flex; flex-direction:column; align-items:center; gap:0.4rem; }
     .ak-empty .material-symbols-rounded { font-size:3rem; color:var(--md-outline-variant); }
     .ak-empty h4 { margin:0.3rem 0 0; color:var(--md-on-surface); font-weight:700; }
     .ak-empty p { margin:0; font-size:0.9rem; }
-    /* ---------- MODALE ---------- */
     .ak-modal { display:none; position:fixed; inset:0; z-index:10000; align-items:center; justify-content:center;
         background:rgba(15,23,42,0.45); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); opacity:0; transition:opacity .25s ease; }
     .ak-modal-card { width:min(94vw, 560px); max-height:90vh; overflow-y:auto; background:var(--md-surface-container-lowest);
@@ -311,7 +299,6 @@ export const AK_STYLES = `
         .ak-form-grid { grid-template-columns:1fr; }
         .ak-toolbar { flex-direction:column; align-items:stretch; }
     }
-    /* --- Compatibilità componente audit condiviso (audit_trail_button.js) --- */
     .btn-icon-action { background:transparent; border:1px solid var(--md-outline-variant); color:var(--md-on-surface-variant);
         cursor:pointer; width:34px; height:34px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; transition:all .15s ease; }
     .btn-icon-action:hover { background:var(--md-primary); border-color:var(--md-primary); color:#fff; }
@@ -319,7 +306,6 @@ export const AK_STYLES = `
     .ak-hero .btn-icon-action { width:40px; height:40px; border-radius:12px;
         background:rgba(255,255,255,0.18); border:1px solid rgba(255,255,255,0.35); color:#fff; }
     .ak-hero .btn-icon-action:hover { background:rgba(255,255,255,0.32); border-color:rgba(255,255,255,0.6); }
-    /* Record dello storico revisioni (audit modal) */
     .scheda-record { background:var(--md-surface-container-lowest); border:1px solid var(--md-outline-variant);
         border-left:4px solid var(--md-primary); border-radius:12px; padding:1rem; margin-bottom:0.8rem; }
     .scheda-record-title { font-weight:700; color:var(--md-on-surface); }

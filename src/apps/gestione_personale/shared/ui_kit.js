@@ -53,10 +53,6 @@ export function guidaHtml(o) {
             </div>
         </details>
     `;
-}
-/* ---- Campo di form condiviso: etichetta statica + icona + suggerimento ---- */
-/* Uso label statica (sempre visibile) invece di floating label: più chiara per
-   qualsiasi utente e pienamente accessibile via <label for>. */
 export function campoHtml(field, value, idPrefix = 'crud-field-') {
     const id = `${idPrefix}${field.key}`;
     const val = value === undefined || value === null ? '' : value;
@@ -147,7 +143,6 @@ export function toISODate(value) {
     if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
     return s;
 }
-/* ------------------------------ Stili condivisi ------------------------------ */
 export const AK_STYLES = `
 <style>
     .ak-root { width:100%; height:100%; display:flex; flex-direction:column; gap:1rem; min-height:0; }

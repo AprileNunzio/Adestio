@@ -306,7 +306,7 @@ export default {
             });
             html += '</div>';
             tabContent.innerHTML = html;
-            // Bind events
+            
             tabContent.querySelectorAll('.btn-edit').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     const id = e.currentTarget.getAttribute('data-id');

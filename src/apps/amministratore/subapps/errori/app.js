@@ -108,7 +108,7 @@ export default {
                     `;
                 }).join('');
 
-                // Attach event listeners for delete buttons
+                
                 el.querySelectorAll('.btn-delete-log').forEach(btn => {
                     btn.addEventListener('click', async (e) => {
                         const id = e.currentTarget.getAttribute('data-id');

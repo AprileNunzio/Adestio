@@ -141,7 +141,7 @@ function registerAllIPCHandlers(windowManager) {
                         if (usersRes && usersRes[0] && usersRes[0].c === 0) allowed = true;
                     }
                 } catch(e) {
-                    allowed = true; // Se il DB è rotto e genera eccezioni, permettiamo il reset
+                    allowed = true; 
                 }
                 if (!allowed) return { success: false, error: 'Permesso negato' };
                 const pathsToWipe = [
@@ -1027,8 +1027,78 @@ function registerAllIPCHandlers(windowManager) {
                 return { success: false, error: err.message };
             }
         });
-    } catch (e) {
-        console.error('[ipcRouter] Error registering handlers:', e);
-    }
+
+        ipcMain.handle('license:status', async () => {
+            try {
+                const licenseHandlers = require('../handlers/license');
+                return licenseHandlers.getLicenseStatus();
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('license:activate', async (_, args) => {
+            try {
+                const licenseHandlers = require('../handlers/license');
+                return licenseHandlers.activateLicense(args);
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('gdpr:eraseSubject', async (_, args) => {
+            try {
+                const gdprManager = require('../security/gdprManager');
+                return await gdprManager.eraseSubjectData(args?.personId, args?.tenantId);
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('gdpr:exportSubject', async (_, args) => {
+            try {
+                const gdprManager = require('../security/gdprManager');
+                return gdprManager.exportSubjectData(args?.personId, args?.tenantId);
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('store:rollbackApp', async (_, args) => {
+            try {
+                const AppUpdateManager = require('./AppUpdateManager');
+                return await AppUpdateManager.rollbackApp(args?.appId);
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+
+        ipcMain.handle('health:getStatus', async () => {
+            try {
+                const HealthMonitor = require('./HealthMonitor');
+                return HealthMonitor.getSystemHealth();
+            } catch (e) {
+                return { status: 'ERROR', error: e.message };
+            }
+        });
+
+        ipcMain.handle('health:getAuditLogs', async (_, args) => {
+            try {
+                const auditLogger = require('../observability/auditLogger');
+                return auditLogger.getAuditLogs(args?.filters || {}, args?.limit || 100);
+            } catch (e) {
+                return [];
+            }
+        });
+
+        ipcMain.handle('health:getAppMetrics', async (_, args) => {
+            try {
+                const appMetrics = require('../observability/appMetrics');
+                return appMetrics.getAppMetrics(args?.appId || null);
+            } catch (e) {
+                return {};
+            }
+        });
+    } catch (e) {}
 }
 module.exports = { registerAllIPCHandlers };

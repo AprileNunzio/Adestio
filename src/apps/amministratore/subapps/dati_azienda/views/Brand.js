@@ -3,8 +3,8 @@ import { toast } from '../../../../../js/utils.js';
 export default {
     render: async (container, configCache, saveConfig) => {
         try {
-            // Add font faces
-            // Add font faces
+            
+            
             const style = document.createElement('style');
             style.innerHTML = `
                 @font-face {
@@ -118,7 +118,7 @@ export default {
             let b64Timbro = configCache.img_timbro || '';
             let b64Firma = configCache.img_firma || '';
 
-            // Toggle Firma Mode
+            
             const uploadCont = container.querySelector('#da-firma-upload-container');
             const genCont = container.querySelector('#da-firma-generate-container');
             container.querySelectorAll('input[name="firma_mode"]').forEach(radio => {
@@ -133,12 +133,12 @@ export default {
                 });
             });
 
-            // Generation Logic
+            
             const generateFirmaLive = () => {
                 const text = container.querySelector('#da-firma-text').value.trim();
                 const font = container.querySelector('#da-firma-font').value;
                 if (!text) {
-                    return; // Don't generate empty
+                    return; 
                 }
 
                 const canvas = document.createElement('canvas');
@@ -146,12 +146,12 @@ export default {
                 canvas.height = 200;
                 const ctx = canvas.getContext('2d');
                 
-                // Clear background (transparent)
+                
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 
-                // Draw text
+                
                 ctx.font = `60px ${font}`;
-                ctx.fillStyle = '#000080'; // Dark blue ink
+                ctx.fillStyle = '#000080'; 
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(text, canvas.width / 2, canvas.height / 2);

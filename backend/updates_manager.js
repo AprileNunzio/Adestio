@@ -97,7 +97,7 @@ class UpdatesManager {
             const command = `powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "Start-Process -FilePath '${safeInstallerPath}' -ArgumentList '/S' -Verb RunAs"`;
             exec(command, (err) => {
                 if (!err) {
-                    setTimeout(() => app.quit(), 500); // Give it a half second to spawn before quitting
+                    setTimeout(() => app.quit(), 500);
                 } else {
                     console.error('[UpdatesManager] Errore avvio setup (Elevazione):', err);
                 }

@@ -113,8 +113,8 @@ async function fetchWithTimeout(url, options, timeoutMs) {
     }
 }
 
-// Valida un candidato marketplace.json di terze parti prima di salvarlo: deve essere
-// raggiungibile via HTTPS e contenere un array JSON di manifest con almeno un "id".
+
+
 async function validateMarketplaceSource(url) {
     try {
         if (!/^https:\/\//i.test(url)) {
@@ -161,8 +161,8 @@ async function fetchRemoteMarketplace(forceRefresh = false) {
         }
 
         if (!officialData || !Array.isArray(officialData)) {
-            // Sorgente ufficiale irraggiungibile (sia primaria che fallback): manteniamo la
-            // cache precedente cosi' com'e' invece di pubblicare un elenco senza le app NunzioTech.
+            
+            
             return marketplaceCache || [];
         }
 
@@ -247,10 +247,10 @@ async function listRepositories() {
     }
 }
 
-// Dall'unico URL incollato dall'utente, deriva: 1-2 URL candidati da provare
-// (nel caso di un repo GitHub "nudo" si prova sia il branch main che master),
-// un'etichetta leggibile e un tipo (solo per l'icona in UI). Nessun altro
-// campo va richiesto manualmente: tutto il resto arriva dal marketplace.json.
+
+
+
+
 function resolveRepositoryInput(rawUrl) {
     try {
         const url = String(rawUrl).trim();
@@ -510,9 +510,9 @@ async function install(event, appId) {
         if (!accessGuard.isSuperadmin()) return { success: false, error: 'Permesso negato' };
         if (!appId) return { success: false, error: 'appId mancante' };
 
-        // Un'installazione/aggiornamento manuale dallo Store condivide il lock con
-        // AppUpdateManager: se l'app e' gia' in aggiornamento in background evitiamo
-        // che due processi scrivano contemporaneamente sulla stessa cartella.
+        
+        
+        
         if (AppUpdateManager.isLocked(appId)) {
             return { success: false, error: 'Applicazione già in aggiornamento in background. Riprova tra qualche istante.' };
         }
@@ -600,8 +600,8 @@ async function install(event, appId) {
         await saveDB('store');
 
         try {
-            // Un'app appena installata/aggiornata puo' introdurre permessi mai visti
-            // prima: sincronizzali subito, non aspettare che un admin apra Sistema RBAC.
+            
+            
             require('./rbac').syncPermissionsFromManifests();
         } catch (rbacErr) {
             console.error('[Store] Errore sync permessi RBAC post-install:', rbacErr);

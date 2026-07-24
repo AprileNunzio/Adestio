@@ -45,7 +45,6 @@ export default {
                 .app-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); border-color: var(--md-primary); }
                 .perm-row { display: flex; justify-content: space-between; align-items: center; padding: 1rem; border-bottom: 1px solid var(--md-outline-variant); }
                 .perm-row:last-child { border-bottom: none; }
-                /* Switch Toggle */
                 .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
                 .switch input { opacity: 0; width: 0; height: 0; }
                 .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px; }
@@ -207,7 +206,7 @@ export default {
                         </label>
                     </div>
                 `;
-                // Permessi App Level
+                
                 if (app.rbacPermissions && app.rbacPermissions.length > 0) {
                     html += `<div style="background: var(--md-surface-variant); border-radius: 12px; margin-bottom: 2rem;">`;
                     app.rbacPermissions.forEach(p => {
@@ -227,7 +226,7 @@ export default {
                     });
                     html += `</div>`;
                 }
-                // Permessi SubApp Level
+                
                 subapps.forEach(sub => {
                     if (sub.rbacPermissions && sub.rbacPermissions.length > 0) {
                         const subIconPath = (app.core || app.bundled)

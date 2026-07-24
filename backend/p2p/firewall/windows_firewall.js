@@ -95,7 +95,7 @@ foreach ($r in $rules) {
     Invoke-Expression $cmd
 }
 `;
-            // Encode per powershell -EncodedCommand (UTF-16LE Base64)
+            
             const encodedCmd = Buffer.from(psScript, 'utf16le').toString('base64');
             try {
                 const { exec } = require('child_process');

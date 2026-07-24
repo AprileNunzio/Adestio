@@ -64,16 +64,16 @@ function syncPermissionsFromManifests(event) {
         if (!db) throw new Error('DB non inizializzato');
         const ts = getTimestamp();
 
-        // Rimuove le righe "id:undefined" generate da vecchie versioni che leggevano
-        // erroneamente il campo capabilityBroker `permissions` (stringhe) delle app
-        // di terze parti come se fossero oggetti {id,label,default} del sistema RBAC.
+        
+        
+        
         _cleanupStalePermissions(db);
 
-        // App predefinite
+        
         const appsPath = path.join(__dirname, '..', '..', 'src', 'apps');
         _processAppsDir(appsPath, db, ts);
         
-        // App di terze parti
+        
         try {
             const { app } = require('electron');
             if (app) {
@@ -89,11 +89,11 @@ function syncPermissionsFromManifests(event) {
         return false;
     }
 }
-// Le versioni precedenti leggevano il campo `permissions` di TUTTE le app (incluse
-// quelle di terze parti installate dallo Store) aspettandosi oggetti {id,label,default},
-// ma le app di terze parti usano quel campo per le stringhe di scope del capabilityBroker
-// (es. "businessSuite:*"). Iterando una stringa, `p.id` risultava undefined e produceva
-// una riga fantasma "<app>:undefined" nelle tabelle dei permessi. Questa funzione la ripulisce.
+
+
+
+
+
 function _cleanupStalePermissions(db) {
     try {
         const stale = db.query("SELECT id FROM permissions WHERE id LIKE '%:undefined'");
@@ -120,13 +120,13 @@ function _upsertPermission(db, permId, p, description, ts) {
         console.error(e);
     }
 }
-// Un permesso dichiarato "default: true" nel manifest viene concesso a tutti gli
-// utenti esistenti SOLO qui, alla primissima scoperta (ramo "permesso nuovo" di
-// _upsertPermission, eseguito una volta sola nella vita di quel permesso): se un
-// admin lo revoca in seguito, nessun sync successivo lo riconcedera', perche' la
-// riga in "permissions" esiste gia' e questo ramo non viene piu' eseguito. Viene
-// anche marcato in permission_defaults, cosi' i nuovi utenti creati in futuro lo
-// ricevono automaticamente (vedi grantDefaultPermissionsToUser).
+
+
+
+
+
+
+
 function _grantDefaultPermissionToAllUsers(db, permId, ts) {
     try {
         const existingDefault = db.query('SELECT permission_id FROM permission_defaults WHERE permission_id = ?', [permId]);
@@ -144,9 +144,9 @@ function _grantDefaultPermissionToAllUsers(db, permId, ts) {
         console.error(e);
     }
 }
-// Concede ad un utente APPENA CREATO tutti i permessi gia' marcati come default dal
-// software, cosi' un nuovo account non parte con una dashboard vuota in attesa che
-// un admin configuri manualmente ogni singolo permesso.
+
+
+
 function grantDefaultPermissionsToUser(userId) {
     try {
         const db = getDB();

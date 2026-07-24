@@ -2,8 +2,12 @@
 
 const path = require('path');
 const fs = require('fs');
+const { app } = require('electron');
 const AppDbManager = require('./AppDbManager');
 const appProcessManager = require('./appProcessManager');
+const licenseManager = require('../security/licenseManager');
+const cryptoVerifier = require('../security/cryptoVerifier');
+const auditLogger = require('../observability/auditLogger');
 
 const _loaded = new Map();
 const APPS_PATH = path.join(__dirname, '../../src/apps');
@@ -16,21 +20,47 @@ async function loadApp(manifest) {
             return true;
         }
 
+        const safeMode = process.env.ADESTIO_SAFE_MODE === 'true' || fs.existsSync(path.join(app.getPath('userData'), 'SAFE_MODE'));
+        if (safeMode && !manifest.core && !manifest.bundled) {
+            auditLogger.logEvent('system', 'APP_LOAD_SKIPPED_SAFE_MODE', 'app', appId);
+            return false;
+        }
+
+        const currentCoreVersion = app.getVersion();
+        if (manifest.minCoreVersion && currentCoreVersion < manifest.minCoreVersion) {
+            auditLogger.logEvent('system', 'APP_LOAD_INCOMPATIBLE', 'app', appId, { minCoreVersion: manifest.minCoreVersion, currentCoreVersion });
+            return false;
+        }
+
+        if (!manifest.core && !licenseManager.isModuleEnabled(appId)) {
+            auditLogger.logEvent('system', 'APP_LOAD_BLOCKED_LICENSE', 'app', appId);
+            return false;
+        }
+
         const appDir = manifest.appPath || path.join(APPS_PATH, manifest.folder || appId);
+        const manifestFile = path.join(appDir, 'manifest.json');
+
+        if (fs.existsSync(manifestFile) && manifest.integrity_hash) {
+            const currentHash = cryptoVerifier.computeFileHash(manifestFile);
+            if (currentHash !== manifest.integrity_hash) {
+                auditLogger.logEvent('system', 'MANIFEST_INTEGRITY_TAMPERED', 'app', appId);
+                return false;
+            }
+        }
 
         if (manifest.db && manifest.db.namespace) {
             try {
                 let migrations = [];
                 if (manifest.db.migrations) {
-                    const migrationsAbsPath = path.join(appDir, manifest.db.migrations.replace(/^\.\//, ''));
+                    const migPathStr = String(manifest.db.migrations);
+                    const cleanMigPath = migPathStr.startsWith('./') ? migPathStr.slice(2) : migPathStr;
+                    const migrationsAbsPath = path.join(appDir, cleanMigPath);
                     if (fs.existsSync(migrationsAbsPath)) {
                         migrations = require(migrationsAbsPath);
                     }
                 }
                 await AppDbManager.getOrCreate(manifest.db.namespace, migrations);
-            } catch (dbErr) {
-                console.error(`[AppLoader AppDbManager Error: ${appId}]`, dbErr);
-            }
+            } catch (dbErr) {}
         }
 
         const backendPath = path.join(appDir, manifest.backend || 'backend.js');
@@ -40,20 +70,9 @@ async function loadApp(manifest) {
             try {
                 delete require.cache[require.resolve(backendPath)];
                 directBackendModule = require(backendPath);
-            } catch (requireErr) {
-                console.error(`[AppLoader Backend Require Error: ${appId}]`, requireErr);
-            }
+            } catch (requireErr) {}
 
             if (directBackendModule && typeof directBackendModule.registerBackendHandlers === 'function') {
-                // App di terze parti "leggera": il suo backend.js registra le proprie
-                // azioni nel processo main (nessun sandboxing a processo separato), ma
-                // SENZA aggiungere canali ipcMain propri: il frontend dell'app non ha
-                // nessun altro modo di raggiungerli oltre al ponte generico gia'
-                // esposto in preload.js (window.adestioNative.callAppApi ->
-                // capabilityBroker), quindi le azioni vengono registrate li'.
-                // Riceve in dono l'accesso al DB cifrato di Adestio tramite AppDbManager,
-                // cosi' non deve portarsi dietro un proprio driver sqlite nativo (che non
-                // sarebbe comunque risolvibile da node_modules fuori dall'albero di Adestio).
                 try {
                     const { app: electronApp } = require('electron');
                     const { getDB, saveDB } = require('../db');
@@ -61,19 +80,17 @@ async function loadApp(manifest) {
                     const capabilityBroker = require('../security/capabilityBroker');
                     capabilityBroker.generateAppToken(appId, manifest.permissions || []);
                     const registerApi = (action, fn) => {
-                        capabilityBroker.registerApiHandler(appId, action, (sourceAppId, payload) => fn(null, payload));
+                        try {
+                            capabilityBroker.registerApiHandler(appId, action, (sourceAppId, payload) => fn(null, payload));
+                        } catch (regErr) {}
                     };
                     const ok = directBackendModule.registerBackendHandlers(registerApi, electronApp, {
                         getDB, saveDB, AppDbManager,
-                        // Sola lettura, deliberatamente: un'app di terze parti puo' leggere i
-                        // Dati Azienda gia' configurati in Adestio (es. per intestare fatture/PDF
-                        // propri), ma non ha alcun modo di scriverli (saveConfig non e' esposta).
                         readConfig: () => adestioConfig.readConfig()
                     });
                     if (ok === false) throw new Error('registerBackendHandlers ha restituito false');
                     _loaded.set(appId, { manifest: manifest, isProcess: false, directBackend: true });
                 } catch (directErr) {
-                    console.error(`[AppLoader Direct Backend Load Error: ${appId}]`, directErr);
                     throw directErr;
                 }
             } else {
@@ -85,7 +102,6 @@ async function loadApp(manifest) {
                         throw new Error('Impossibile avviare il processo child');
                     }
                 } catch (backendErr) {
-                    console.error(`[AppLoader Process Spawn Error: ${appId}]`, backendErr);
                     throw backendErr;
                 }
             }
@@ -93,9 +109,9 @@ async function loadApp(manifest) {
             _loaded.set(appId, { manifest: manifest, isProcess: false });
         }
 
+        auditLogger.logEvent('system', 'APP_LOADED', 'app', appId, { version: manifest.version });
         return true;
     } catch (e) {
-        console.error('[AppLoader loadApp Error]', e);
         return false;
     }
 }
@@ -109,15 +125,13 @@ async function unloadApp(appId) {
             try {
                 const capabilityBroker = require('../security/capabilityBroker');
                 capabilityBroker.revokeAppToken(appId);
-            } catch (revokeErr) {
-                console.error(`[AppLoader revokeAppToken Error: ${appId}]`, revokeErr);
-            }
+            } catch (revokeErr) {}
         }
         appProcessManager.terminateAppProcess(appId);
         _loaded.delete(appId);
+        auditLogger.logEvent('system', 'APP_UNLOADED', 'app', appId);
         return true;
     } catch (e) {
-        console.error(`[AppLoader unloadApp Error: ${appId}]`, e);
         return false;
     }
 }
@@ -134,9 +148,7 @@ async function loadAllInstalledApps() {
             db = getDB('store');
             const installedRows = db.query("SELECT app_id FROM installed_apps WHERE status = 'active'");
             installedIds = new Set(installedRows.map(r => r.app_id));
-        } catch (e) {
-            console.error('[AppLoader Read Store DB Error]', e);
-        }
+        } catch (e) {}
 
         let dbChanged = false;
 
@@ -150,17 +162,13 @@ async function loadAllInstalledApps() {
                     installedIds.add(m.id);
                     dbChanged = true;
                 }
-            } catch (seedErr) {
-                console.error('[AppLoader Seeding Error]', seedErr);
-            }
+            } catch (seedErr) {}
         }
 
         if (dbChanged) {
             try {
                 await saveDB('store');
-            } catch (saveErr) {
-                console.error('[AppLoader saveDB Error]', saveErr);
-            }
+            } catch (saveErr) {}
         }
 
         let loaded = 0;
@@ -173,14 +181,11 @@ async function loadAllInstalledApps() {
                     const ok = await loadApp(manifest);
                     if (ok) loaded++;
                 }
-            } catch (mErr) {
-                console.error('[AppLoader Manifest Item Error]', mErr);
-            }
+            } catch (mErr) {}
         }
 
         return loaded;
     } catch (e) {
-        console.error('[AppLoader loadAllInstalledApps Error]', e);
         return 0;
     }
 }
@@ -189,7 +194,6 @@ function getLoaded() {
     try {
         return Array.from(_loaded.keys());
     } catch (e) {
-        console.error('[AppLoader getLoaded Error]', e);
         return [];
     }
 }
@@ -198,7 +202,6 @@ function isLoaded(appId) {
     try {
         return _loaded.has(appId);
     } catch (e) {
-        console.error('[AppLoader isLoaded Error]', e);
         return false;
     }
 }
@@ -207,7 +210,6 @@ function getManifest(appId) {
     try {
         return _loaded.get(appId)?.manifest || null;
     } catch (e) {
-        console.error('[AppLoader getManifest Error]', e);
         return null;
     }
 }

@@ -1,75 +1,143 @@
+'use strict';
+
 const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
+
 const RATE_LIMIT_WINDOW = 60000;
 const MAX_LOGS_PER_WINDOW = 10;
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 let _logTimestamps = [];
+
 function _canPublishLogToDag() {
-    const now = Date.now();
-    _logTimestamps = _logTimestamps.filter(t => now - t < RATE_LIMIT_WINDOW);
-    if (_logTimestamps.length >= MAX_LOGS_PER_WINDOW) return false;
-    _logTimestamps.push(now);
-    return true;
-}
-function _publishToDag(level, message, meta) {
-    if (!_canPublishLogToDag()) return;
     try {
+        const now = Date.now();
+        _logTimestamps = _logTimestamps.filter(t => now - t < RATE_LIMIT_WINDOW);
+        if (_logTimestamps.length >= MAX_LOGS_PER_WINDOW) return false;
+        _logTimestamps.push(now);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function _publishToDag(level, message, meta) {
+    try {
+        if (!_canPublishLogToDag()) return;
         const bus = require('./core/event_bus');
         bus.publish('logger:distributed-error', { level, message, meta });
-    } catch(e) {}
+    } catch (e) {}
 }
+
 function getLogDir() {
     try {
         const dir = path.join(app.getPath('userData'), 'Log');
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         return dir;
-    } catch(e) {
+    } catch (e) {
         return null;
     }
 }
-function getLogFile(prefix = 'error_log') {
-    const dir = getLogDir();
-    if (!dir) return null;
-    const date = new Date().toISOString().split('T')[0];
-    return path.join(dir, `${prefix}_${date}.txt`);
+
+function getLogFile(prefix = 'system_log') {
+    try {
+        const dir = getLogDir();
+        if (!dir) return null;
+        const date = new Date().toISOString().split('T')[0];
+        const filePath = path.join(dir, `${prefix}_${date}.jsonl`);
+        if (fs.existsSync(filePath)) {
+            const stats = fs.statSync(filePath);
+            if (stats.size > MAX_FILE_SIZE_BYTES) {
+                const rotatedPath = path.join(dir, `${prefix}_${date}_${Date.now()}.jsonl`);
+                fs.renameSync(filePath, rotatedPath);
+            }
+        }
+        return filePath;
+    } catch (e) {
+        return null;
+    }
 }
-function writeLog(level, message, meta = null, prefix = 'error_log') {
+
+function writeStructuredLog(level, message, meta = null, prefix = 'system_log') {
     try {
         const file = getLogFile(prefix);
         if (!file) return;
-        const time = new Date().toISOString();
-        let formattedMeta = '';
-        if (meta) {
-            formattedMeta = typeof meta === 'object' ? JSON.stringify(meta) : String(meta);
-            formattedMeta = ` | Meta: ${formattedMeta}`;
-        }
-        const logLine = `[${time}] [${level}] ${message}${formattedMeta}\n`;
-        fs.appendFileSync(file, logLine);
-    } catch(e) {}
+        const entry = {
+            ts: new Date().toISOString(),
+            level: String(level).toUpperCase(),
+            msg: typeof message === 'object' ? JSON.stringify(message) : String(message),
+            meta: meta || null
+        };
+        fs.appendFileSync(file, JSON.stringify(entry) + '\n');
+    } catch (e) {}
 }
-function logError(error, meta = null) {
-    const msg = error && error.stack ? error.stack : (typeof error === 'object' ? JSON.stringify(error) : error);
-    writeLog('ERROR', msg, meta);
-    _publishToDag('ERROR', msg, meta);
+
+function logDebug(message, meta = null) {
+    try {
+        writeStructuredLog('DEBUG', message, meta, 'debug_log');
+    } catch (e) {}
 }
+
 function logInfo(message, meta = null) {
-    writeLog('INFO', message, meta, 'system_log');
+    try {
+        writeStructuredLog('INFO', message, meta, 'system_log');
+    } catch (e) {}
 }
+
 function logWarn(message, meta = null) {
-    writeLog('WARN', message, meta, 'system_log');
+    try {
+        writeStructuredLog('WARN', message, meta, 'system_log');
+    } catch (e) {}
 }
+
+function logError(error, meta = null) {
+    try {
+        const msg = error && error.stack ? error.stack : (typeof error === 'object' ? JSON.stringify(error) : error);
+        writeStructuredLog('ERROR', msg, meta, 'error_log');
+        _publishToDag('ERROR', msg, meta);
+    } catch (e) {}
+}
+
 function logSyncAnomaly(code, message, payload) {
-    writeLog('SYNC_ANOMALY', `[${code}] ${message}`, payload, 'sync_audit');
-    _publishToDag('SYNC_ANOMALY', `[${code}] ${message}`, payload);
+    try {
+        writeStructuredLog('SYNC_ANOMALY', `[${code}] ${message}`, payload, 'sync_audit');
+        _publishToDag('SYNC_ANOMALY', `[${code}] ${message}`, payload);
+    } catch (e) {}
 }
+
+function queryLogs(prefix = 'system_log', limit = 100) {
+    try {
+        const dir = getLogDir();
+        if (!dir) return [];
+        const files = fs.readdirSync(dir).filter(f => f.startsWith(prefix) && f.endsWith('.jsonl')).sort().reverse();
+        const results = [];
+        for (const file of files) {
+            const content = fs.readFileSync(path.join(dir, file), 'utf8');
+            const lines = content.trim().split('\n').filter(Boolean);
+            for (let i = lines.length - 1; i >= 0; i--) {
+                try {
+                    results.push(JSON.parse(lines[i]));
+                    if (results.length >= limit) return results;
+                } catch (eLine) {}
+            }
+        }
+        return results;
+    } catch (e) {
+        return [];
+    }
+}
+
 function setupLogger() {
-    const originalConsoleError = console.error;
-    console.error = function(...args) {
-        originalConsoleError.apply(console, args);
-        try {
-            const msg = args.map(a => (a && a.stack ? a.stack : (typeof a === 'object' ? JSON.stringify(a) : a))).join(' ');
-            logError(msg);
-        } catch(e) {}
-    };
+    try {
+        const originalConsoleError = console.error;
+        console.error = function(...args) {
+            try { originalConsoleError.apply(console, args); } catch (e) {}
+            try {
+                const msg = args.map(a => (a && a.stack ? a.stack : (typeof a === 'object' ? JSON.stringify(a) : a))).join(' ');
+                logError(msg);
+            } catch (e) {}
+        };
+    } catch (e) {}
 }
-module.exports = { setupLogger, logError, logInfo, logWarn, logSyncAnomaly };
+
+module.exports = { setupLogger, logDebug, logInfo, logWarn, logError, logSyncAnomaly, queryLogs };

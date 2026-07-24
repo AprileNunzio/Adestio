@@ -42,7 +42,7 @@ export default {
                         card.setAttribute('data-id', app.folder);
                         let iconHtml = '';
                         if (app.icon && !app.icon.includes('.')) {
-                            // È un'icona Material
+                            
                             iconHtml = `<span class="material-symbols-rounded app-icon" style="font-size: 64px; color: var(--md-primary); display: flex; align-items: center; justify-content: center;">${app.icon}</span>`;
                         } else {
                             const iconPath = app.icon ? `apps/impostazioni/subapps/${app.folder}/${app.icon}` : `icone/applicazione_generica.png`;

@@ -8,18 +8,14 @@
                     this.appId = null;
                     this.token = null;
                     this.pendingRequests = new Map();
-                } catch (error) {
-                    console.error('[AdestioSdk constructor Error]', error);
-                }
+                } catch (error) {}
             }
 
             init(config) {
                 try {
                     if (config && config.appId) this.appId = config.appId;
                     if (config && config.token) this.token = config.token;
-                } catch (error) {
-                    console.error('[AdestioSdk init Error]', error);
-                }
+                } catch (error) {}
             }
 
             callAppApi(targetAppId, action, payload) {
@@ -36,7 +32,13 @@
                                     targetApp: targetAppId,
                                     action: action,
                                     payload: payload
-                                });
+                                }).then(res => {
+                                    if (res && res.success) {
+                                        resolve(res.data);
+                                    } else {
+                                        reject(new Error(res?.error || 'Errore invocazione API'));
+                                    }
+                                }).catch(err => reject(err));
                             } else {
                                 reject(new Error('Interfaccia Adestio non presente nel contesto'));
                             }
@@ -45,7 +47,6 @@
                         }
                     });
                 } catch (error) {
-                    console.error('[AdestioSdk callAppApi Error]', error);
                     return Promise.reject(error);
                 }
             }
@@ -61,14 +62,35 @@
                             handler.reject(new Error(errorMsg || 'Errore invocazione API'));
                         }
                     }
-                } catch (error) {
-                    console.error('[AdestioSdk handleResponse Error]', error);
+                } catch (error) {}
+            }
+
+            formatCurrency(amount, currency = 'EUR', locale = 'it-IT') {
+                try {
+                    return new Intl.NumberFormat(locale, { style: 'currency', currency: currency }).format(amount || 0);
+                } catch (e) {
+                    return `${amount} ${currency}`;
+                }
+            }
+
+            formatDate(dateVal, locale = 'it-IT') {
+                try {
+                    const d = new Date(dateVal);
+                    return new Intl.DateTimeFormat(locale).format(d);
+                } catch (e) {
+                    return String(dateVal);
+                }
+            }
+
+            formatNumber(num, locale = 'it-IT') {
+                try {
+                    return new Intl.NumberFormat(locale).format(num || 0);
+                } catch (e) {
+                    return String(num);
                 }
             }
         }
 
         window.AdestioSdk = new AdestioSdk();
-    } catch (globalError) {
-        console.error('[AdestioSdk Global Scope Error]', globalError);
-    }
+    } catch (globalError) {}
 })(typeof window !== 'undefined' ? window : this);

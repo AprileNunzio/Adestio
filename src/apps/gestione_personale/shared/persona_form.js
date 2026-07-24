@@ -91,6 +91,5 @@ export function fillPersonaForm(el, persona) {
     el.querySelector('#persona-cittadinanza').value = persona ? persona.cittadinanza : '';
     el.querySelector('#persona-stato-civile').value = persona ? persona.stato_civile : '';
 }
-/* Retro-compatibilità: alcuni moduli importano ancora KIT_STYLES.
-   Gli stili ora vivono in ui_kit.js (AK_STYLES), quindi qui è una stringa vuota. */
+
 export const KIT_STYLES = '';

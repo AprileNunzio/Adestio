@@ -79,7 +79,7 @@ export default {
                 </div>
             `;
 
-            // Setup display toggle
+            
             const setupToggle = (chkId, txtId) => {
                 const chk = container.querySelector('#' + chkId);
                 const txt = container.querySelector('#' + txtId);

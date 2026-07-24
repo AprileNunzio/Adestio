@@ -145,7 +145,7 @@ export class HistoryTable {
                     </tr>
                 `;
             }).join('');
-            // Event listener for single mark as read
+            
             this.tbody.querySelectorAll('[data-mark]').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     e.stopPropagation();

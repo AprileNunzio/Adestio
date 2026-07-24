@@ -1,9 +1,11 @@
 'use strict';
 
-const { BrowserWindow } = require('electron');
+const { BrowserWindow, app } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const AdmZip = require('adm-zip');
+const cryptoVerifier = require('../security/cryptoVerifier');
+const auditLogger = require('../observability/auditLogger');
 
 const STATES = {
     IDLE: 'idle',
@@ -11,6 +13,7 @@ const STATES = {
     PENDING: 'pending',
     DOWNLOADING: 'downloading',
     INSTALLING: 'installing',
+    ROLLING_BACK: 'rolling_back',
     DONE: 'done',
     ERROR: 'error'
 };
@@ -22,15 +25,17 @@ const RETRY_BASE_MS = 5000;
 
 class AppUpdateManager {
     constructor() {
-        this._locked = new Map();
-        this._queue = [];
-        this._processing = false;
-        this._intervalId = null;
-        this._status = {
-            lastCheck: null,
-            state: STATES.IDLE,
-            queue: []
-        };
+        try {
+            this._locked = new Map();
+            this._queue = [];
+            this._processing = false;
+            this._intervalId = null;
+            this._status = {
+                lastCheck: null,
+                state: STATES.IDLE,
+                queue: []
+            };
+        } catch (e) {}
     }
 
     _broadcast(event, payload) {
@@ -70,7 +75,7 @@ class AppUpdateManager {
         try {
             const entry = this._locked.get(appId);
             if (!entry) return false;
-            return [STATES.DOWNLOADING, STATES.INSTALLING].includes(entry.state);
+            return [STATES.DOWNLOADING, STATES.INSTALLING, STATES.ROLLING_BACK].includes(entry.state);
         } catch (e) {
             return false;
         }
@@ -118,9 +123,7 @@ class AppUpdateManager {
             this._intervalId = setInterval(() => {
                 try { this._runCheck(); } catch (e) {}
             }, CHECK_INTERVAL_MS);
-        } catch (e) {
-            console.error('[UpdateManager] startBackgroundCheck error:', e.message);
-        }
+        } catch (e) {}
     }
 
     async _runCheck() {
@@ -156,7 +159,6 @@ class AppUpdateManager {
             this._status.state = STATES.IDLE;
             this._processQueue();
         } catch (e) {
-            console.error('[UpdateManager] _runCheck error:', e.message);
             this._status.state = STATES.IDLE;
         }
     }
@@ -171,7 +173,6 @@ class AppUpdateManager {
                 try {
                     await this._updateApp(item);
                 } catch (e) {
-                    console.error('[UpdateManager] _processQueue item error:', e.message);
                     this._setLock(item.appId, STATES.ERROR, {
                         error: e.message,
                         currentVersion: item.currentVersion,
@@ -182,8 +183,112 @@ class AppUpdateManager {
             }
             this._processing = false;
         } catch (e) {
-            console.error('[UpdateManager] _processQueue error:', e.message);
             this._processing = false;
+        }
+    }
+
+    _safeExtractZip(zip, destDir) {
+        try {
+            const entries = zip.getEntries();
+            for (const entry of entries) {
+                const targetPath = path.join(destDir, entry.entryName);
+                const relative = path.relative(destDir, targetPath);
+                if (relative.startsWith('..') || path.isAbsolute(relative)) {
+                    throw new Error(`Tentativo di Zip Slip rilevato: ${entry.entryName}`);
+                }
+            }
+            zip.extractAllTo(destDir, true);
+            return true;
+        } catch (e) {
+            throw e;
+        }
+    }
+
+    _backupAppFolder(appDir, appId) {
+        try {
+            if (!fs.existsSync(appDir)) return null;
+            const backupsDir = path.join(app.getPath('userData'), 'app_backups', appId, String(Date.now()));
+            fs.mkdirSync(backupsDir, { recursive: true });
+            
+            const copyDirRecursive = (src, dest) => {
+                try {
+                    if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
+                    const files = fs.readdirSync(src);
+                    for (const file of files) {
+                        const srcFile = path.join(src, file);
+                        const destFile = path.join(dest, file);
+                        const stat = fs.statSync(srcFile);
+                        if (stat.isDirectory()) {
+                            copyDirRecursive(srcFile, destFile);
+                        } else {
+                            fs.copyFileSync(srcFile, destFile);
+                        }
+                    }
+                } catch (eCopy) {}
+            };
+            copyDirRecursive(appDir, backupsDir);
+            return backupsDir;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    async rollbackApp(appId) {
+        try {
+            this._setLock(appId, STATES.ROLLING_BACK);
+            const userAppsPath = path.join(app.getPath('userData'), 'installed_apps');
+            const appDir = path.join(userAppsPath, appId);
+            const backupsBase = path.join(app.getPath('userData'), 'app_backups', appId);
+            
+            if (!fs.existsSync(backupsBase)) {
+                throw new Error('Nessun backup trovato per il rollback');
+            }
+
+            const backups = fs.readdirSync(backupsBase).sort().reverse();
+            if (backups.length === 0) {
+                throw new Error('Nessun backup disponibile');
+            }
+
+            const latestBackup = path.join(backupsBase, backups[0]);
+            
+            if (fs.existsSync(appDir)) {
+                fs.rmSync(appDir, { recursive: true, force: true });
+            }
+
+            fs.mkdirSync(appDir, { recursive: true });
+            const copyDirRecursive = (src, dest) => {
+                try {
+                    const files = fs.readdirSync(src);
+                    for (const file of files) {
+                        const srcFile = path.join(src, file);
+                        const destFile = path.join(dest, file);
+                        const stat = fs.statSync(srcFile);
+                        if (stat.isDirectory()) {
+                            fs.mkdirSync(destFile, { recursive: true });
+                            copyDirRecursive(srcFile, destFile);
+                        } else {
+                            fs.copyFileSync(srcFile, destFile);
+                        }
+                    }
+                } catch (eCopy) {}
+            };
+            copyDirRecursive(latestBackup, appDir);
+
+            const AppLoader = require('./AppLoader');
+            AppLoader.unloadApp(appId);
+            const manifests = require('./appsRegistry');
+            const allApps = await manifests.getAppsRegistry();
+            const manifest = allApps.find(m => m.id === appId || m.folder === appId);
+            if (manifest) await AppLoader.loadApp(manifest);
+
+            auditLogger.logEvent('system', 'APP_ROLLBACK', 'app', appId, { backupUsed: backups[0] });
+            this._setLock(appId, STATES.DONE, { rollback: true });
+            setTimeout(() => { try { this._clearLock(appId); } catch (e) {} }, 5000);
+            return { success: true };
+        } catch (e) {
+            this._setLock(appId, STATES.ERROR, { error: e.message });
+            setTimeout(() => { try { this._clearLock(appId); } catch (e2) {} }, 5000);
+            return { success: false, error: e.message };
         }
     }
 
@@ -207,7 +312,11 @@ class AppUpdateManager {
             if (!targetApp) throw new Error(`App ${appId} non trovata nel marketplace`);
             if (!targetApp.downloadUrl) throw new Error(`URL download assente per ${appId}`);
 
-            const { app } = require('electron');
+            const currentCoreVersion = app.getVersion();
+            if (targetApp.minCoreVersion && currentCoreVersion < targetApp.minCoreVersion) {
+                throw new Error(`Incompatibile: richiede Adestio Core >= ${targetApp.minCoreVersion}`);
+            }
+
             const userAppsPath = path.join(app.getPath('userData'), 'installed_apps');
             const appDir = path.join(userAppsPath, targetApp.folder || appId);
 
@@ -228,10 +337,20 @@ class AppUpdateManager {
 
             const arrayBuffer = await response.arrayBuffer();
             const zipBuffer = Buffer.from(arrayBuffer);
+
+            if (targetApp.signature) {
+                const isValidSig = cryptoVerifier.verifyBufferSignature(zipBuffer, targetApp.signature);
+                if (!isValidSig) {
+                    throw new Error('Firma crittografica del pacchetto non valida! Download bloccato.');
+                }
+            }
+
             const zip = new AdmZip(zipBuffer);
 
+            this._backupAppFolder(appDir, appId);
+
             if (!fs.existsSync(appDir)) fs.mkdirSync(appDir, { recursive: true });
-            zip.extractAllTo(appDir, true);
+            this._safeExtractZip(zip, appDir);
 
             const { getDB, saveDB } = require('../db');
             const db = getDB('store');
@@ -255,17 +374,13 @@ class AppUpdateManager {
                 const allApps = await manifests.getAppsRegistry();
                 const manifest = allApps.find(m => m.id === appId || m.folder === appId);
                 if (manifest) await AppLoader.loadApp(manifest);
-            } catch (reloadErr) {
-                console.warn('[UpdateManager] App reload warning:', reloadErr.message);
-            }
+            } catch (reloadErr) {}
 
             try {
-                // Un aggiornamento in background puo' introdurre permessi nuovi: sincronizzali
-                // subito, senza aspettare che un admin apra manualmente Sistema RBAC.
                 require('../handlers/rbac').syncPermissionsFromManifests();
-            } catch (rbacErr) {
-                console.warn('[UpdateManager] RBAC sync warning:', rbacErr.message);
-            }
+            } catch (rbacErr) {}
+
+            auditLogger.logEvent('system', 'APP_UPDATE', 'app', appId, { previousVersion: currentVersion, newVersion: availableVersion });
 
             this._setLock(appId, STATES.DONE, {
                 currentVersion,
@@ -280,7 +395,6 @@ class AppUpdateManager {
 
             setTimeout(() => { try { this._clearLock(appId); } catch (e) {} }, 5000);
         } catch (e) {
-            console.error(`[UpdateManager] _updateApp error for ${item.appId} (attempt ${attempt}):`, e.message);
             if (attempt < MAX_RETRIES) {
                 const backoff = RETRY_BASE_MS * Math.pow(2, attempt - 1);
                 this._setLock(item.appId, STATES.PENDING, {
@@ -300,14 +414,9 @@ class AppUpdateManager {
     forceCheckNow() {
         try {
             this._runCheck();
-        } catch (e) {
-            console.error('[UpdateManager] forceCheckNow error:', e.message);
-        }
+        } catch (e) {}
     }
 
-    // Consente ad operazioni manuali (install/update dallo Store) di condividere
-    // lo stesso lock/stato/broadcast usato dalla coda di aggiornamento in background,
-    // cosi' da evitare che due processi tocchino la stessa app in contemporanea.
     beginManualOperation(appId, state, meta = {}) {
         try {
             this._setLock(appId, state, meta);

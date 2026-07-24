@@ -46,7 +46,6 @@ class NotificationManager {
         }
     }
     static sendInApp(userId, payload, soundEnabled) {
-        // Broadcast via IPC to all windows to show a real-time toast
         const windows = BrowserWindow.getAllWindows();
         windows.forEach(win => {
             if (!win.isDestroyed()) {

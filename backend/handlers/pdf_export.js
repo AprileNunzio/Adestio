@@ -8,7 +8,6 @@ function _xmlEscape(s) {
     return String(s == null ? '' : s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
-// Individua l'eseguibile di LibreOffice (config override, env, percorsi standard per OS).
 function findSoffice() {
     const candidates = [];
     try { const cfg = require('../config').readConfig() || {}; if (cfg.libreoffice_path) candidates.push(cfg.libreoffice_path); } catch (_) {}
@@ -62,7 +61,6 @@ async function injectDocxMetadata(docxBuffer, meta) {
 function _fileUrl(p) {
     return 'file:///' + String(p).replace(/\\/g, '/').replace(/^\/+/, '');
 }
-// Converte un docx (buffer) in PDF/A tramite LibreOffice headless. pdfaVersion: 1|2|3 (PDF/A-1b/2b/3b).
 async function convertDocxToPdfA(docxBuffer, meta, opts) {
     opts = opts || {};
     const version = String(opts.pdfaVersion || 2);

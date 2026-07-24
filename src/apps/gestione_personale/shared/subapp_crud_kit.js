@@ -67,7 +67,7 @@ export function renderPersonScopedCrudSubapp(el, config) {
     let records = [];
     formFieldsBox.innerHTML = fields.map(f => campoHtml(f, '')).join('');
     populateFieldDatalists(el, fields);
-    // Auto-compilazione Provincia/CAP dal Comune
+    
     fields.forEach(f => {
         if (f.datalist === 'comuni') {
             const input = el.querySelector(`#crud-field-${f.key}`);

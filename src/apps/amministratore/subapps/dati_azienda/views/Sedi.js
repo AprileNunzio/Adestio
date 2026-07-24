@@ -179,7 +179,7 @@ export default {
                 container.querySelector('#da-sede-telefono').value = '';
                 container.querySelector('#da-sede-email').value = '';
                 
-                // reset orari
+                
                 container.querySelectorAll('.orario-row').forEach(row => {
                     row.querySelector('.chk-aperto').checked = true;
                     row.querySelector('.m-start').value = '08:00';

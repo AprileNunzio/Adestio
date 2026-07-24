@@ -5,7 +5,7 @@ export default {
         try {
             const isScuola = configCache.is_scuola === true || configCache.is_scuola === 'true';
             
-            // Parse custom responsabili from cache
+            
             let customResp = [];
             if (configCache.responsabili_custom) {
                 try {
@@ -161,7 +161,7 @@ export default {
                 btn.innerHTML = '<span class="material-symbols-rounded" style="animation:spin 1s linear infinite;">sync</span> Salvataggio...';
                 
                 try {
-                    // Collect custom responsabili
+                    
                     const customRows = customContainer.querySelectorAll('div[style*="display:flex"]');
                     const currentCustomResp = [];
                     customRows.forEach(row => {
