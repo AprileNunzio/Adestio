@@ -5,12 +5,18 @@ export default {
         } catch(e) { console.error("Errore sync permissions", e); }
         el.innerHTML = `
             <div class="fade-in-up" style="width: 100%; height: 100%; display: flex; flex-direction: column;">
-                <div style="margin-bottom: 1.5rem;">
-                    <h1 class="text-title" style="font-size: 2rem; color: var(--md-primary); margin-bottom: 0.2rem;">Sistema RBAC</h1>
-                    <p class="text-body" style="color: var(--md-on-surface-variant); font-size: 1rem;">Gestione centralizzata e automatica dei permessi</p>
+                <div style="margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <h1 class="text-title" style="font-size: 2rem; color: var(--md-primary); margin-bottom: 0.2rem;">Sistema RBAC</h1>
+                        <p class="text-body" style="color: var(--md-on-surface-variant); font-size: 1rem;">Gestione centralizzata e automatica dei permessi</p>
+                    </div>
+                    <div>
+                        <button id="btn-inspect-permissions" class="btn" style="background: var(--md-secondary-container); color: var(--md-on-secondary-container); font-weight: 700; border-radius: 20px; padding: 0.6rem 1.2rem; display: inline-flex; align-items: center; gap: 0.5rem; border: none; cursor: pointer; transition: all 0.2s;" onclick="window.openPermissionInspector()">
+                            <span class="material-symbols-rounded">find_in_page</span> Ispettore Permessi Utente
+                        </button>
+                    </div>
                 </div>
                 <div style="flex: 1; display: flex; gap: 1.5rem; overflow: hidden;">
-                    <!-- Sidebar: Gruppi e Utenti -->
                     <div style="width: 300px; display: flex; flex-direction: column; background: var(--md-surface); border-radius: 20px; border: 1px solid var(--md-outline-variant); box-shadow: 0 4px 12px rgba(0,0,0,0.05); overflow: hidden;">
                         <div style="padding: 1rem; border-bottom: 1px solid var(--md-outline-variant); background: rgba(var(--md-primary-rgb, 102, 126, 234), 0.05); display: flex; justify-content: space-between; align-items: center;">
                             <h3 style="margin: 0; color: var(--md-primary); font-size: 1.1rem;">Assegnatari</h3>
@@ -408,21 +414,129 @@ export default {
             }
         };
         window.filterRbacItems = (query) => {
-            query = (query || '').toLowerCase();
-            const items = sidebar.querySelectorAll('.rbac-item');
-            items.forEach(item => {
-                const name = item.dataset.name.toLowerCase();
-                if (name.includes(query)) {
-                    item.style.display = 'flex';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-            const headers = sidebar.querySelectorAll('div[style*="font-weight: bold"]');
-            headers.forEach(h => {
-                h.style.display = query ? 'none' : 'block';
-            });
+            try {
+                query = (query || '').toLowerCase();
+                const items = sidebar.querySelectorAll('.rbac-item');
+                items.forEach(item => {
+                    const name = item.dataset.name.toLowerCase();
+                    if (name.includes(query)) {
+                        item.style.display = 'flex';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+                const headers = sidebar.querySelectorAll('div[style*="font-weight: bold"]');
+                headers.forEach(h => {
+                    h.style.display = query ? 'none' : 'block';
+                });
+            } catch (e) {}
         };
+
+        window.openPermissionInspector = () => {
+            try {
+                let userOptions = allUsersCache.map(u => `<option value="${u.id}">${u.username} (${u.email || u.id})</option>`).join('');
+                let appOptions = appsCache.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+
+                const modalHtml = `
+                    <div id="rbac-inspector-modal" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn 0.2s ease;">
+                        <div style="background: var(--md-surface); padding: 2rem; border-radius: 24px; width: 550px; max-width: 92%; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.25); border: 1px solid var(--md-outline-variant);">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+                                <h2 style="margin: 0; color: var(--md-primary); display: flex; align-items: center; gap: 0.5rem;">
+                                    <span class="material-symbols-rounded">find_in_page</span> Ispettore Permessi Utente
+                                </h2>
+                                <button class="btn btn-icon" onclick="document.getElementById('rbac-inspector-modal').remove()" style="background: transparent; border: none; cursor: pointer; color: var(--md-on-surface-variant);"><span class="material-symbols-rounded">close</span></button>
+                            </div>
+
+                            <div style="margin-bottom: 1rem;">
+                                <label style="font-weight: 600; font-size: 0.9rem; color: var(--md-on-surface-variant); display: block; margin-bottom: 0.4rem;">Seleziona Utente:</label>
+                                <select id="inspect-user-select" class="input" style="width: 100%; padding: 0.7rem; border-radius: 12px; background: var(--md-surface-variant); color: var(--md-on-surface); border: 1px solid var(--md-outline);">
+                                    ${userOptions || '<option value="">Nessun utente disponibile</option>'}
+                                </select>
+                            </div>
+
+                            <div style="margin-bottom: 1rem;">
+                                <label style="font-weight: 600; font-size: 0.9rem; color: var(--md-on-surface-variant); display: block; margin-bottom: 0.4rem;">Seleziona Applicazione:</label>
+                                <select id="inspect-app-select" class="input" onchange="window.updateInspectPermOptions(this.value)" style="width: 100%; padding: 0.7rem; border-radius: 12px; background: var(--md-surface-variant); color: var(--md-on-surface); border: 1px solid var(--md-outline);">
+                                    ${appOptions || '<option value="">Nessuna applicazione disponibile</option>'}
+                                </select>
+                            </div>
+
+                            <div style="margin-bottom: 1.5rem;">
+                                <label style="font-weight: 600; font-size: 0.9rem; color: var(--md-on-surface-variant); display: block; margin-bottom: 0.4rem;">Seleziona Permesso:</label>
+                                <select id="inspect-perm-select" class="input" style="width: 100%; padding: 0.7rem; border-radius: 12px; background: var(--md-surface-variant); color: var(--md-on-surface); border: 1px solid var(--md-outline);"></select>
+                            </div>
+
+                            <button class="btn" style="background: var(--md-primary); color: white; border-radius: 14px; padding: 0.8rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 0.5rem; border: none;" onclick="window.runPermissionInspection()">
+                                <span class="material-symbols-rounded">manage_search</span> Calcola Origine Permesso
+                            </button>
+
+                            <div id="inspect-result-card" style="margin-top: 1.5rem; display: none;"></div>
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                if (appsCache.length > 0) window.updateInspectPermOptions(appsCache[0].id);
+            } catch (e) {}
+        };
+
+        window.updateInspectPermOptions = (appId) => {
+            try {
+                const select = document.getElementById('inspect-perm-select');
+                if (!select) return;
+                const app = appsCache.find(a => a.id === appId);
+                const subapps = subAppsCache[appId] || [];
+                let optionsHtml = '';
+
+                if (app && app.rbacPermissions) {
+                    app.rbacPermissions.forEach(p => {
+                        optionsHtml += `<option value="${app.id}:${p.id}">${app.name} &rarr; ${p.label || p.id}</option>`;
+                    });
+                }
+                subapps.forEach(sub => {
+                    if (sub.rbacPermissions) {
+                        sub.rbacPermissions.forEach(p => {
+                            optionsHtml += `<option value="${app.id}:${sub.id}:${p.id}">${app.name} / ${sub.name} &rarr; ${p.label || p.id}</option>`;
+                        });
+                    }
+                });
+
+                select.innerHTML = optionsHtml || '<option value="">Nessun permesso specifico</option>';
+            } catch (e) {}
+        };
+
+        window.runPermissionInspection = async () => {
+            try {
+                const userSelect = document.getElementById('inspect-user-select');
+                const permSelect = document.getElementById('inspect-perm-select');
+                const resultCard = document.getElementById('inspect-result-card');
+                if (!userSelect || !permSelect || !resultCard) return;
+
+                const userId = userSelect.value;
+                const permissionId = permSelect.value;
+                if (!userId || !permissionId) return;
+
+                resultCard.style.display = 'block';
+                resultCard.innerHTML = '<div style="text-align: center;"><span class="material-symbols-rounded" style="animation: spin 2s linear infinite;">sync</span> Calcolo in corso...</div>';
+
+                const res = await window.electronAPI.rbac.inspectTrace({ userId, permissionId });
+                const isGranted = res && res.granted;
+                const statusColor = isGranted ? 'var(--md-success, #10B981)' : 'var(--md-error, #EF4444)';
+                const statusIcon = isGranted ? 'check_circle' : 'cancel';
+                const statusText = isGranted ? 'CONCESSO' : 'NEGATO';
+
+                resultCard.innerHTML = `
+                    <div style="background: var(--md-surface-variant); border-radius: 16px; padding: 1.2rem; border-left: 6px solid ${statusColor}; border: 1px solid var(--md-outline-variant);">
+                        <div style="display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem;">
+                            <span class="material-symbols-rounded" style="color: ${statusColor}; font-size: 1.8rem;">${statusIcon}</span>
+                            <span style="font-weight: 800; font-size: 1.1rem; color: ${statusColor};">${statusText}</span>
+                        </div>
+                        <div style="font-size: 0.95rem; font-weight: 600; color: var(--md-on-surface); margin-bottom: 0.3rem;">Origine: ${res.source || 'Sconosciuta'}</div>
+                        <div style="font-size: 0.88rem; color: var(--md-on-surface-variant);">${res.trace || ''}</div>
+                    </div>
+                `;
+            } catch (e) {}
+        };
+
         loadData();
     }
 };
