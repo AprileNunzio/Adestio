@@ -495,7 +495,16 @@ async function downloadFromPeersOrFallback(appId, fallbackUrl, targetFolder) {
         }
 
         const zip = new AdmZip(zipBuffer);
-        zip.extractAllTo(targetFolder, true);
+        await new Promise((resolve, reject) => {
+            try {
+                zip.extractAllToAsync(targetFolder, true, true, (err) => {
+                    if (err) reject(err);
+                    else resolve();
+                });
+            } catch (eZip) {
+                reject(eZip);
+            }
+        });
         return downloadedFromPeer;
     } catch (e) {
         console.error('[Store] Error in downloadFromPeersOrFallback:', e);

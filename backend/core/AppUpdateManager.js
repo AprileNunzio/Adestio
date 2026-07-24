@@ -187,7 +187,7 @@ class AppUpdateManager {
         }
     }
 
-    _safeExtractZip(zip, destDir) {
+    async _safeExtractZip(zip, destDir) {
         try {
             const entries = zip.getEntries();
             for (const entry of entries) {
@@ -197,36 +197,28 @@ class AppUpdateManager {
                     throw new Error(`Tentativo di Zip Slip rilevato: ${entry.entryName}`);
                 }
             }
-            zip.extractAllTo(destDir, true);
+            await new Promise((resolve, reject) => {
+                try {
+                    zip.extractAllToAsync(destDir, true, true, (err) => {
+                        if (err) reject(err);
+                        else resolve();
+                    });
+                } catch (eZip) {
+                    reject(eZip);
+                }
+            });
             return true;
         } catch (e) {
             throw e;
         }
     }
 
-    _backupAppFolder(appDir, appId) {
+    async _backupAppFolder(appDir, appId) {
         try {
             if (!fs.existsSync(appDir)) return null;
             const backupsDir = path.join(app.getPath('userData'), 'app_backups', appId, String(Date.now()));
-            fs.mkdirSync(backupsDir, { recursive: true });
-            
-            const copyDirRecursive = (src, dest) => {
-                try {
-                    if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
-                    const files = fs.readdirSync(src);
-                    for (const file of files) {
-                        const srcFile = path.join(src, file);
-                        const destFile = path.join(dest, file);
-                        const stat = fs.statSync(srcFile);
-                        if (stat.isDirectory()) {
-                            copyDirRecursive(srcFile, destFile);
-                        } else {
-                            fs.copyFileSync(srcFile, destFile);
-                        }
-                    }
-                } catch (eCopy) {}
-            };
-            copyDirRecursive(appDir, backupsDir);
+            await fs.promises.mkdir(backupsDir, { recursive: true });
+            await fs.promises.cp(appDir, backupsDir, { recursive: true });
             return backupsDir;
         } catch (e) {
             return null;
@@ -347,10 +339,10 @@ class AppUpdateManager {
 
             const zip = new AdmZip(zipBuffer);
 
-            this._backupAppFolder(appDir, appId);
+            await this._backupAppFolder(appDir, appId);
 
-            if (!fs.existsSync(appDir)) fs.mkdirSync(appDir, { recursive: true });
-            this._safeExtractZip(zip, appDir);
+            if (!fs.existsSync(appDir)) await fs.promises.mkdir(appDir, { recursive: true });
+            await this._safeExtractZip(zip, appDir);
 
             const { getDB, saveDB } = require('../db');
             const db = getDB('store');
