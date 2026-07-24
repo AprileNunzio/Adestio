@@ -50,6 +50,10 @@ export default {
                             </p>
                         </div>
                         <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                            ${admin ? `
+                            <button id="btn-manage-repos" class="btn" style="background: var(--md-surface-variant); color: var(--md-on-surface); border: 1px solid var(--md-outline-variant); border-radius: 28px; padding: 0.75rem 1.4rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; transition: all 0.2s ease;">
+                                <span class="material-symbols-rounded">dns</span> Repository
+                            </button>` : ''}
                             <button id="btn-check-updates" class="btn" style="background: var(--md-surface-variant); color: var(--md-on-surface); border: 1px solid var(--md-outline-variant); border-radius: 28px; padding: 0.75rem 1.4rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer; transition: all 0.2s ease;">
                                 <span class="material-symbols-rounded" id="icon-check-updates">sync</span> Verifica Aggiornamenti
                             </button>
@@ -86,6 +90,68 @@ export default {
                         </button>
                     </div>
                     <div id="store-detail-content" style="background: var(--md-surface); border-radius: 24px; padding: 2.5rem; border: 1px solid var(--md-outline-variant); box-shadow: 0 10px 30px rgba(0,0,0,0.05);"></div>
+                </div>
+
+                <div id="repo-modal-overlay" class="repo-modal-overlay" style="display: none;">
+                    <div class="repo-modal">
+                        <div class="repo-modal-header">
+                            <h2><span class="material-symbols-rounded" style="vertical-align: middle; margin-right: 0.4rem;">dns</span>Repository Marketplace</h2>
+                            <button id="btn-close-repo-modal" class="btn-icon-close"><span class="material-symbols-rounded">close</span></button>
+                        </div>
+                        <div class="repo-modal-body">
+                            <div id="repo-list-container"></div>
+
+                            <div class="repo-add-section">
+                                <h4><span class="material-symbols-rounded" style="vertical-align: middle; font-size: 1.2rem;">add_circle</span> Aggiungi Repository</h4>
+                                <div class="repo-warning-box">
+                                    <span class="material-symbols-rounded" style="font-size: 1.3rem;">warning</span>
+                                    <span>Le applicazioni provenienti da repository di terze parti <strong>non sono verificate da NunzioTech</strong>. Installarle e utilizzarle è a tua esclusiva responsabilità.</span>
+                                </div>
+                                <div class="repo-form-row">
+                                    <label>Tipo</label>
+                                    <select id="repo-type-select" class="input">
+                                        <option value="github">Repository GitHub</option>
+                                        <option value="url">URL diretto (marketplace.json)</option>
+                                    </select>
+                                </div>
+                                <div class="repo-form-row">
+                                    <label>Etichetta</label>
+                                    <input type="text" id="repo-label-input" class="input" placeholder="Es. Repository di Mario Rossi">
+                                </div>
+                                <div id="repo-github-fields">
+                                    <div class="repo-form-row repo-form-row-split">
+                                        <div>
+                                            <label>Owner</label>
+                                            <input type="text" id="repo-owner-input" class="input" placeholder="Es. mariorossi">
+                                        </div>
+                                        <div>
+                                            <label>Repository</label>
+                                            <input type="text" id="repo-repo-input" class="input" placeholder="Es. le-mie-app">
+                                        </div>
+                                    </div>
+                                    <div class="repo-form-row repo-form-row-split">
+                                        <div>
+                                            <label>Branch <span style="font-weight:400; opacity:0.7;">(opz., default main)</span></label>
+                                            <input type="text" id="repo-branch-input" class="input" placeholder="main">
+                                        </div>
+                                        <div>
+                                            <label>Percorso file <span style="font-weight:400; opacity:0.7;">(opz.)</span></label>
+                                            <input type="text" id="repo-path-input" class="input" placeholder="marketplace.json">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="repo-url-fields" style="display: none;">
+                                    <div class="repo-form-row">
+                                        <label>URL marketplace.json (HTTPS)</label>
+                                        <input type="text" id="repo-url-input" class="input" placeholder="https://tuosito.it/marketplace.json">
+                                    </div>
+                                </div>
+                                <button id="btn-add-repo" class="btn-install-large" style="width: 100%; justify-content: center;">
+                                    <span class="material-symbols-rounded">add</span> Aggiungi Repository
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <style>
@@ -136,6 +202,70 @@ export default {
                     .btn-uninstall-large { background: transparent; color: var(--md-error); border: 2px solid var(--md-error); padding: 1rem 2rem; border-radius: 14px; font-size: 1.1rem; font-weight: bold; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; }
                     .spin { animation: spin 1s linear infinite; }
                     @keyframes spin { 100% { transform: rotate(360deg); } }
+
+                    .repo-modal-overlay {
+                        position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+                        display: flex; align-items: center; justify-content: center;
+                        z-index: 1000; padding: 1.5rem;
+                    }
+                    .repo-modal {
+                        background: var(--md-surface); border-radius: 20px; width: 100%; max-width: 640px;
+                        max-height: 88vh; display: flex; flex-direction: column; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                    }
+                    .repo-modal-header {
+                        display: flex; align-items: center; justify-content: space-between;
+                        padding: 1.5rem 1.8rem; border-bottom: 1px solid var(--md-outline-variant);
+                    }
+                    .repo-modal-header h2 { margin: 0; font-size: 1.4rem; color: var(--md-on-surface); }
+                    .btn-icon-close {
+                        background: transparent; border: none; cursor: pointer; color: var(--md-on-surface-variant);
+                        display: flex; align-items: center; justify-content: center; padding: 0.4rem; border-radius: 50%;
+                    }
+                    .btn-icon-close:hover { background: var(--md-surface-variant); }
+                    .repo-modal-body { padding: 1.5rem 1.8rem; overflow-y: auto; }
+                    .repo-item {
+                        display: flex; align-items: center; gap: 0.9rem; padding: 0.9rem 1rem;
+                        border: 1px solid var(--md-outline-variant); border-radius: 14px; margin-bottom: 0.7rem;
+                    }
+                    .repo-item-icon { font-size: 1.6rem; color: var(--md-primary); flex-shrink: 0; }
+                    .repo-item-body { flex: 1; min-width: 0; }
+                    .repo-item-label { font-weight: 700; color: var(--md-on-surface); display: flex; align-items: center; gap: 0.5rem; }
+                    .repo-item-url { font-size: 0.82rem; color: var(--md-on-surface-variant); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                    .repo-item-status { font-size: 0.78rem; margin-top: 0.2rem; display: flex; align-items: center; gap: 0.3rem; }
+                    .repo-item-status.ok { color: var(--md-success, #2e7d32); }
+                    .repo-item-status.error { color: var(--md-error); }
+                    .repo-badge-official {
+                        background: var(--md-primary-container); color: var(--md-on-primary-container);
+                        font-size: 0.72rem; font-weight: 700; padding: 0.15rem 0.55rem; border-radius: 999px;
+                    }
+                    .repo-item-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+                    .repo-add-section { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--md-outline-variant); }
+                    .repo-add-section h4 { margin: 0 0 1rem; color: var(--md-on-surface); }
+                    .repo-warning-box {
+                        display: flex; gap: 0.7rem; align-items: flex-start; background: var(--md-error-container);
+                        color: var(--md-on-error-container); padding: 0.9rem 1rem; border-radius: 12px;
+                        font-size: 0.88rem; line-height: 1.4; margin-bottom: 1.2rem;
+                    }
+                    .repo-form-row { margin-bottom: 0.9rem; }
+                    .repo-form-row label { display: block; font-size: 0.85rem; font-weight: 600; color: var(--md-on-surface-variant); margin-bottom: 0.3rem; }
+                    .repo-form-row .input, .repo-form-row select.input {
+                        width: 100%; padding: 0.65rem 0.8rem; border-radius: 10px; border: 1px solid var(--md-outline);
+                        background: var(--md-surface); color: var(--md-on-surface); font-size: 0.95rem;
+                    }
+                    .repo-form-row-split { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+                    .repo-toggle {
+                        width: 40px; height: 22px; border-radius: 12px; position: relative; cursor: pointer;
+                        border: none; flex-shrink: 0; transition: background 0.2s;
+                    }
+                    .repo-toggle-thumb {
+                        position: absolute; top: 2px; width: 18px; height: 18px; background: #fff; border-radius: 50%;
+                        transition: left 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+                    }
+                    .btn-danger-icon {
+                        background: transparent; border: 1px solid var(--md-error); color: var(--md-error);
+                        border-radius: 8px; padding: 0.4rem; cursor: pointer; display: flex; align-items: center;
+                    }
+                    .tile-badge.thirdparty { background: var(--md-error-container); color: var(--md-on-error-container); }
                 </style>
             `;
 
@@ -151,6 +281,14 @@ export default {
             const updatesBadge = el.querySelector('#updates-count-badge');
             const updateAllContainer = el.querySelector('#update-all-container');
             const btnUpdateAll = el.querySelector('#btn-update-all');
+            const btnManageRepos = el.querySelector('#btn-manage-repos');
+            const repoModalOverlay = el.querySelector('#repo-modal-overlay');
+            const btnCloseRepoModal = el.querySelector('#btn-close-repo-modal');
+            const repoListContainer = el.querySelector('#repo-list-container');
+            const repoTypeSelect = el.querySelector('#repo-type-select');
+            const repoGithubFields = el.querySelector('#repo-github-fields');
+            const repoUrlFields = el.querySelector('#repo-url-fields');
+            const btnAddRepo = el.querySelector('#btn-add-repo');
 
             let marketApps = [];
             let coreApps = [];
@@ -333,10 +471,17 @@ export default {
                                     ${app.installed ? `<span class="store-badge installed"><span class="material-symbols-rounded" style="font-size: 0.9rem;">check_circle</span> Installata v${app.installedVersion || app.version}</span>` : ''}
                                     ${app.hasUpdate ? `<span class="store-badge update"><span class="material-symbols-rounded" style="font-size: 0.9rem;">system_update</span> Aggiornamento Disponibile v${app.version}</span>` : ''}
                                     ${isCore ? `<span class="store-badge core">Sistema</span>` : ''}
+                                    ${app.__source === 'custom' ? `<span class="store-badge" style="background: var(--md-error-container); color: var(--md-on-error-container);"><span class="material-symbols-rounded" style="font-size: 0.9rem;">warning</span> Terze Parti: ${app.__sourceLabel || 'sconosciuta'}</span>` : ''}
                                     ${CATEGORY_LABELS[app.category] ? `<span class="store-badge category">${CATEGORY_LABELS[app.category]}</span>` : ''}
                                 </div>
                             </div>
                         </div>
+
+                        ${app.__source === 'custom' ? `
+                        <div class="repo-warning-box" style="margin-top: 1.5rem;">
+                            <span class="material-symbols-rounded" style="font-size: 1.3rem;">warning</span>
+                            <span>Questa applicazione proviene dal repository di terze parti <strong>"${app.__sourceLabel || 'sconosciuto'}"</strong>, non verificato da NunzioTech. Installarla e utilizzarla è a tua esclusiva responsabilità.</span>
+                        </div>` : ''}
 
                         <div class="detail-action-bar">
                             ${actionBtnHtml}
@@ -395,6 +540,147 @@ export default {
                 } catch (e) {
                     console.error("showAppDetails error:", e);
                 }
+            }
+
+            async function renderRepoList() {
+                try {
+                    repoListContainer.innerHTML = '<p style="text-align:center; color: var(--md-on-surface-variant); padding: 1rem;">Caricamento...</p>';
+                    const res = await window.electronAPI.store.listRepositories();
+                    const repos = (res && res.success && Array.isArray(res.data)) ? res.data : [];
+                    repoListContainer.innerHTML = '';
+                    repos.forEach(repo => {
+                        const item = document.createElement('div');
+                        item.className = 'repo-item';
+                        const statusHtml = repo.locked
+                            ? `<span class="repo-badge-official">Ufficiale</span>`
+                            : (repo.last_status === 'error'
+                                ? `<span class="repo-item-status error"><span class="material-symbols-rounded" style="font-size:0.9rem;">error</span> ${repo.last_error || 'Errore di connessione'}</span>`
+                                : `<span class="repo-item-status ok"><span class="material-symbols-rounded" style="font-size:0.9rem;">check_circle</span> Raggiungibile</span>`);
+
+                        item.innerHTML = `
+                            <span class="material-symbols-rounded repo-item-icon">${repo.locked ? 'verified' : (repo.type === 'github' ? 'code' : 'link')}</span>
+                            <div class="repo-item-body">
+                                <div class="repo-item-label">${repo.label} ${statusHtml}</div>
+                                <div class="repo-item-url">${repo.url}</div>
+                            </div>
+                            <div class="repo-item-actions"></div>
+                        `;
+                        const actionsEl = item.querySelector('.repo-item-actions');
+
+                        if (!repo.locked) {
+                            const toggle = document.createElement('button');
+                            toggle.className = 'repo-toggle';
+                            toggle.style.background = repo.enabled ? 'var(--md-primary)' : 'var(--md-outline-variant)';
+                            toggle.title = repo.enabled ? 'Disabilita repository' : 'Abilita repository';
+                            toggle.innerHTML = `<span class="repo-toggle-thumb" style="left:${repo.enabled ? '20px' : '2px'};"></span>`;
+                            toggle.addEventListener('click', async () => {
+                                try {
+                                    toggle.disabled = true;
+                                    await window.electronAPI.store.setRepositoryEnabled(repo.id, !repo.enabled);
+                                    await renderRepoList();
+                                    await loadApps();
+                                } catch (e) {
+                                    toast('Errore durante l\'aggiornamento del repository', 'error');
+                                }
+                            });
+                            actionsEl.appendChild(toggle);
+
+                            const removeBtn = document.createElement('button');
+                            removeBtn.className = 'btn-danger-icon';
+                            removeBtn.title = 'Rimuovi repository';
+                            removeBtn.innerHTML = '<span class="material-symbols-rounded" style="font-size:1.1rem;">delete</span>';
+                            removeBtn.addEventListener('click', async () => {
+                                try {
+                                    if (!confirm(`Rimuovere il repository "${repo.label}"? Le app già installate da questa fonte resteranno installate ma non riceveranno più aggiornamenti automatici da qui.`)) return;
+                                    await window.electronAPI.store.removeRepository(repo.id);
+                                    await renderRepoList();
+                                    await loadApps();
+                                    toast('Repository rimosso', 'success');
+                                } catch (e) {
+                                    toast('Errore durante la rimozione del repository', 'error');
+                                }
+                            });
+                            actionsEl.appendChild(removeBtn);
+                        }
+
+                        repoListContainer.appendChild(item);
+                    });
+                } catch (e) {
+                    console.error('renderRepoList error:', e);
+                    repoListContainer.innerHTML = '<p style="color: var(--md-error);">Errore nel caricamento dei repository.</p>';
+                }
+            }
+
+            function openRepoModal() {
+                repoModalOverlay.style.display = 'flex';
+                renderRepoList();
+            }
+
+            function closeRepoModal() {
+                repoModalOverlay.style.display = 'none';
+            }
+
+            if (btnManageRepos) {
+                btnManageRepos.addEventListener('click', openRepoModal);
+            }
+            if (btnCloseRepoModal) {
+                btnCloseRepoModal.addEventListener('click', closeRepoModal);
+            }
+            if (repoModalOverlay) {
+                repoModalOverlay.addEventListener('click', (e) => {
+                    if (e.target === repoModalOverlay) closeRepoModal();
+                });
+            }
+            if (repoTypeSelect) {
+                repoTypeSelect.addEventListener('change', () => {
+                    const isGithub = repoTypeSelect.value === 'github';
+                    repoGithubFields.style.display = isGithub ? 'block' : 'none';
+                    repoUrlFields.style.display = isGithub ? 'none' : 'block';
+                });
+            }
+            if (btnAddRepo) {
+                btnAddRepo.addEventListener('click', async () => {
+                    try {
+                        const type = repoTypeSelect.value;
+                        const label = el.querySelector('#repo-label-input').value.trim();
+                        if (!label) { toast('Inserisci un\'etichetta per il repository', 'error'); return; }
+
+                        const payload = { label, type };
+                        if (type === 'github') {
+                            payload.owner = el.querySelector('#repo-owner-input').value.trim();
+                            payload.repo = el.querySelector('#repo-repo-input').value.trim();
+                            payload.branch = el.querySelector('#repo-branch-input').value.trim();
+                            payload.path = el.querySelector('#repo-path-input').value.trim();
+                            if (!payload.owner || !payload.repo) { toast('Owner e Repository sono obbligatori', 'error'); return; }
+                        } else {
+                            payload.url = el.querySelector('#repo-url-input').value.trim();
+                            if (!payload.url) { toast('Inserisci un URL valido', 'error'); return; }
+                        }
+
+                        btnAddRepo.disabled = true;
+                        btnAddRepo.innerHTML = '<span class="material-symbols-rounded spin">sync</span> Verifica in corso...';
+
+                        const res = await window.electronAPI.store.addRepository(payload);
+                        if (res && res.success) {
+                            toast(`Repository aggiunto con successo (${(res.data && res.data.appCount) || 0} app trovate).`, 'success');
+                            ['repo-label-input', 'repo-owner-input', 'repo-repo-input', 'repo-branch-input', 'repo-path-input', 'repo-url-input'].forEach(id => {
+                                const field = el.querySelector(`#${id}`);
+                                if (field) field.value = '';
+                            });
+                            await renderRepoList();
+                            if (window.electronAPI.store.checkUpdates) await window.electronAPI.store.checkUpdates();
+                            await loadApps();
+                        } else {
+                            toast((res && res.error) || 'Impossibile aggiungere il repository', 'error');
+                        }
+                    } catch (e) {
+                        console.error('btnAddRepo error:', e);
+                        toast('Errore durante l\'aggiunta del repository', 'error');
+                    } finally {
+                        btnAddRepo.disabled = false;
+                        btnAddRepo.innerHTML = '<span class="material-symbols-rounded">add</span> Aggiungi Repository';
+                    }
+                });
             }
 
             async function loadApps() {
@@ -458,6 +744,7 @@ export default {
                         <div class="app-badges">
                             ${app.installed && !app.hasUpdate ? `<span class="tile-badge installed"><span class="material-symbols-rounded" style="font-size: 0.9rem;">check_circle</span> Installata</span>` : ''}
                             ${app.hasUpdate ? `<span class="tile-badge update"><span class="material-symbols-rounded" style="font-size: 0.9rem;">system_update</span> Update v${app.version}</span>` : ''}
+                            ${app.__source === 'custom' ? `<span class="tile-badge thirdparty"><span class="material-symbols-rounded" style="font-size: 0.9rem;">warning</span> ${app.__sourceLabel || 'Terze Parti'}</span>` : ''}
                             ${categoryLabel ? `<span class="tile-badge category">${categoryLabel}</span>` : ''}
                         </div>
                     `;

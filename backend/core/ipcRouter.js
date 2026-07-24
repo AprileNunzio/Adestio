@@ -372,6 +372,10 @@ function registerAllIPCHandlers(windowManager) {
                 return { success: false, error: e.message };
             }
         });
+        ipcMain.handle('store:listRepositories', () => storeHandlers.listRepositories());
+        ipcMain.handle('store:addRepository', (e, args) => storeHandlers.addRepository(e, args));
+        ipcMain.handle('store:removeRepository', (e, id) => storeHandlers.removeRepository(e, id));
+        ipcMain.handle('store:setRepositoryEnabled', (e, args) => storeHandlers.setRepositoryEnabled(e, args));
         ipcMain.handle('get_system_logs', () => storeHandlers.getSystemLogs());
         ipcMain.handle('clear_system_logs', () => storeHandlers.clearSystemLogs());
         ipcMain.handle('delete_system_log', (e, id) => storeHandlers.deleteSystemLog(id));

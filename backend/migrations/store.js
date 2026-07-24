@@ -25,5 +25,22 @@ module.exports = [
                 error         TEXT
             );
         `
+    },
+    {
+        version: 2,
+        sql: `
+            CREATE TABLE IF NOT EXISTS custom_repositories (
+                id           TEXT PRIMARY KEY,
+                label        TEXT NOT NULL,
+                type         TEXT NOT NULL,
+                url          TEXT NOT NULL,
+                added_at     INTEGER NOT NULL,
+                added_by     TEXT,
+                enabled      INTEGER NOT NULL DEFAULT 1,
+                last_checked INTEGER,
+                last_status  TEXT,
+                last_error   TEXT
+            );
+        `
     }
 ];
