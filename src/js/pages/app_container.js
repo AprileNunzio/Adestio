@@ -74,27 +74,45 @@ export default {
             }
 
             try {
-                let modulePath = `../../apps/${appId}/app.js`;
+                let appModule = null;
                 let appFolder = appId;
+                let mainFile = 'app.js';
+                let isMarketplace = false;
+
                 if (window.electronAPI) {
                     const allApps = await window.electronAPI.getAppsRegistry();
                     const appManifest = allApps.find(a => a.folder === appId || a.id === appId);
-                    if (appManifest && !appManifest.core && !appManifest.bundled) {
-                        const mainFile = appManifest.main || 'app.js';
-                        appFolder = appManifest.folder || appId;
-                        modulePath = `adestio-app://${appFolder}/${mainFile}`;
-
-                        const cssPath = `adestio-app://${appFolder}/css/style.css`;
-                        if (!document.querySelector(`link[data-app-css="${appFolder}"]`)) {
-                            const link = document.createElement('link');
-                            link.rel = 'stylesheet';
-                            link.href = cssPath;
-                            link.setAttribute('data-app-css', appFolder);
-                            document.head.appendChild(link);
+                    if (appManifest) {
+                        appFolder = appManifest.folder || appManifest.id || appId;
+                        mainFile = appManifest.main || 'app.js';
+                        if (!appManifest.core && !appManifest.bundled) {
+                            isMarketplace = true;
                         }
                     }
                 }
-                const appModule = await import(modulePath);
+
+                if (isMarketplace) {
+                    const cssPath = `adestio-app://${appFolder}/css/style.css`;
+                    if (!document.querySelector(`link[data-app-css="${appFolder}"]`)) {
+                        const link = document.createElement('link');
+                        link.rel = 'stylesheet';
+                        link.href = cssPath;
+                        link.setAttribute('data-app-css', appFolder);
+                        document.head.appendChild(link);
+                    }
+                    appModule = await import(`adestio-app://${appFolder}/${mainFile}`);
+                } else {
+                    try {
+                        appModule = await import(`../../apps/${appFolder}/${mainFile}`);
+                    } catch (e1) {
+                        try {
+                            appModule = await import(`../../apps/${appId}/app.js`);
+                        } catch (e2) {
+                            appModule = await import(`../apps/${appFolder}/${mainFile}`);
+                        }
+                    }
+                }
+
                 const targetRender = (appModule && appModule.default && typeof appModule.default.render === 'function') 
                     ? appModule.default.render 
                     : (appModule && typeof appModule.render === 'function' ? appModule.render : null);
