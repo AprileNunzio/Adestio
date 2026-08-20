@@ -40,6 +40,12 @@ async function loadApp(manifest) {
         const appDir = manifest.appPath || path.join(APPS_PATH, manifest.folder || appId);
         const manifestFile = path.join(appDir, 'manifest.json');
 
+        Object.keys(require.cache).forEach(key => {
+            if (key.startsWith(appDir) || (manifest.folder && key.includes(manifest.folder)) || key.includes(appId)) {
+                delete require.cache[key];
+            }
+        });
+
         if (fs.existsSync(manifestFile) && manifest.integrity_hash) {
             const currentHash = cryptoVerifier.computeFileHash(manifestFile);
             if (currentHash !== manifest.integrity_hash) {
@@ -129,6 +135,17 @@ async function unloadApp(appId) {
         }
         appProcessManager.terminateAppProcess(appId);
         _loaded.delete(appId);
+
+        try {
+            const appsDir = path.join(app.getPath('userData'), 'installed_apps');
+            const targetAppDir = path.join(appsDir, appId);
+            Object.keys(require.cache).forEach(key => {
+                if (key.startsWith(targetAppDir) || key.includes(appId)) {
+                    delete require.cache[key];
+                }
+            });
+        } catch (cacheErr) {}
+
         auditLogger.logEvent('system', 'APP_UNLOADED', 'app', appId);
         return true;
     } catch (e) {

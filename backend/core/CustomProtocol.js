@@ -71,13 +71,37 @@ function registerCustomProtocol() {
                 }
 
                 const appsDir = path.join(app.getPath('userData'), 'installed_apps');
-                const targetAppDir = path.join(appsDir, appId);
+                let targetAppDir = path.join(appsDir, appId);
 
-                if (!fs.existsSync(targetAppDir)) {
-                    return new Response('App non trovata', { status: 404 });
+                if (!fs.existsSync(targetAppDir) && fs.existsSync(appsDir)) {
+                    try {
+                        const entries = fs.readdirSync(appsDir, { withFileTypes: true });
+                        for (const ent of entries) {
+                            if (ent.isDirectory()) {
+                                const candidate = path.join(appsDir, ent.name);
+                                const mPath = path.join(candidate, 'manifest.json');
+                                if (fs.existsSync(mPath)) {
+                                    try {
+                                        const m = JSON.parse(fs.readFileSync(mPath, 'utf8'));
+                                        if (m.id === appId || m.folder === appId || ent.name.toLowerCase() === appId.toLowerCase()) {
+                                            targetAppDir = candidate;
+                                            break;
+                                        }
+                                    } catch (eM) {}
+                                }
+                            }
+                        }
+                    } catch (eDir) {}
                 }
 
                 let absolutePath = path.resolve(targetAppDir, filePath);
+
+                if (!fs.existsSync(absolutePath)) {
+                    if (filePath === 'style.css') {
+                        const cssNested = path.resolve(targetAppDir, 'css', 'style.css');
+                        if (fs.existsSync(cssNested)) absolutePath = cssNested;
+                    }
+                }
 
                 if (!fs.existsSync(absolutePath)) {
                     const coreSrcPath = app.isPackaged 
@@ -104,18 +128,17 @@ function registerCustomProtocol() {
                     });
                 }
 
-                const response = await net.fetch(`file:///${absolutePath.replace(/\\/g, '/')}`);
-                const newHeaders = new Headers(response.headers);
-                const mime = getMimeType(absolutePath);
-                if (mime) newHeaders.set('Content-Type', mime);
+                const fileBuffer = await fs.promises.readFile(absolutePath);
+                const newHeaders = new Headers();
+                const mime = getMimeType(absolutePath) || 'application/octet-stream';
+                newHeaders.set('Content-Type', mime);
                 newHeaders.set('Access-Control-Allow-Origin', '*');
                 newHeaders.set('Cache-Control', 'no-cache, no-store, must-revalidate');
                 newHeaders.set('Pragma', 'no-cache');
                 newHeaders.set('Expires', '0');
                 
-                return new Response(response.body, {
-                    status: response.status,
-                    statusText: response.statusText,
+                return new Response(fileBuffer, {
+                    status: 200,
                     headers: newHeaders
                 });
             } catch (e) {

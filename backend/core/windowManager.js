@@ -95,6 +95,16 @@ class WindowManager {
                 }
             });
             this.mainWindow.setMenu(null);
+            this.mainWindow.webContents.on('before-input-event', (event, input) => {
+                try {
+                    if (input.type === 'keyDown') {
+                        if (input.key === 'F12' || (input.control && input.shift && (input.key === 'I' || input.key === 'i'))) {
+                            this.mainWindow.webContents.toggleDevTools();
+                            event.preventDefault();
+                        }
+                    }
+                } catch (e) {}
+            });
             if (!isHiddenBoot) {
                 this.mainWindow.maximize();
             }

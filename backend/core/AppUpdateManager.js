@@ -337,12 +337,43 @@ class AppUpdateManager {
                 }
             }
 
+            const stagingBase = path.join(app.getPath('userData'), 'temp_staging');
+            if (!fs.existsSync(stagingBase)) await fs.promises.mkdir(stagingBase, { recursive: true });
+            const stagingDir = path.join(stagingBase, `${appId}_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+            await fs.promises.mkdir(stagingDir, { recursive: true });
+
             const zip = new AdmZip(zipBuffer);
+            await this._safeExtractZip(zip, stagingDir);
+
+            const stagedManifest = path.join(stagingDir, 'manifest.json');
+            if (!fs.existsSync(stagedManifest)) {
+                throw new Error('Pacchetto applicativo non integro: manifest.json mancante');
+            }
 
             await this._backupAppFolder(appDir, appId);
 
-            if (!fs.existsSync(appDir)) await fs.promises.mkdir(appDir, { recursive: true });
-            await this._safeExtractZip(zip, appDir);
+            const AppLoader = require('./AppLoader');
+            await AppLoader.unloadApp(appId);
+
+            Object.keys(require.cache).forEach(key => {
+                if (key.startsWith(appDir) || key.includes(appId) || (targetApp.folder && key.includes(targetApp.folder))) {
+                    delete require.cache[key];
+                }
+            });
+
+            try {
+                const { session } = require('electron');
+                if (session && session.defaultSession) {
+                    await session.defaultSession.clearCache();
+                    await session.defaultSession.clearStorageData({ storages: ['cachestorage'] });
+                }
+            } catch (eCache) {}
+
+            if (fs.existsSync(appDir)) {
+                fs.rmSync(appDir, { recursive: true, force: true });
+            }
+            await fs.promises.mkdir(path.dirname(appDir), { recursive: true });
+            fs.renameSync(stagingDir, appDir);
 
             const { getDB, saveDB } = require('../db');
             const db = getDB('store');
@@ -359,12 +390,10 @@ class AppUpdateManager {
                 await saveDB('store');
             }
 
-            const AppLoader = require('./AppLoader');
             try {
-                AppLoader.unloadApp(appId);
                 const manifests = require('./appsRegistry');
                 const allApps = await manifests.getAppsRegistry();
-                const manifest = allApps.find(m => m.id === appId || m.folder === appId);
+                const manifest = allApps.find(m => m.id === appId || m.folder === appId) || targetApp;
                 if (manifest) await AppLoader.loadApp(manifest);
             } catch (reloadErr) {}
 

@@ -506,14 +506,20 @@ async function getCoreApps() {
     }
 }
 
-async function downloadFromPeersOrFallback(appId, fallbackUrl, targetFolder) {
+async function downloadAndExtractStaged(appId, targetManifest) {
     try {
+        const { app } = require('electron');
         const sync = require('../sync');
-        const { generateNetworkHash } = require('../p2p/network_auth');
-        const peers = sync.getDetailedNodes ? sync.getDetailedNodes() : [];
+        const stagingBase = path.join(app.getPath('userData'), 'temp_staging');
+        if (!fs.existsSync(stagingBase)) fs.mkdirSync(stagingBase, { recursive: true });
+
+        const stagingDir = path.join(stagingBase, `${appId}_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+        fs.mkdirSync(stagingDir, { recursive: true });
+
         let zipBuffer = null;
         let downloadedFromPeer = false;
 
+        const peers = sync.getDetailedNodes ? sync.getDetailedNodes() : [];
         if (peers && peers.length > 0) {
             for (const peer of peers) {
                 try {
@@ -533,9 +539,14 @@ async function downloadFromPeersOrFallback(appId, fallbackUrl, targetFolder) {
         }
 
         if (!zipBuffer) {
-            if (!fallbackUrl) throw new Error('Download URL non disponibile');
-            const response = await fetch(`${fallbackUrl}?t=${Date.now()}`, {
-                headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+            if (!targetManifest.downloadUrl) throw new Error('Download URL non disponibile');
+            const bust = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+            const response = await fetch(`${targetManifest.downloadUrl}?t=${bust}`, {
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
             });
             if (!response.ok) throw new Error(`Download HTTP fallito: ${response.statusText}`);
             const arrayBuffer = await response.arrayBuffer();
@@ -545,7 +556,7 @@ async function downloadFromPeersOrFallback(appId, fallbackUrl, targetFolder) {
         const zip = new AdmZip(zipBuffer);
         await new Promise((resolve, reject) => {
             try {
-                zip.extractAllToAsync(targetFolder, true, true, (err) => {
+                zip.extractAllToAsync(stagingDir, true, true, (err) => {
                     if (err) reject(err);
                     else resolve();
                 });
@@ -553,9 +564,15 @@ async function downloadFromPeersOrFallback(appId, fallbackUrl, targetFolder) {
                 reject(eZip);
             }
         });
-        return downloadedFromPeer;
+
+        const stagedManifest = path.join(stagingDir, 'manifest.json');
+        if (!fs.existsSync(stagedManifest)) {
+            throw new Error('Pacchetto applicativo non integro: manifest.json mancante');
+        }
+
+        return { stagingDir, downloadedFromPeer };
     } catch (e) {
-        console.error('[Store] Error in downloadFromPeersOrFallback:', e);
+        console.error('[Store] Error in downloadAndExtractStaged:', e);
         throw e;
     }
 }
@@ -563,13 +580,11 @@ async function downloadFromPeersOrFallback(appId, fallbackUrl, targetFolder) {
 async function install(event, appId) {
     let lockAcquired = false;
     let previousVersion = null;
+    let createdStagingDir = null;
     try {
         if (!accessGuard.isSuperadmin()) return { success: false, error: 'Permesso negato' };
         if (!appId) return { success: false, error: 'appId mancante' };
 
-        
-        
-        
         if (AppUpdateManager.isLocked(appId)) {
             return { success: false, error: 'Applicazione già in aggiornamento in background. Riprova tra qualche istante.' };
         }
@@ -596,70 +611,77 @@ async function install(event, appId) {
         });
         lockAcquired = true;
 
-        if (targetManifest.downloadUrl) {
-            const { app } = require('electron');
-            const targetBaseDir = path.join(app.getPath('userData'), 'installed_apps');
-            if (!fs.existsSync(targetBaseDir)) fs.mkdirSync(targetBaseDir, { recursive: true });
-            const appDir = path.join(targetBaseDir, targetManifest.folder || appId);
-            await downloadFromPeersOrFallback(appId, targetManifest.downloadUrl, appDir);
-        }
+        const { stagingDir } = await downloadAndExtractStaged(appId, targetManifest);
+        createdStagingDir = stagingDir;
 
         AppUpdateManager.beginManualOperation(appId, 'installing', {
             currentVersion: previousVersion,
             availableVersion: targetManifest.version
         });
 
-        const updatedManifests = await appsRegistry.getAppsRegistry();
-        const installedRows = await getInstalledRows();
-        const installedIds = installedRows.map(r => r.app_id);
+        const { app, session } = require('electron');
+        const targetFolder = targetManifest.folder || appId;
+        const targetBaseDir = path.join(app.getPath('userData'), 'installed_apps');
+        const finalAppDir = path.join(targetBaseDir, targetFolder);
 
-        let order;
+        await AppLoader.unloadApp(appId);
+
+        Object.keys(require.cache).forEach(key => {
+            if (key.startsWith(finalAppDir) || key.includes(appId) || (targetManifest.folder && key.includes(targetManifest.folder))) {
+                delete require.cache[key];
+            }
+        });
+
         try {
-            order = DependencyResolver.resolve(appId, updatedManifests, installedIds);
-        } catch (e) {
-            order = [appId];
+            if (session && session.defaultSession) {
+                await session.defaultSession.clearCache();
+                await session.defaultSession.clearStorageData({ storages: ['cachestorage'] });
+            }
+        } catch (eCache) {}
+
+        if (fs.existsSync(finalAppDir)) {
+            fs.rmSync(finalAppDir, { recursive: true, force: true });
+        }
+        fs.mkdirSync(path.dirname(finalAppDir), { recursive: true });
+        fs.renameSync(stagingDir, finalAppDir);
+        createdStagingDir = null;
+
+        try {
+            const stagingBase = path.join(app.getPath('userData'), 'temp_staging');
+            if (fs.existsSync(stagingBase)) {
+                const remaining = fs.readdirSync(stagingBase);
+                for (const rem of remaining) {
+                    const remPath = path.join(stagingBase, rem);
+                    try { fs.rmSync(remPath, { recursive: true, force: true }); } catch (eRem) {}
+                }
+            }
+        } catch (eClean) {}
+
+        const updatedManifests = await appsRegistry.getAppsRegistry();
+        const manifest = updatedManifests.find(m => m.id === appId) || targetManifest;
+        const ok = await AppLoader.loadApp(manifest);
+        if (!ok) {
+            throw new Error(`Inizializzazione fallita per l'applicazione "${appId}"`);
         }
 
         const db = getStoreDB();
         const actorUserId = sessionManager.getCurrentUserId();
-        const installedNow = [];
-
-        for (const id of order) {
-            await AppLoader.unloadApp(id);
-            const manifest = updatedManifests.find(m => m.id === id) || (id === appId ? targetManifest : null);
-            if (!manifest) continue;
-            const ok = await AppLoader.loadApp(manifest);
-            if (!ok) {
-                logInstallAction(db, id, 'install', manifest.version, actorUserId, false, 'AppLoader.loadApp fallito');
-                await saveDB('store');
-                AppUpdateManager.endManualOperation(appId, {
-                    finalState: 'error',
-                    meta: { error: `Installazione fallita per "${id}"` },
-                    clearDelayMs: 10000
-                });
-                lockAcquired = false;
-                return { success: false, error: `Installazione fallita per "${id}"` };
+        const ts = getTimestamp();
+        if (db) {
+            const existing = db.query('SELECT app_id FROM installed_apps WHERE app_id = ?', [appId]);
+            if (existing && existing.length > 0) {
+                db.run('UPDATE installed_apps SET version = ?, updated_at = ?, status = ? WHERE app_id = ?', [manifest.version || '0.0.0', ts, 'active', appId]);
+            } else {
+                db.run(
+                    'INSERT INTO installed_apps (app_id, version, installed_at, updated_at, published_at, installed_by, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    [appId, manifest.version || '0.0.0', ts, ts, manifest.published_at || null, actorUserId, 'active']
+                );
             }
-            const ts = getTimestamp();
-            if (db) {
-                const existing = db.query('SELECT app_id FROM installed_apps WHERE app_id = ?', [id]);
-                if (existing.length > 0) {
-                    db.run('UPDATE installed_apps SET version = ?, updated_at = ?, status = ? WHERE app_id = ?', [manifest.version || '0.0.0', ts, 'active', id]);
-                } else {
-                    db.run(
-                        'INSERT INTO installed_apps (app_id, version, installed_at, updated_at, published_at, installed_by, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                        [id, manifest.version || '0.0.0', ts, ts, manifest.published_at || null, actorUserId, 'active']
-                    );
-                }
-            }
-            logInstallAction(db, id, 'install', manifest.version, actorUserId, true, null);
-            installedNow.push(id);
+            logInstallAction(db, appId, 'install', manifest.version, actorUserId, true, null);
+            await saveDB('store');
         }
-        await saveDB('store');
 
         try {
-            
-            
             require('./rbac').syncPermissionsFromManifests();
         } catch (rbacErr) {
             console.error('[Store] Errore sync permessi RBAC post-install:', rbacErr);
@@ -670,18 +692,21 @@ async function install(event, appId) {
             notifyUpdated: true,
             previousVersion,
             newVersion: targetManifest.version,
-            clearDelayMs: 5000
+            clearDelayMs: 4000
         });
         lockAcquired = false;
 
-        return { success: true, data: { installed: installedNow } };
+        return { success: true, data: { installed: [appId] } };
     } catch (e) {
         console.error('[Store] Error in install:', e);
+        if (createdStagingDir && fs.existsSync(createdStagingDir)) {
+            try { fs.rmSync(createdStagingDir, { recursive: true, force: true }); } catch (eStg) {}
+        }
         if (lockAcquired) {
             AppUpdateManager.endManualOperation(appId, {
                 finalState: 'error',
                 meta: { error: e.message },
-                clearDelayMs: 10000
+                clearDelayMs: 8000
             });
         }
         return { success: false, error: e.message };

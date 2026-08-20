@@ -121,6 +121,17 @@ export default {
 
                 if (targetRender) {
                     await targetRender(mountPoint, params);
+
+                    if (window.electronAPI && window.electronAPI.store && window.electronAPI.store.onAppUpdated) {
+                        window.electronAPI.store.onAppUpdated(data => {
+                            try {
+                                if (data && (data.appId === appId || data.appId === appFolder)) {
+                                    document.querySelectorAll(`link[data-app-css="${appFolder}"]`).forEach(l => l.remove());
+                                    Router.navigate('app_container', { appId, reload: Date.now() });
+                                }
+                            } catch (e) {}
+                        });
+                    }
                 } else {
                     mountPoint.innerHTML = `
                         <div class="card" style="text-align: center;">

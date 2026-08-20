@@ -158,16 +158,17 @@ export default {
                                 return;
                             }
 
-                            const iconPath = app.icon
-                                ? (app.icon.includes('//') ? app.icon : (app.core || app.bundled ? `apps/${folderName}/${app.icon}` : `adestio-app://${folderName}/${app.icon}`))
-                                : `icone/applicazione_generica.png`;
+                            const isImage = app.icon && (app.icon.includes('/') || app.icon.includes('.'));
+                            const iconHtml = isImage
+                                ? `<img src="${app.icon.includes('//') ? app.icon : (app.core || app.bundled ? `apps/${folderName}/${app.icon}` : `adestio-app://${folderName}/${app.icon}`)}" class="app-icon" onerror="this.src='icone/applicazione_generica.png'">`
+                                : `<span class="material-symbols-rounded app-icon" style="font-size: 64px; color: ${app.color || 'var(--md-primary)'}; display: flex; align-items: center; justify-content: center;">${app.icon || 'apps'}</span>`;
                             const newBadgeHtml = app.__isNew
                                 ? `<span class="badge-new">NUOVA</span>`
                                 : '';
 
                             card.innerHTML = `
                                 ${newBadgeHtml}
-                                <img src="${iconPath}" class="app-icon" onerror="this.src='icone/applicazione_generica.png'">
+                                ${iconHtml}
                                 <div class="app-title">${app.name}</div>
                                 ${app.description ? `<div class="app-desc">${app.description}</div>` : ''}
                             `;

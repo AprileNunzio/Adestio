@@ -420,6 +420,7 @@ export default {
                         toast(`"${app.name}" ${isUpdate ? 'aggiornata' : 'installata'} con successo.`, 'success');
                         app.installed = true;
                         app.hasUpdate = false;
+                        await loadApps();
                         showAppDetails(app, admin);
                     } else {
                         toast(res && res.error ? res.error : 'Operazione fallita.', 'error');
@@ -463,9 +464,10 @@ export default {
                 try {
                     mainView.style.display = 'none';
                     detailView.style.display = 'flex';
-                    const iconPath = app.icon
-                        ? (app.icon.includes('//') ? app.icon : (app.core || app.bundled ? `apps/${app.folder}/${app.icon}` : `adestio-app://${app.folder}/${app.icon}`))
-                        : `icone/applicazione_generica.png`;
+                    const isImage = app.icon && (app.icon.includes('/') || app.icon.includes('.'));
+                    const iconHtml = isImage
+                        ? `<img src="${app.icon.includes('//') ? app.icon : (app.core || app.bundled ? `apps/${app.folder}/${app.icon}` : `adestio-app://${app.folder}/${app.icon}`)}" class="detail-icon" onerror="this.src='icone/applicazione_generica.png'">`
+                        : `<span class="material-symbols-rounded detail-icon" style="font-size:64px; color:${app.color || 'var(--md-primary)'}; display:flex; align-items:center; justify-content:center;">${app.icon || 'apps'}</span>`;
                     const isCore = app.core;
                     const isUpdatingNow = updateStates[app.id] === 'downloading' || updateStates[app.id] === 'installing';
                     const openBtnHtml = isUpdatingNow
@@ -494,7 +496,7 @@ export default {
 
                     detailContent.innerHTML = `
                         <div class="detail-header">
-                            <img src="${iconPath}" class="detail-icon" onerror="this.src='icone/applicazione_generica.png'">
+                            ${iconHtml}
                             <div>
                                 <h2 class="detail-title">${app.name}</h2>
                                 <div class="detail-developer">${app.author || 'NunzioTech'} • Versione ${app.version || '1.0.0'}</div>
@@ -790,9 +792,10 @@ export default {
 
             function renderAppRow(app, isCoreTab) {
                 try {
-                    const iconPath = app.icon
-                        ? (app.icon.includes('//') ? app.icon : (app.core || app.bundled ? `apps/${app.folder}/${app.icon}` : `adestio-app://${app.folder}/${app.icon}`))
-                        : `icone/applicazione_generica.png`;
+                    const isImage = app.icon && (app.icon.includes('/') || app.icon.includes('.'));
+                    const iconHtml = isImage
+                        ? `<img src="${app.icon.includes('//') ? app.icon : (app.core || app.bundled ? `apps/${app.folder}/${app.icon}` : `adestio-app://${app.folder}/${app.icon}`)}" class="app-row-icon" onerror="this.src='icone/applicazione_generica.png'">`
+                        : `<span class="material-symbols-rounded app-row-icon" style="font-size:36px; color:${app.color || 'var(--md-primary)'}; display:flex; align-items:center; justify-content:center;">${app.icon || 'apps'}</span>`;
                     const categoryLabel = CATEGORY_LABELS[app.category] || null;
                     const isSystemApp = !!(app.core || isCoreTab);
                     const row = document.createElement('div');
@@ -811,7 +814,7 @@ export default {
                     const updDateStr = formatAppDate(app.updated_at || app.installed_at || app.published_at, isSystemApp ? 'Allineata al Core' : pubDateStr);
 
                     row.innerHTML = `
-                        <img src="${iconPath}" class="app-row-icon" onerror="this.src='icone/applicazione_generica.png'">
+                        ${iconHtml}
                         <div class="app-row-info">
                             <div class="app-row-title">
                                 ${app.name}
