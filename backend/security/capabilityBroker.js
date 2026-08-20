@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const appMetrics = require('../observability/appMetrics');
 const auditLogger = require('../observability/auditLogger');
 
-const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const TOKEN_TTL_MS = 365 * 24 * 60 * 60 * 1000;
 
 class CapabilityBroker {
     constructor() {
@@ -54,6 +54,13 @@ class CapabilityBroker {
         } catch (error) {}
     }
 
+    _matchScope(scope, requiredPermission) {
+        if (scope === '*') return true;
+        if (scope === requiredPermission) return true;
+        if (!scope.endsWith(':*')) return false;
+        return requiredPermission.startsWith(scope.slice(0, -1));
+    }
+
     verifyCapability(appId, requiredPermission) {
         try {
             if (!this.appTokens.has(appId)) return false;
@@ -63,7 +70,10 @@ class CapabilityBroker {
                 this.revokeAppToken(appId);
                 return false;
             }
-            return tokenInfo.permissions.has(requiredPermission) || tokenInfo.permissions.has('*');
+            for (const scope of tokenInfo.permissions) {
+                if (this._matchScope(String(scope), String(requiredPermission))) return true;
+            }
+            return false;
         } catch (error) {
             return false;
         }
@@ -85,10 +95,19 @@ class CapabilityBroker {
     async routeIpcCall(sourceAppId, targetAppId, action, payload) {
         const start = Date.now();
         try {
-            if (sourceAppId !== 'core' && sourceAppId !== 'core:gdpr' && !this.appTokens.has(sourceAppId)) {
+            const sorgenteInterna = sourceAppId === 'core' || sourceAppId === 'core:gdpr';
+
+            if (!sorgenteInterna && !this.appTokens.has(sourceAppId)) {
                 auditLogger.logEvent(sourceAppId, 'UNAUTHORIZED_IPC', 'app', targetAppId, { action }, 'FAILURE');
                 throw new Error(`Non autorizzato: sorgente ${sourceAppId} non valida`);
             }
+
+            if (!sorgenteInterna && sourceAppId !== targetAppId
+                && !this.verifyCapability(sourceAppId, action)) {
+                auditLogger.logEvent(sourceAppId, 'CROSS_APP_DENIED', 'app', targetAppId, { action }, 'FAILURE');
+                throw new Error(`Non autorizzato: ${sourceAppId} non dichiara lo scope per "${action}"`);
+            }
+
             if (!this.registeredHandlers.has(targetAppId)) {
                 throw new Error(`Target non registrato: ${targetAppId}`);
             }
