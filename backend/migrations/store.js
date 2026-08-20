@@ -42,5 +42,13 @@ module.exports = [
                 last_error   TEXT
             );
         `
+    },
+    {
+        version: 3,
+        sql: `
+            ALTER TABLE installed_apps ADD COLUMN updated_at INTEGER;
+            ALTER TABLE installed_apps ADD COLUMN published_at INTEGER;
+        `
     }
 ];
+

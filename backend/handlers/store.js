@@ -87,14 +87,17 @@ async function getInstalledRows() {
             const existing = rows.find(r => r.app_id === m.id || r.app_id === m.folder);
             if (existing) {
                 if (m.version && existing.version !== m.version && db) {
-                    db.run("UPDATE installed_apps SET version = ? WHERE app_id = ?", [m.version, existing.app_id]);
+                    const ts = getTimestamp();
+                    db.run("UPDATE installed_apps SET version = ?, updated_at = ? WHERE app_id = ?", [m.version, ts, existing.app_id]);
                     existing.version = m.version;
+                    existing.updated_at = ts;
                 }
             } else {
+                const ts = getTimestamp();
                 if (db) {
-                    db.run("INSERT OR IGNORE INTO installed_apps (app_id, version, installed_at, status) VALUES (?, ?, ?, 'active')", [m.id, m.version || '1.0.0', getTimestamp()]);
+                    db.run("INSERT OR IGNORE INTO installed_apps (app_id, version, installed_at, updated_at, status) VALUES (?, ?, ?, ?, 'active')", [m.id, m.version || '1.0.0', ts, ts]);
                 }
-                rows.push({ app_id: m.id, version: m.version || '1.0.0', status: 'active' });
+                rows.push({ app_id: m.id, version: m.version || '1.0.0', installed_at: ts, updated_at: ts, status: 'active' });
             }
         });
         return rows;
@@ -461,7 +464,10 @@ async function getAvailable() {
                 version: latestVersion,
                 installedVersion: installedVersion,
                 installed: isInstalled,
-                hasUpdate: hasUpdate
+                hasUpdate: hasUpdate,
+                published_at: baseApp.published_at || baseApp.release_date || (dbRow && dbRow.published_at) || null,
+                installed_at: (dbRow && dbRow.installed_at) || (diskManifest && diskManifest.installed_at) || null,
+                updated_at: (dbRow && dbRow.updated_at) || baseApp.updated_at || baseApp.last_updated || (dbRow && dbRow.installed_at) || null
             });
         });
 
@@ -488,7 +494,12 @@ async function getInstalled() {
 async function getCoreApps() {
     try {
         const manifests = await appsRegistry.getAppsRegistry();
-        const data = manifests.filter(m => m.core).map(m => ({ ...m }));
+        const data = manifests.filter(m => m.core).map(m => ({
+            ...m,
+            published_at: m.published_at || m.release_date || null,
+            installed_at: m.installed_at || null,
+            updated_at: m.updated_at || m.last_updated || null
+        }));
         return { success: true, data };
     } catch (e) {
         return { success: false, error: e.message };
@@ -632,11 +643,11 @@ async function install(event, appId) {
             if (db) {
                 const existing = db.query('SELECT app_id FROM installed_apps WHERE app_id = ?', [id]);
                 if (existing.length > 0) {
-                    db.run('UPDATE installed_apps SET version = ?, status = ? WHERE app_id = ?', [manifest.version || '0.0.0', 'active', id]);
+                    db.run('UPDATE installed_apps SET version = ?, updated_at = ?, status = ? WHERE app_id = ?', [manifest.version || '0.0.0', ts, 'active', id]);
                 } else {
                     db.run(
-                        'INSERT INTO installed_apps (app_id, version, installed_at, installed_by, status) VALUES (?, ?, ?, ?, ?)',
-                        [id, manifest.version || '0.0.0', ts, actorUserId, 'active']
+                        'INSERT INTO installed_apps (app_id, version, installed_at, updated_at, published_at, installed_by, status) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        [id, manifest.version || '0.0.0', ts, ts, manifest.published_at || null, actorUserId, 'active']
                     );
                 }
             }

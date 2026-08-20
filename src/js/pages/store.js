@@ -267,6 +267,14 @@ export default {
                     .version-chip.online { background: var(--md-secondary-container); color: var(--md-on-secondary-container); }
                     .version-chip.online.has-update { background: var(--md-tertiary-container); color: var(--md-on-tertiary-container); border: 1px solid var(--md-tertiary); }
                     .app-row-badges { display: flex; gap: 0.4rem; flex-shrink: 0; flex-wrap: wrap; max-width: 140px; justify-content: flex-end; }
+                    .app-row-dates { display: flex; gap: 0.9rem; flex-wrap: wrap; margin-top: 0.4rem; font-size: 0.74rem; color: var(--md-on-surface-variant); }
+                    .app-row-date-item { display: inline-flex; align-items: center; gap: 0.25rem; }
+                    .app-row-date-item .material-symbols-rounded { font-size: 0.88rem; color: var(--md-primary); }
+                    .detail-dates-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 0.8rem; }
+                    .detail-date-card { background: var(--md-surface-variant); border: 1px solid var(--md-outline-variant); border-radius: 12px; padding: 0.85rem 1.1rem; }
+                    .detail-date-label { font-size: 0.72rem; font-weight: 700; color: var(--md-on-surface-variant); text-transform: uppercase; letter-spacing: 0.04em; display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.3rem; }
+                    .detail-date-label .material-symbols-rounded { font-size: 1rem; color: var(--md-primary); }
+                    .detail-date-val { font-size: 0.95rem; font-weight: 600; color: var(--md-on-surface); }
                 </style>
             `;
 
@@ -292,6 +300,22 @@ export default {
             let coreApps = [];
             let activeTab = 'available';
             let updateStates = {};
+
+            function formatAppDate(val, fallback = 'Non specificata') {
+                if (!val) return fallback;
+                try {
+                    let d;
+                    if (typeof val === 'number') {
+                        d = new Date(val > 1e11 ? val : val * 1000);
+                    } else {
+                        d = new Date(val);
+                    }
+                    if (isNaN(d.getTime())) return fallback;
+                    return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                } catch (e) {
+                    return fallback;
+                }
+            }
 
             function applyUpdateBadge(appId, state) {
                 try {
@@ -497,6 +521,24 @@ export default {
                         <div class="detail-section">
                             <h3 class="detail-h3"><span class="material-symbols-rounded">info</span> Descrizione Estesa</h3>
                             <p class="detail-text">${(app.long_description || app.description || '').replace(/\n/g, '<br>')}</p>
+                        </div>
+
+                        <div class="detail-section">
+                            <h3 class="detail-h3"><span class="material-symbols-rounded">history_toggle_off</span> Cronologia e Date di Rilascio</h3>
+                            <div class="detail-dates-grid">
+                                <div class="detail-date-card">
+                                    <div class="detail-date-label"><span class="material-symbols-rounded">event</span> Prima Pubblicazione</div>
+                                    <div class="detail-date-val">${formatAppDate(app.published_at, isCore ? 'Inclusa nel Core' : 'Non specificata')}</div>
+                                </div>
+                                <div class="detail-date-card">
+                                    <div class="detail-date-label"><span class="material-symbols-rounded">download_done</span> Data Installazione</div>
+                                    <div class="detail-date-val">${isCore ? 'Predefinita di sistema' : (app.installed ? formatAppDate(app.installed_at, 'Installata') : 'Non installata')}</div>
+                                </div>
+                                <div class="detail-date-card">
+                                    <div class="detail-date-label"><span class="material-symbols-rounded">update</span> Ultimo Aggiornamento</div>
+                                    <div class="detail-date-val">${formatAppDate(app.updated_at || app.installed_at || app.published_at, isCore ? 'Allineata al Core' : 'Recente')}</div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="detail-section" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem;">
@@ -764,6 +806,10 @@ export default {
                         ? ''
                         : `<span class="version-chip online ${app.hasUpdate ? 'has-update' : ''}">Online v${app.version || '1.0.0'}</span>`;
 
+                    const pubDateStr = formatAppDate(app.published_at, isSystemApp ? 'Inclusa nel Core' : 'Non specificata');
+                    const instDateStr = isSystemApp ? 'Predefinita di sistema' : (app.installed ? formatAppDate(app.installed_at, 'Installata') : 'Non installata');
+                    const updDateStr = formatAppDate(app.updated_at || app.installed_at || app.published_at, isSystemApp ? 'Allineata al Core' : pubDateStr);
+
                     row.innerHTML = `
                         <img src="${iconPath}" class="app-row-icon" onerror="this.src='icone/applicazione_generica.png'">
                         <div class="app-row-info">
@@ -772,6 +818,11 @@ export default {
                                 ${app.__source === 'custom' ? `<span class="tile-badge thirdparty" style="font-size:0.68rem;"><span class="material-symbols-rounded" style="font-size:0.8rem;">warning</span> Terze Parti</span>` : ''}
                             </div>
                             <div class="app-row-desc">${app.description || ''}</div>
+                            <div class="app-row-dates">
+                                <span class="app-row-date-item" title="Data prima pubblicazione"><span class="material-symbols-rounded">event</span> Pubblicazione: <strong>${pubDateStr}</strong></span>
+                                <span class="app-row-date-item" title="Data installazione"><span class="material-symbols-rounded">download_done</span> Installazione: <strong>${instDateStr}</strong></span>
+                                <span class="app-row-date-item" title="Data ultimo aggiornamento"><span class="material-symbols-rounded">update</span> Ultimo aggiornamento: <strong>${updDateStr}</strong></span>
+                            </div>
                         </div>
                         <div class="app-row-versions">
                             ${installedChip}
