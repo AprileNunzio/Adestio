@@ -43,9 +43,14 @@ class BootManager {
                     console.error('[BootManager AppLoader Error]', alErr);
                 }
                 try {
-                    
-                    
-                    
+                    const anagraficaPersone = require('../handlers/anagrafica_persone');
+                    if (typeof anagraficaPersone.reconcileActiveUsers === 'function') {
+                        anagraficaPersone.reconcileActiveUsers();
+                    }
+                } catch (recErr) {
+                    console.error('[BootManager Reconcile Error]', recErr);
+                }
+                try {
                     require('../handlers/rbac').syncPermissionsFromManifests();
                 } catch (rbacErr) {
                     console.error('[BootManager RBAC Sync Error]', rbacErr);

@@ -26,8 +26,32 @@ function rowToPersona(row) {
         is_deleted: row.is_deleted
     };
 }
+function reconcileActiveUsers() {
+    try {
+        const coreDb = getDB('auth');
+        const db = getDB('app_anagrafica');
+        if (!coreDb || !db) return;
+        const activeUsers = coreDb.query('SELECT id, nome, cognome FROM users WHERE is_deleted = 0');
+        let changes = false;
+        const now = Date.now();
+        for (const u of activeUsers) {
+            const persons = db.query('SELECT id, is_deleted FROM persone WHERE user_id = ?', [u.id]);
+            for (const p of persons) {
+                if (p.is_deleted === 1) {
+                    db.run('UPDATE persone SET is_deleted = 0, last_modified = ? WHERE id = ?', [now, p.id]);
+                    changes = true;
+                }
+            }
+        }
+        if (changes) {
+            saveDB('app_anagrafica');
+            notifyDataChanged('persone');
+        }
+    } catch (e) {}
+}
 async function getAll(event, args = {}) {
     try {
+        reconcileActiveUsers();
         const db = getDB('app_anagrafica');
         const includeDeleted = args && args.includeDeleted;
         const rows = db.query(`SELECT * FROM persone WHERE is_deleted <= ? ORDER BY cognome, nome`, [includeDeleted ? 1 : 0]);
@@ -292,7 +316,7 @@ function linkOrCreateForUser(userId, codiceFiscale, nome, cognome, email, actorU
                 throw new Error("Attenzione: Il Codice Fiscale inserito risulta già registrato e associato ad un'utenza attualmente attiva nel sistema.");
             }
         }
-        db.run('UPDATE persone SET user_id = ?, email_principale = ?, last_modified = ? WHERE id = ?', [userId, email || '', now, cf]);
+        db.run('UPDATE persone SET user_id = ?, email_principale = ?, last_modified = ?, is_deleted = 0 WHERE id = ?', [userId, email || '', now, cf]);
         if (email && email.trim() !== '') {
             const checkEmail = db.query('SELECT id FROM contatti WHERE persona_id = ? AND valore = ? AND categoria = ? AND is_deleted = 0', [cf, email.trim(), 'Email']);
             if (checkEmail.length === 0) {
@@ -352,4 +376,5 @@ function linkOrCreateForUser(userId, codiceFiscale, nome, cognome, email, actorU
     }
     return payload;
 }
-module.exports = { getAll, search, getById, getByUserId, create, update, remove, restore, hardDelete, getScheda, linkOrCreateForUser };
+module.exports = { getAll, search, getById, getByUserId, create, update, remove, restore, hardDelete, getScheda, linkOrCreateForUser, reconcileActiveUsers };
+
