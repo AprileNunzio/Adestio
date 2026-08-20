@@ -53,6 +53,7 @@ export function guidaHtml(o) {
             </div>
         </details>
     `;
+}
 export function campoHtml(field, value, idPrefix = 'crud-field-') {
     const id = `${idPrefix}${field.key}`;
     const val = value === undefined || value === null ? '' : value;

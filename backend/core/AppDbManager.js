@@ -2,31 +2,51 @@
 const dbManager = require('../db/db_manager');
 const _loadedNamespaces = new Set();
 async function getOrCreate(namespace, migrations = []) {
-    const domain = `app_${namespace}`;
     try {
-        const existing = dbManager.getDB(domain);
-        if (existing) return existing;
-    } catch (e) {
-        if (e.message !== 'DB_NOT_INITIALIZED') throw e;
+        const domain = `app_${namespace}`;
+        try {
+            const existing = dbManager.getDB(domain);
+            if (existing) return existing;
+        } catch (e) {
+            if (e.message !== 'DB_NOT_INITIALIZED') throw e;
+        }
+        if (!(domain in dbManager.databases)) {
+            dbManager.databases[domain] = null;
+        }
+        await dbManager.loadDatabase(domain, migrations);
+        _loadedNamespaces.add(namespace);
+        return dbManager.getDB(domain);
+    } catch (err) {
+        return null;
     }
-    if (!(domain in dbManager.databases)) {
-        dbManager.databases[domain] = null;
-    }
-    await dbManager.loadDatabase(domain, migrations);
-    _loadedNamespaces.add(namespace);
-    console.log(`[AppDbManager] DB "${domain}" caricato.`);
-    return dbManager.getDB(domain);
 }
 function get(namespace) {
-    return dbManager.getDB(`app_${namespace}`);
+    try {
+        return dbManager.getDB(`app_${namespace}`);
+    } catch (err) {
+        return null;
+    }
 }
 async function save(namespace) {
-    return dbManager.saveDatabase(`app_${namespace}`);
+    try {
+        return await dbManager.saveDatabase(`app_${namespace}`);
+    } catch (err) {
+        return false;
+    }
 }
 function isLoaded(namespace) {
-    return _loadedNamespaces.has(namespace);
+    try {
+        return _loadedNamespaces.has(namespace);
+    } catch (err) {
+        return false;
+    }
 }
 function getLoadedNamespaces() {
-    return Array.from(_loadedNamespaces);
+    try {
+        return Array.from(_loadedNamespaces);
+    } catch (err) {
+        return [];
+    }
 }
 module.exports = { getOrCreate, get, save, isLoaded, getLoadedNamespaces };
+
