@@ -625,6 +625,7 @@ async function install(event, appId) {
         const installedNow = [];
 
         for (const id of order) {
+            await AppLoader.unloadApp(id);
             const manifest = updatedManifests.find(m => m.id === id) || (id === appId ? targetManifest : null);
             if (!manifest) continue;
             const ok = await AppLoader.loadApp(manifest);

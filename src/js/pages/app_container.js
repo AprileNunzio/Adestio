@@ -92,23 +92,25 @@ export default {
                 }
 
                 if (isMarketplace) {
-                    const cssPath = `adestio-app://${appFolder}/css/style.css`;
-                    if (!document.querySelector(`link[data-app-css="${appFolder}"]`)) {
-                        const link = document.createElement('link');
-                        link.rel = 'stylesheet';
-                        link.href = cssPath;
-                        link.setAttribute('data-app-css', appFolder);
-                        document.head.appendChild(link);
-                    }
-                    appModule = await import(`adestio-app://${appFolder}/${mainFile}`);
+                    const bust = Date.now();
+                    const cssPath = `adestio-app://${appFolder}/css/style.css?v=${bust}`;
+                    const oldLink = document.querySelector(`link[data-app-css="${appFolder}"]`);
+                    if (oldLink) oldLink.remove();
+                    const link = document.createElement('link');
+                    link.rel = 'stylesheet';
+                    link.href = cssPath;
+                    link.setAttribute('data-app-css', appFolder);
+                    document.head.appendChild(link);
+                    appModule = await import(`adestio-app://${appFolder}/${mainFile}?v=${bust}`);
                 } else {
+                    const bust = Date.now();
                     try {
-                        appModule = await import(`../../apps/${appFolder}/${mainFile}`);
+                        appModule = await import(`../../apps/${appFolder}/${mainFile}?v=${bust}`);
                     } catch (e1) {
                         try {
-                            appModule = await import(`../../apps/${appId}/app.js`);
+                            appModule = await import(`../../apps/${appId}/app.js?v=${bust}`);
                         } catch (e2) {
-                            appModule = await import(`../apps/${appFolder}/${mainFile}`);
+                            appModule = await import(`../apps/${appFolder}/${mainFile}?v=${bust}`);
                         }
                     }
                 }

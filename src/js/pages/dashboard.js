@@ -239,10 +239,29 @@ export default {
                 } catch (e) {}
 
                 try {
-                    window.electronAPI.store.onAppUpdated(data => {
+                    window.electronAPI.store.onAppUpdated(async data => {
                         try {
                             if (data && data.appId) {
                                 setTimeout(() => { applyUpdateBadge(data.appId, 'idle'); }, 5000);
+                            }
+                            if (window.electronAPI.getAppsRegistry) {
+                                const refreshedApps = await window.electronAPI.getAppsRegistry();
+                                if (Array.isArray(refreshedApps)) {
+                                    apps = refreshedApps.filter(a => !a.is_deleted);
+                                    apps.sort((a, b) => {
+                                        if (a.core && !b.core) return -1;
+                                        if (!a.core && b.core) return 1;
+                                        return (a.name || '').localeCompare(b.name || '');
+                                    });
+                                    apps.unshift({
+                                        id: '__store__',
+                                        name: 'App Store',
+                                        description: 'Installa applicazioni di terze parti o gestisci quelle presenti sul nodo',
+                                        icon: 'icone/store.png',
+                                        __isStorePinned: true
+                                    });
+                                    renderApps(searchInput ? searchInput.value : '');
+                                }
                             }
                         } catch (e) {}
                     });
