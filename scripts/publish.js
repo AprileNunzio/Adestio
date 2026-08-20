@@ -64,20 +64,7 @@ async function publishAll() {
             client.close();
         }
 
-        console.log('\n5. Pubblicazione Marketplace App (Adestio Business Suite)...');
-        try {
-            const marketplaceDir = path.join(rootDir, '..', 'Adestio-Marketplace');
-            if (fs.existsSync(marketplaceDir)) {
-                execSync('node pack_and_deploy.js App-BusinessSuite --prod', {
-                    stdio: 'inherit',
-                    cwd: marketplaceDir
-                });
-            }
-        } catch (mpErr) {
-            console.error('[Marketplace] Errore deploy marketplace:', mpErr.message);
-        }
-
-        console.log('\n✅ PUBBLICAZIONE COMPLETA RISOLTA SU GITHUB E FTP!');
+        console.log('\n✅ PUBBLICAZIONE COMPLETA DI ADESTIO SU GITHUB E FTP!');
     } catch (err) {
         console.error('\n❌ Errore durante il processo di pubblicazione:', err.message);
         process.exit(1);
