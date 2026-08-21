@@ -1,0 +1,8 @@
+{
+    "id": "aggiornamenti",
+    "name": "Aggiornamenti & Cache",
+    "description": "Gestione aggiornamenti automatici o manuali e pulizia cache",
+    "icon": "system_update",
+    "required_roles": ["SuperAdmin"],
+    "version": "1.0.0"
+}

@@ -82,7 +82,8 @@ export default {
                     const mountPoint = el.querySelector('#subapp-mount-point');
                     try {
                         const mainFile = subAppDef && subAppDef.main ? subAppDef.main : 'app.js';
-                        const module = await import(`./subapps/${id}/${mainFile}`);
+                        const bust = Date.now();
+                        const module = await import(`./subapps/${id}/${mainFile}?v=${bust}`);
                         if (module && module.default && typeof module.default.render === 'function') {
                             await module.default.render(mountPoint);
                         } else {

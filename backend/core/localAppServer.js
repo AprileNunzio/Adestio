@@ -8,7 +8,29 @@ function startLocalAppServer() {
     return new Promise((resolve) => {
         try {
             const app = express();
-            app.use(express.static(path.join(__dirname, '../../src')));
+            app.use((req, res, next) => {
+                try {
+                    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+                    res.setHeader('Pragma', 'no-cache');
+                    res.setHeader('Expires', '0');
+                    res.setHeader('Surrogate-Control', 'no-store');
+                    next();
+                } catch (err) {
+                    next();
+                }
+            });
+            app.use(express.static(path.join(__dirname, '../../src'), {
+                etag: false,
+                maxAge: 0,
+                setHeaders: (res) => {
+                    try {
+                        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+                        res.setHeader('Pragma', 'no-cache');
+                        res.setHeader('Expires', '0');
+                        res.setHeader('Surrogate-Control', 'no-store');
+                    } catch (e) {}
+                }
+            }));
             _server = app.listen(PORT, '127.0.0.1', () => {
                 _url = `http://${HOST}:${PORT}/index.html`;
                 resolve(_url);

@@ -218,27 +218,55 @@ function setupUpdaterService(windowManager) {
                 });
             }
         });
-        setTimeout(() => { if (!isUpdateInProgress()) autoUpdater.checkForUpdatesAndNotify().catch(e => console.error('[Updater]', e.message)); }, 15000); 
-        setInterval(() => { if (!isUpdateInProgress()) autoUpdater.checkForUpdatesAndNotify().catch(e => console.error('[Updater]', e.message)); }, 4 * 60 * 60 * 1000); 
-        autoUpdater.on('update-downloaded', async (info) => {
-            isDownloadingUpdate = false;
-            console.log('[Updater] Aggiornamento scaricato da GitHub! Riavvio silente...');
-            const win = BrowserWindow.getAllWindows()[0];
-            if (win) win.webContents.send('update-status', { status: 'Download completato. Installazione in background...', finished: true });
+        setTimeout(() => {
             try {
-                if (info.downloadedFile && fs.existsSync(info.downloadedFile)) {
-                    const stream = fs.createReadStream(info.downloadedFile);
-                    await updatesManager.saveInstallerFromStream(info.version, stream);
+                const configHandlers = require('../config');
+                const conf = configHandlers.readConfig() || {};
+                const autoCheck = conf.updates_core_auto_check !== false && conf.updates_core_mode !== 'manual';
+                if (autoCheck && !isUpdateInProgress()) {
+                    autoUpdater.checkForUpdatesAndNotify().catch(e => console.error('[Updater]', e.message));
                 }
-            } catch(e) {}
+            } catch (e) {}
+        }, 15000); 
+
+        setInterval(() => {
             try {
-                const { broadcastUpdateAvailable } = require('../sync');
-                if (typeof broadcastUpdateAvailable === 'function') broadcastUpdateAvailable(info.version);
-            } catch(e) {}
-            if (windowManager) {
-                windowManager.setQuiting(true);
-            }
-            setTimeout(() => autoUpdater.quitAndInstall(true, true), 1000);
+                const configHandlers = require('../config');
+                const conf = configHandlers.readConfig() || {};
+                const autoCheck = conf.updates_core_auto_check !== false && conf.updates_core_mode !== 'manual';
+                if (autoCheck && !isUpdateInProgress()) {
+                    autoUpdater.checkForUpdatesAndNotify().catch(e => console.error('[Updater]', e.message));
+                }
+            } catch (e) {}
+        }, 4 * 60 * 60 * 1000); 
+
+        autoUpdater.on('update-downloaded', async (info) => {
+            try {
+                isDownloadingUpdate = false;
+                const win = BrowserWindow.getAllWindows()[0];
+                if (win) win.webContents.send('update-status', { status: 'Download completato. Installazione in background...', finished: true });
+                try {
+                    const { session } = require('electron');
+                    if (session && session.defaultSession) {
+                        await session.defaultSession.clearCache();
+                        await session.defaultSession.clearStorageData({ storages: ['cachestorage', 'serviceworkers', 'shadercache'] });
+                    }
+                } catch (eCache) {}
+                try {
+                    if (info.downloadedFile && fs.existsSync(info.downloadedFile)) {
+                        const stream = fs.createReadStream(info.downloadedFile);
+                        await updatesManager.saveInstallerFromStream(info.version, stream);
+                    }
+                } catch(e) {}
+                try {
+                    const { broadcastUpdateAvailable } = require('../sync');
+                    if (typeof broadcastUpdateAvailable === 'function') broadcastUpdateAvailable(info.version);
+                } catch(e) {}
+                if (windowManager) {
+                    windowManager.setQuiting(true);
+                }
+                setTimeout(() => autoUpdater.quitAndInstall(true, true), 1000);
+            } catch (eDownloaded) {}
         });
     } catch(e) {
         console.error('[UpdaterService] Error setting up updater:', e);

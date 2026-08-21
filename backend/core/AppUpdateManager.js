@@ -126,8 +126,15 @@ class AppUpdateManager {
         } catch (e) {}
     }
 
-    async _runCheck() {
+    async _runCheck(isManual = false) {
         try {
+            if (!isManual) {
+                const configHandlers = require('../config');
+                const conf = configHandlers.readConfig() || {};
+                const autoCheck = conf.updates_apps_auto_check !== false;
+                if (!autoCheck) return;
+            }
+
             if (this._status.state === STATES.CHECKING) return;
             this._status.state = STATES.CHECKING;
             this._status.lastCheck = Date.now();
@@ -141,6 +148,10 @@ class AppUpdateManager {
                 this._broadcast('store:update-queue-changed', this.getQueueStatus());
                 return;
             }
+
+            const configHandlers = require('../config');
+            const conf = configHandlers.readConfig() || {};
+            const isAutoMode = conf.updates_apps_mode !== 'manual';
 
             const toUpdate = result.data.filter(u => !this.isLocked(u.appId) && u.currentVersion && u.availableVersion && u.currentVersion !== u.availableVersion);
             toUpdate.forEach(u => {
@@ -157,7 +168,11 @@ class AppUpdateManager {
             });
 
             this._status.state = STATES.IDLE;
-            this._processQueue();
+            if (isAutoMode) {
+                this._processQueue();
+            } else {
+                this._updateQueueStatus();
+            }
         } catch (e) {
             this._status.state = STATES.IDLE;
         }
@@ -430,7 +445,7 @@ class AppUpdateManager {
 
     forceCheckNow() {
         try {
-            this._runCheck();
+            this._runCheck(true);
         } catch (e) {}
     }
 

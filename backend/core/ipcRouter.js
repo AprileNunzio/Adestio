@@ -208,6 +208,71 @@ function registerAllIPCHandlers(windowManager) {
         ipcMain.handle('hasConfig', configHandlers.hasConfig);
         ipcMain.handle('readConfig', configHandlers.readConfig);
         ipcMain.handle('saveConfig', configHandlers.saveConfig);
+        ipcMain.handle('clearAppCache', async () => {
+            try {
+                const { session } = require('electron');
+                if (session && session.defaultSession) {
+                    await session.defaultSession.clearCache();
+                    await session.defaultSession.clearStorageData({
+                        storages: ['appcache', 'cachestorage', 'serviceworkers', 'shadercache', 'websql']
+                    });
+                }
+                const appsDir = path.join(app.getPath('userData'), 'installed_apps');
+                Object.keys(require.cache).forEach(key => {
+                    if (key.startsWith(appsDir) || key.includes('src\\apps') || key.includes('src/apps')) {
+                        delete require.cache[key];
+                    }
+                });
+                return { success: true };
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
+        ipcMain.handle('getUpdateSettings', async () => {
+            try {
+                const conf = configHandlers.readConfig() || {};
+                return {
+                    success: true,
+                    data: {
+                        updates_core_mode: conf.updates_core_mode || 'auto',
+                        updates_core_auto_check: conf.updates_core_auto_check !== false,
+                        updates_apps_mode: conf.updates_apps_mode || 'auto',
+                        updates_apps_auto_check: conf.updates_apps_auto_check !== false,
+                        auto_clear_cache_on_update: conf.auto_clear_cache_on_update !== false
+                    }
+                };
+            } catch (e) {
+                return {
+                    success: false,
+                    error: e.message,
+                    data: {
+                        updates_core_mode: 'auto',
+                        updates_core_auto_check: true,
+                        updates_apps_mode: 'auto',
+                        updates_apps_auto_check: true,
+                        auto_clear_cache_on_update: true
+                    }
+                };
+            }
+        });
+        ipcMain.handle('saveUpdateSettings', async (event, settings) => {
+            try {
+                if (!accessGuard.isSuperadmin()) return { success: false, error: 'Permesso negato' };
+                const conf = configHandlers.readConfig() || {};
+                const updatedConf = {
+                    ...conf,
+                    updates_core_mode: settings?.updates_core_mode || 'auto',
+                    updates_core_auto_check: settings?.updates_core_auto_check !== false,
+                    updates_apps_mode: settings?.updates_apps_mode || 'auto',
+                    updates_apps_auto_check: settings?.updates_apps_auto_check !== false,
+                    auto_clear_cache_on_update: settings?.auto_clear_cache_on_update !== false
+                };
+                const ok = configHandlers.saveConfig(null, updatedConf);
+                return { success: ok };
+            } catch (e) {
+                return { success: false, error: e.message };
+            }
+        });
         ipcMain.handle('testSmtpConnection', async (event, smtpConfig, testEmail) => {
             try {
                 const nodemailer = require('nodemailer');

@@ -54,12 +54,20 @@ if (!gotTheLock) {
                 }
 
                 const { session } = require('electron');
+                try {
+                    await session.defaultSession.clearCache();
+                    await session.defaultSession.clearStorageData({ storages: ['cachestorage', 'serviceworkers', 'shadercache'] });
+                } catch (eSessionInit) {}
+
                 session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
                     try {
                         callback({
                             responseHeaders: {
                                 ...details.responseHeaders,
-                                'Content-Security-Policy': ["default-src 'self' 'unsafe-inline' 'unsafe-eval' data: adestio-app: adestio: http: ws: wss:"]
+                                'Content-Security-Policy': ["default-src 'self' 'unsafe-inline' 'unsafe-eval' data: adestio-app: adestio: http: ws: wss:"],
+                                'Cache-Control': ['no-cache, no-store, must-revalidate'],
+                                'Pragma': ['no-cache'],
+                                'Expires': ['0']
                             }
                         });
                     } catch (cbErr) {

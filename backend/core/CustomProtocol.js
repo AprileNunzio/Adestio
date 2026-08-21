@@ -49,6 +49,9 @@ function registerCustomProtocol() {
                 const mime = getMimeType(absolutePath);
                 if (mime) newHeaders.set('Content-Type', mime);
                 newHeaders.set('Access-Control-Allow-Origin', '*');
+                newHeaders.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+                newHeaders.set('Pragma', 'no-cache');
+                newHeaders.set('Expires', '0');
 
                 return new Response(response.body, {
                     status: response.status,
