@@ -43,7 +43,7 @@ function broadcast(message, udpPort, timeoutMs = 1500) {
             const str = msg.toString();
             if (!str.startsWith('I_AM_ADESTIO:')) return;
             const parts = str.split(':');
-            const peer = { ip: rinfo.address, name: parts[1] || 'Adestio Node', port: parseInt(parts[2]) || 34567, protocolVersion: parseInt(parts[3]) || 0, nodeId: parts[4] || null };
+            const peer = { ip: rinfo.address, name: parts[1] || 'Adestio Node', port: parseInt(parts[2]) || 34567, protocolVersion: parseInt(parts[3]) || 0, nodeId: parts[4] || null, updateReadyVersion: parts[5] || null };
             found.push(peer);
             bus.publish('peer:discovered', { ...peer, source: 'udp' });
         });
@@ -73,7 +73,9 @@ function startUdpListener(udpPort, localNodeIdFn, localNameFn, protocolVersion, 
             if (str.startsWith('DISCOVER_ADESTIO')) {
                 const myNodeId = localNodeIdFn();
                 const advertisedPort = typeof tcpPortFn === 'function' ? tcpPortFn() : 34567;
-                const reply = Buffer.from(`I_AM_ADESTIO:${localNameFn()}:${advertisedPort}:${protocolVersion}:${myNodeId}`);
+                let updateVer = '';
+                try { updateVer = require('../../core/updaterService').getPendingUpdateVersion() || ''; } catch (_) {}
+                const reply = Buffer.from(`I_AM_ADESTIO:${localNameFn()}:${advertisedPort}:${protocolVersion}:${myNodeId}:${updateVer}`);
                 server.send(reply, 0, reply.length, rinfo.port, rinfo.address);
                 if (str.includes(':')) {
                     const p = str.split(':');
@@ -81,7 +83,7 @@ function startUdpListener(udpPort, localNodeIdFn, localNameFn, protocolVersion, 
                 }
             } else if (str.startsWith('I_AM_ADESTIO:')) {
                 const p = str.split(':');
-                bus.publish('peer:discovered', { ip: rinfo.address, name: p[1] || 'Adestio Node', port: parseInt(p[2]) || 34567, protocolVersion: parseInt(p[3]) || 0, nodeId: p[4] || null, source: 'udp-passive' });
+                bus.publish('peer:discovered', { ip: rinfo.address, name: p[1] || 'Adestio Node', port: parseInt(p[2]) || 34567, protocolVersion: parseInt(p[3]) || 0, nodeId: p[4] || null, updateReadyVersion: p[5] || null, source: 'udp-passive' });
             } else if (str.startsWith('UPDATE_AVAILABLE_P2P:') && onUpdateAvailable) {
                 const p = str.split(':');
                 const version = p[1];

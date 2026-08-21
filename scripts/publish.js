@@ -31,7 +31,7 @@ async function publishAll() {
         });
 
         console.log('\n4. Caricamento file di installazione su Server FTP...');
-        const client = new ftp.Client();
+        const client = new ftp.Client(60000);
         try {
             if (process.env.FTP_HOST && process.env.FTP_USER && process.env.FTP_PASS) {
                 await client.access({

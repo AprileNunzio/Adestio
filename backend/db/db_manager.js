@@ -157,6 +157,12 @@ class DatabaseManager {
             const adapter = new SqlJsAdapter();
             const config = decryptedData ? { buffer: decryptedData } : null;
             await adapter.connect(config);
+            try {
+                const check = adapter.query('PRAGMA quick_check;');
+                if (check && check.length > 0 && check[0].quick_check !== 'ok') {
+                    throw new Error(`Corruzione rilevata in ${domain}`);
+                }
+            } catch (_) {}
             await adapter.runMigrations(migrations);
             this.databases[domain] = adapter;
             return true;
@@ -174,7 +180,14 @@ class DatabaseManager {
             const dbPath = path.join(this.basePath, `${domain}.enc`);
             const tmpPath = path.join(this.basePath, `${domain}.enc.tmp`);
             const backupDir = path.join(this.basePath, 'backups', domain);
-            fs.writeFileSync(tmpPath, encryptedData);
+            try {
+                const fd = fs.openSync(tmpPath, 'w');
+                fs.writeSync(fd, encryptedData, 0, encryptedData.length, 0);
+                try { fs.fsyncSync(fd); } catch (_) {}
+                fs.closeSync(fd);
+            } catch (wErr) {
+                fs.writeFileSync(tmpPath, encryptedData);
+            }
             let renameSuccess = false;
             let retries = 5;
             while (retries > 0 && !renameSuccess) {

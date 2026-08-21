@@ -63,7 +63,15 @@ class UpdatesManager {
             return null;
         }
     }
-        getInstallerPath(version) {
+        getTargetInstallerPath(version) {
+        try {
+            const file = `Adestio-Setup-${version}.exe`;
+            return path.join(this.updatesDir, file);
+        } catch(e) {
+            return null;
+        }
+    }
+    getInstallerPath(version) {
         try {
             const file = `Adestio-Setup-${version}.exe`;
             const dirsToCheck = [this.updatesDir, path.join(path.dirname(process.execPath), 'updates')];
@@ -76,7 +84,7 @@ class UpdatesManager {
             return null;
         }
     }
-        getLocalChecksum(version) {
+    getLocalChecksum(version) {
         try {
             const filePath = this.getInstallerPath(version);
             if (!filePath) return null;
@@ -87,24 +95,27 @@ class UpdatesManager {
             return null;
         }
     }
-        runInstaller(version) {
+    runInstaller(version) {
         try {
             const installerPath = this.getInstallerPath(version);
-            if (!installerPath) return false;
-            const { exec } = require('child_process');
-            console.log(`[UpdatesManager] Avvio aggiornamento silente: ${installerPath}`);
-            const safeInstallerPath = installerPath.replace(/'/g, "''");
-            const command = `powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "Start-Process -FilePath '${safeInstallerPath}' -ArgumentList '/S' -Verb RunAs"`;
-            exec(command, (err) => {
-                if (!err) {
-                    setTimeout(() => app.quit(), 500);
-                } else {
-                    console.error('[UpdatesManager] Errore avvio setup (Elevazione):', err);
-                }
+            if (!installerPath || !fs.existsSync(installerPath)) return false;
+            const { spawn } = require('child_process');
+            const child = spawn(installerPath, ['/S'], {
+                detached: true,
+                stdio: 'ignore'
             });
+            child.unref();
+            setTimeout(() => {
+                try {
+                    const { BrowserWindow } = require('electron');
+                    BrowserWindow.getAllWindows().forEach(w => {
+                        try { w.destroy(); } catch (_) {}
+                    });
+                } catch (_) {}
+                app.exit(0);
+            }, 600);
             return true;
         } catch(e) {
-            console.error('[UpdatesManager] runInstaller exception', e);
             return false;
         }
     }

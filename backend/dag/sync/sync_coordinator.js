@@ -100,6 +100,11 @@ async function syncWithPeer(ip, port) {
 async function fullResync(ip, port) {
     if (!ip) return false;
     try {
+        const dbManager = require('../../db/db_manager');
+        const BackupManager = require('../../db/backup_manager');
+        if (dbManager.basePath) {
+            try { BackupManager.createPreSyncCheckpoint(dbManager.basePath); } catch (_) {}
+        }
         const ws = await connectToPeer(ip, port, null);
         const { sendRequest } = require('../../p2p/protocol/rpc');
         _setState('Full Resync in corso...');
@@ -109,14 +114,15 @@ async function fullResync(ip, port) {
         _setState('Sincronizzato');
         return true;
     } catch (e) {
-        console.error(`[SyncCoordinator] fullResync ${ip}:`, e.message);
         _setState('Errore Full Resync');
         return false;
     }
 }
 function _fail(ip) {
-    statFailure(ip);
-    cbFailure(ip);
-    recordFailure(ip);
+    try {
+        statFailure(ip);
+        cbFailure(ip);
+        recordFailure(ip);
+    } catch (_) {}
 }
 module.exports = { syncWithPeer, fullResync };

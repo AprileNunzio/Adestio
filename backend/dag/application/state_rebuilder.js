@@ -5,6 +5,11 @@ const { reapplyToTables } = require('./block_applier');
 const { SYNC_TABLES, getDomainForTable } = require('../schema/schema_registry');
 async function rebuildFromLog() {
     try {
+        const dbManager = require('../../db/db_manager');
+        const BackupManager = require('../../db/backup_manager');
+        if (dbManager.basePath) {
+            try { BackupManager.createPreSyncCheckpoint(dbManager.basePath); } catch (_) {}
+        }
         const ledger = require('../../db').getDB('ledger');
         const blocks = getAllBlocks();
         const tablesInLog = new Set(blocks.map(b => b.table_name).filter(t => SYNC_TABLES.includes(t)));

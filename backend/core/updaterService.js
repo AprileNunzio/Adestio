@@ -34,32 +34,44 @@ function installPendingUpdateNow() {
 let _consensusInterval = null;
 let _consensusAttempts = 0;
 function checkUpdateConsensus() {
-    if (!pendingUpdateVersion) return;
-    if (!_consensusInterval) {
-        _consensusAttempts = 0;
-        _consensusInterval = setInterval(checkUpdateConsensus, 5000);
-    }
-    _consensusAttempts++;
-    const { getDetailedNodes } = require('../sync');
-    const allNodes = getDetailedNodes().filter(n => n.ip !== '127.0.0.1');
-    const activeNodes = allNodes.filter(n => n.status === 'Online');
-    const nodesReady = activeNodes.filter(n => n.updateReadyVersion === pendingUpdateVersion).length;
-    const allReady = (nodesReady === activeNodes.length);
-    const majorityReady = (nodesReady >= Math.ceil(activeNodes.length / 2));
-    if (allReady || activeNodes.length === 0 || (majorityReady && _consensusAttempts > 12) || _consensusAttempts > 24) {
-        if (_consensusInterval) { clearInterval(_consensusInterval); _consensusInterval = null; }
-        const win = BrowserWindow.getAllWindows()[0];
-        if (win) win.webContents.send('update-ready-for-install', { version: pendingUpdateVersion });
-    }
+    try {
+        if (!pendingUpdateVersion) return;
+        if (!_consensusInterval) {
+            _consensusAttempts = 0;
+            _consensusInterval = setInterval(checkUpdateConsensus, 3000);
+        }
+        _consensusAttempts++;
+        const { getDetailedNodes } = require('../sync');
+        const allNodes = getDetailedNodes().filter(n => n.ip !== '127.0.0.1');
+        const activeNodes = allNodes.filter(n => n.status === 'Online');
+        const nodesReady = activeNodes.filter(n => n.updateReadyVersion === pendingUpdateVersion).length;
+        const allReady = (nodesReady === activeNodes.length);
+        const majorityReady = (nodesReady >= Math.ceil(activeNodes.length / 2));
+        if (allReady || activeNodes.length === 0 || (majorityReady && _consensusAttempts > 4) || _consensusAttempts > 6) {
+            if (_consensusInterval) { clearInterval(_consensusInterval); _consensusInterval = null; }
+            const windows = BrowserWindow.getAllWindows();
+            windows.forEach(w => {
+                try {
+                    if (w && !w.isDestroyed()) w.webContents.send('update-ready-for-install', { version: pendingUpdateVersion });
+                } catch (_) {}
+            });
+        }
+    } catch (_) {}
 }
 function forceUpdateConsensus() {
-    if (!pendingUpdateVersion) return;
-    if (_consensusInterval) {
-        clearInterval(_consensusInterval);
-        _consensusInterval = null;
-    }
-    const win = BrowserWindow.getAllWindows()[0];
-    if (win) win.webContents.send('update-ready-for-install', { version: pendingUpdateVersion });
+    try {
+        if (!pendingUpdateVersion) return;
+        if (_consensusInterval) {
+            clearInterval(_consensusInterval);
+            _consensusInterval = null;
+        }
+        const windows = BrowserWindow.getAllWindows();
+        windows.forEach(w => {
+            try {
+                if (w && !w.isDestroyed()) w.webContents.send('update-ready-for-install', { version: pendingUpdateVersion });
+            } catch (_) {}
+        });
+    } catch (_) {}
 }
 function _downloadUpdateSafe(autoUpdater, win) {
     autoUpdater.downloadUpdate().catch((err) => {
@@ -138,7 +150,8 @@ function setupUpdaterService(windowManager) {
                             } catch(e) {}
                         }
                         if(totalSize === 0) throw new Error("Impossibile ottenere la dimensione del file");
-                        const destPath = updatesManager.getInstallerPath(targetVersion);
+                        const destPath = updatesManager.getTargetInstallerPath(targetVersion);
+                        if (!destPath) throw new Error("Percorso installer non valido");
                         const updatesDir = path.dirname(destPath);
                         if (!fs.existsSync(updatesDir)) fs.mkdirSync(updatesDir, { recursive: true });
                         const fd = fs.openSync(destPath, 'w');
@@ -175,7 +188,6 @@ function setupUpdaterService(windowManager) {
                         await new Promise(r => setTimeout(r, 800));
                         updatesManager.cleanOldUpdates();
                         if (!updatesManager.verifyChecksum(targetVersion, info.sha512)) {
-                            console.error('[Updater] Checksum P2P non valido per', targetVersion);
                             try { fs.unlinkSync(destPath); } catch(_) {}
                             throw new Error('Checksum fallito');
                         }
@@ -186,12 +198,9 @@ function setupUpdaterService(windowManager) {
                         isDownloadingUpdate = false;
                         checkUpdateConsensus();
                     } catch(e) {
-                        console.error('[Updater] Swarm download failed:', e.message);
-                        if (win) win.webContents.send('update-status', { status: 'Errore download sciame. Fallback su GitHub...' });
                         _downloadUpdateSafe(autoUpdater, win);
                     }
                 } else {
-                    if (win) win.webContents.send('update-status', { status: `Download v${targetVersion} da server globale...` });
                     _downloadUpdateSafe(autoUpdater, win);
                 }
             } catch(e) {
@@ -244,7 +253,7 @@ function setupUpdaterService(windowManager) {
             try {
                 isDownloadingUpdate = false;
                 const win = BrowserWindow.getAllWindows()[0];
-                if (win) win.webContents.send('update-status', { status: 'Download completato. Installazione in background...', finished: true });
+                if (win) win.webContents.send('update-status', { status: 'Aggiornamento scaricato con successo.', finished: true, waitingConsensus: true });
                 try {
                     const { session } = require('electron');
                     if (session && session.defaultSession) {
@@ -262,10 +271,8 @@ function setupUpdaterService(windowManager) {
                     const { broadcastUpdateAvailable } = require('../sync');
                     if (typeof broadcastUpdateAvailable === 'function') broadcastUpdateAvailable(info.version);
                 } catch(e) {}
-                if (windowManager) {
-                    windowManager.setQuiting(true);
-                }
-                setTimeout(() => autoUpdater.quitAndInstall(true, true), 1000);
+                pendingUpdateVersion = info.version;
+                checkUpdateConsensus();
             } catch (eDownloaded) {}
         });
     } catch(e) {

@@ -94,55 +94,24 @@ function broadcastForceResync() {
         console.error('[P2P] broadcastForceResync error:', e.message);
     }
 }
-async function forceNukeAndClone(ip, port) {
+async function safeTriggerResync(ip, port) {
     if (!ip) return false;
-    const { app: electronApp } = require('electron');
-    const path = require('path');
-    const fs = require('fs');
-    const { getNetworkCodeHash } = require('../db');
-    const { getNetworkName } = require('../core/node_identity');
-    console.warn(`[P2P] RICEVUTO ORDINE DI OVERWRITE DATABASE DA ${ip}! Inizio procedura di backup e nuke...`);
     try {
-        const networkName = getNetworkName() || 'UnknownNetwork';
-        const hash = await getNetworkCodeHash();
-        const dbDir = path.join(electronApp.getPath('userData'), 'dbs');
-        const backupBaseDir = path.join(electronApp.getPath('userData'), 'backups', networkName);
-        const dateStr = new Date().toISOString().split('T')[0];
-        const timeStr = new Date().toISOString().split('T')[1].replace(/:/g, '-').split('.')[0];
-        const backupDir = path.join(backupBaseDir, `${dateStr}_${timeStr}_PRE_NUKE`);
-        fs.mkdirSync(backupDir, { recursive: true });
-        ['ledger.db', 'auth.db'].forEach(file => {
-            const src = path.join(dbDir, file);
-            if (fs.existsSync(src)) {
-                fs.copyFileSync(src, path.join(backupDir, file));
-            }
-        });
-        console.log(`[P2P] Backup completato in ${backupDir}`);
-        const headers = { 'x-adestio-network': hash };
-        const fetchFile = (endpoint, targetFile) => {
-            return new Promise((resolve, reject) => {
-                const http = require('http');
-                const req = http.get(`http://${ip}:${port}${endpoint}`, { headers }, (res) => {
-                    if (res.statusCode !== 200) return reject(new Error(`Status ${res.statusCode}`));
-                    const fileStream = fs.createWriteStream(path.join(dbDir, targetFile));
-                    res.pipe(fileStream);
-                    fileStream.on('finish', () => resolve());
-                    fileStream.on('error', reject);
-                });
-                req.on('error', reject);
-            });
-        };
-        await fetchFile('/sync/clone', 'ledger.db');
-        await fetchFile('/sync/clone-auth', 'auth.db');
-        console.warn('[P2P] Database rimpiazzati con successo. Riavvio forzato del nodo...');
-        electronApp.relaunch();
-        electronApp.exit(0);
+        const { app: electronApp } = require('electron');
+        const path = require('path');
+        const BackupManager = require('../db/backup_manager');
+        const { getNetworkName } = require('../core/node_identity');
+        const networkName = getNetworkName() || 'default';
+        const safeNode = networkName.replace(/[^a-zA-Z0-9_-]/g, '');
+        const basePath = path.join(electronApp.getPath('userData'), 'dbs', safeNode);
+        BackupManager.createPreSyncCheckpoint(basePath);
+        return await fullResync(ip, port || PORT);
     } catch (e) {
-        console.error(`[P2P] Errore critico durante forceNukeAndClone:`, e.message);
+        return false;
     }
 }
 async function triggerFullResync(ip, port) {
-    return fullResync(ip, port || PORT);
+    return safeTriggerResync(ip, port || PORT);
 }
 function startSyncServer() {
     if (_server) return _server;
@@ -196,7 +165,7 @@ function startSyncServer() {
                 res.status(500).json({ error: 'Internal error processing zip' });
             }
         });
-        app.post('/sync/force-nuke', _rlMiddleware(5, 60000), async (req, res) => {
+        app.post('/sync/resync', _rlMiddleware(5, 60000), async (req, res) => {
             try {
                 const { verifyNetworkHash } = require('./network_auth');
                 const providedHash = req.headers['x-adestio-network'];
@@ -204,9 +173,8 @@ function startSyncServer() {
                 if (!authorized) return res.status(403).json({ error: 'Network code mismatch' });
                 const senderIp = req.body && req.body.senderIp;
                 if (!senderIp || !/^\d{1,3}(\.\d{1,3}){3}$/.test(senderIp)) return res.status(400).json({ error: 'Invalid senderIp' });
-                console.warn(`[P2P] Ricevuto comando di FORCE NUKE autenticato da ${senderIp}. Procedo alla distruzione del DB e al clone.`);
-                res.json({ status: 'accepted', message: 'Nuke in corso...' });
-                setTimeout(() => forceNukeAndClone(senderIp, PORT), 500);
+                res.json({ status: 'accepted', message: 'Resync in corso...' });
+                setTimeout(() => safeTriggerResync(senderIp, PORT), 500);
             } catch (e) {
                 res.status(500).json({ error: e.message });
             }

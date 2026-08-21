@@ -32,5 +32,34 @@ class BackupManager {
             return null;
         }
     }
+    static createPreSyncCheckpoint(basePath) {
+        try {
+            if (!basePath || !fs.existsSync(basePath)) return null;
+            const checkpointDir = path.join(basePath, 'checkpoints');
+            if (!fs.existsSync(checkpointDir)) fs.mkdirSync(checkpointDir, { recursive: true });
+            const ts = new Date().toISOString().replace(/[:.]/g, '-');
+            const targetDir = path.join(checkpointDir, `checkpoint_${ts}`);
+            fs.mkdirSync(targetDir, { recursive: true });
+            const files = fs.readdirSync(basePath).filter(f => f.endsWith('.enc'));
+            for (const f of files) {
+                try {
+                    fs.copyFileSync(path.join(basePath, f), path.join(targetDir, f));
+                } catch (_) {}
+            }
+            const allCheckpoints = fs.readdirSync(checkpointDir)
+                .filter(f => f.startsWith('checkpoint_'))
+                .sort((a, b) => b.localeCompare(a));
+            if (allCheckpoints.length > 10) {
+                for (const old of allCheckpoints.slice(10)) {
+                    try {
+                        fs.rmSync(path.join(checkpointDir, old), { recursive: true, force: true });
+                    } catch (_) {}
+                }
+            }
+            return targetDir;
+        } catch (e) {
+            return null;
+        }
+    }
 }
 module.exports = BackupManager;

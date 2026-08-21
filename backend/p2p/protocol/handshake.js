@@ -25,6 +25,11 @@ async function performHandshake(ws, appVersion, dagTips) {
     }
     if (response && response.nodeId) {
         pool.registerSocket(response.nodeId, ws);
+        try {
+            const { exchangePeers } = require('./pex');
+            const myPeers = require('../../p2p/peers/peer_registry').getPexPeers();
+            exchangePeers(ws, myPeers).catch(() => {});
+        } catch (_) {}
         if (response.appVersion) {
             try {
                 const { app } = require('electron');

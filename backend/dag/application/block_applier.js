@@ -8,29 +8,37 @@ const { SYNC_TABLES, getDomainForTable } = require('../schema/schema_registry');
 const { shouldApply } = require('./conflict_resolver');
 const bus = require('../../core/event_bus');
 function _applyToTable(db, eventType, tableName, recordId, payload, createdAt) {
-    if (!SYNC_TABLES.includes(tableName)) return false;
-    const tableInfo = db.query(`PRAGMA table_info(${tableName})`);
-    const validCols = tableInfo ? new Set(tableInfo.map(c => c.name)) : null;
-    const safePayload = payload || {};
-    let filtered = validCols ? Object.fromEntries(Object.entries(safePayload).filter(([k]) => validCols.has(k))) : { ...safePayload };
-    if (!filtered.id) filtered.id = recordId;
-    if (eventType === 'DELETE') {
-        const ex = db.query(`SELECT last_modified FROM ${tableName} WHERE id = ?`, [recordId]);
-        if (ex && ex.length > 0 && createdAt > ex[0].last_modified) {
-            db.run(`DELETE FROM ${tableName} WHERE id = ?`, [recordId]);
+    try {
+        if (!SYNC_TABLES.includes(tableName)) return false;
+        const tableInfo = db.query(`PRAGMA table_info(${tableName})`);
+        const validCols = tableInfo ? new Set(tableInfo.map(c => c.name)) : null;
+        const safePayload = payload || {};
+        let filtered = validCols ? Object.fromEntries(Object.entries(safePayload).filter(([k]) => validCols.has(k))) : { ...safePayload };
+        if (!filtered.id) filtered.id = recordId;
+        if (eventType === 'DELETE') {
+            const ex = db.query(`SELECT last_modified FROM ${tableName} WHERE id = ?`, [recordId]);
+            if (ex && ex.length > 0 && createdAt > (ex[0].last_modified || 0)) {
+                if (validCols && validCols.has('is_deleted')) {
+                    db.run(`UPDATE ${tableName} SET is_deleted = 1, last_modified = ? WHERE id = ?`, [createdAt, recordId]);
+                } else {
+                    db.run(`DELETE FROM ${tableName} WHERE id = ?`, [recordId]);
+                }
+            }
+            return true;
+        }
+        const existing = db.query(`SELECT last_modified FROM ${tableName} WHERE id = ?`, [recordId]);
+        if (existing && existing.length > 0) {
+            if (!shouldApply(createdAt, '', existing[0].last_modified || 0, '')) return true;
+            const cols = Object.keys(filtered);
+            db.run(`UPDATE ${tableName} SET ${cols.map(c => `${c} = ?`).join(', ')} WHERE id = ?`, [...Object.values(filtered), recordId]);
+        } else {
+            const cols = Object.keys(filtered);
+            db.run(`INSERT OR IGNORE INTO ${tableName} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`, Object.values(filtered));
         }
         return true;
+    } catch (_) {
+        return false;
     }
-    const existing = db.query(`SELECT last_modified FROM ${tableName} WHERE id = ?`, [recordId]);
-    if (existing && existing.length > 0) {
-        if (!shouldApply(createdAt, '', existing[0].last_modified, '')) return true;
-        const cols = Object.keys(filtered);
-        db.run(`UPDATE ${tableName} SET ${cols.map(c => `${c} = ?`).join(', ')} WHERE id = ?`, [...Object.values(filtered), recordId]);
-    } else {
-        const cols = Object.keys(filtered);
-        db.run(`INSERT OR IGNORE INTO ${tableName} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`, Object.values(filtered));
-    }
-    return true;
 }
 function applyBlock(block) {
     try {
