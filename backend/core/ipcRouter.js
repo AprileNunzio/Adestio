@@ -579,6 +579,7 @@ function registerAllIPCHandlers(windowManager) {
         ipcMain.handle('scanNodes', authHandlers.handleScanNodes);
         ipcMain.handle('cloneNetwork', authHandlers.handleCloneNetwork);
         ipcMain.handle('checkNetworkProfile', authHandlers.checkNetworkProfile);
+        ipcMain.handle('setNetworkProfilePrivate', authHandlers.setNetworkProfilePrivate);
         ipcMain.handle('pingNode', authHandlers.handlePingNode);
         ipcMain.handle('forceSync', async () => {
             try {
@@ -597,16 +598,17 @@ function registerAllIPCHandlers(windowManager) {
         ipcMain.handle('forceFirewallRules', async () => {
             try {
                 const { exec } = require('child_process');
-                const path = require('path');
-                const exePath = process.execPath;
+                const exePath = process.execPath.replace(/'/g, "''");
                 const psScript = `
-                    Remove-NetFirewallRule -DisplayName "Adestio*" -ErrorAction SilentlyContinue;
-                    New-NetFirewallRule -DisplayName "Adestio" -Direction Inbound -Program "${exePath}" -Action Allow -Profile Any -Protocol TCP;
-                    New-NetFirewallRule -DisplayName "Adestio UDP" -Direction Inbound -Program "${exePath}" -Action Allow -Profile Any -Protocol UDP;
-                    New-NetFirewallRule -DisplayName "Adestio Out" -Direction Outbound -Program "${exePath}" -Action Allow -Profile Any -Protocol TCP;
-                    New-NetFirewallRule -DisplayName "Adestio UDP Out" -Direction Outbound -Program "${exePath}" -Action Allow -Profile Any -Protocol UDP;
+                    Get-NetFirewallRule -DisplayName "*Adestio*" -ErrorAction SilentlyContinue | Remove-NetFirewallRule -ErrorAction SilentlyContinue;
+                    New-NetFirewallRule -DisplayName "Adestio App (In)" -Group "Adestio" -Direction Inbound -Program "${exePath}" -Action Allow -Profile Any -EdgeTraversalPolicy Allow;
+                    New-NetFirewallRule -DisplayName "Adestio App (Out)" -Group "Adestio" -Direction Outbound -Program "${exePath}" -Action Allow -Profile Any;
+                    New-NetFirewallRule -DisplayName "Adestio Sync (TCP-In)" -Group "Adestio" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 34567,34568,34569,34570,34571,45891,7345 -Profile Any -EdgeTraversalPolicy Allow;
+                    New-NetFirewallRule -DisplayName "Adestio Discovery (UDP-In)" -Group "Adestio" -Direction Inbound -Action Allow -Protocol UDP -LocalPort 34568,5353,7346 -Profile Any -EdgeTraversalPolicy Allow;
+                    New-NetFirewallRule -DisplayName "Adestio Sync (TCP-Out)" -Group "Adestio" -Direction Outbound -Action Allow -Protocol TCP -LocalPort 34567,34568,34569,34570,34571,45891,7345 -Profile Any;
+                    New-NetFirewallRule -DisplayName "Adestio Discovery (UDP-Out)" -Group "Adestio" -Direction Outbound -Action Allow -Protocol UDP -LocalPort 34568,5353,7346 -Profile Any;
                 `.replace(/\n/g, ' ');
-                const command = `powershell.exe -WindowStyle Hidden -Command "Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -Command "${psScript}"' -Verb RunAs -Wait"`;
+                const command = `powershell.exe -WindowStyle Hidden -Command "Start-Process powershell.exe -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-Command', '${psScript}' -Verb RunAs -Wait"`;
                 await new Promise((resolve, reject) => {
                     exec(command, (error, stdout, stderr) => {
                         if (error) reject(error);
