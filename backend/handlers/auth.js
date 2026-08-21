@@ -30,137 +30,18 @@ function _isValidPort(port) {
     }
 }
 
-const LOGIN_CHALLENGE_TTL_MS = 5 * 60 * 1000;
-const MAX_2FA_ATTEMPTS = 5;
-const _loginChallenges = new Map();
-const MAX_LOGIN_ATTEMPTS = 10;
-const LOGIN_LOCKOUT_MS = 15 * 60 * 1000;
-const LOGIN_BACKOFF_STEPS_MS = [0, 0, 0, 1000, 2000, 5000, 10000, 15000, 20000, 30000];
-const _loginAttempts = new Map();
+const { isLoginLocked, registerLoginFailure, registerLoginSuccess, setChallenge, getChallenge, deleteChallenge, MAX_2FA_ATTEMPTS, LOGIN_CHALLENGE_TTL_MS } = require('../security/auth_rate_limiter');
 
-function _cleanupLoginChallenges() {
-    try {
-        const now = Date.now();
-        for (const [token, val] of _loginChallenges.entries()) {
-            if (val.expiresAt < now) _loginChallenges.delete(token);
-        }
-    } catch (e) {}
-}
-
-function _cleanupLoginAttempts() {
-    try {
-        const now = Date.now();
-        for (const [id, val] of _loginAttempts.entries()) {
-            if (now - val.lastAttempt > LOGIN_LOCKOUT_MS) _loginAttempts.delete(id);
-        }
-    } catch (e) {}
-}
-
-function _isLoginLocked(id) {
-    try {
-        _cleanupLoginAttempts();
-        const entry = _loginAttempts.get(id);
-        if (!entry) return { locked: false, waitMs: 0 };
-        const elapsed = Date.now() - entry.lastAttempt;
-        if (entry.count >= MAX_LOGIN_ATTEMPTS) {
-            if (elapsed < LOGIN_LOCKOUT_MS) return { locked: true, waitMs: LOGIN_LOCKOUT_MS - elapsed };
-            _loginAttempts.delete(id);
-            return { locked: false, waitMs: 0 };
-        }
-        const stepIdx = Math.min(entry.count, LOGIN_BACKOFF_STEPS_MS.length - 1);
-        const backoff = LOGIN_BACKOFF_STEPS_MS[stepIdx];
-        if (elapsed < backoff) return { locked: true, waitMs: backoff - elapsed };
-        return { locked: false, waitMs: 0 };
-    } catch (e) {
-        return { locked: false, waitMs: 0 };
-    }
-}
-
-function _registerLoginFailure(id) {
-    try {
-        const entry = _loginAttempts.get(id) || { count: 0, lastAttempt: 0 };
-        entry.count++;
-        entry.lastAttempt = Date.now();
-        _loginAttempts.set(id, entry);
-    } catch (e) {}
-}
-
-function _registerLoginSuccess(id) {
-    try {
-        _loginAttempts.delete(id);
-    } catch (e) {}
-}
-
-function _localIp() {
-    try {
-        const os = require('os');
-        let ipAddress = '127.0.0.1';
-        const ifaces = os.networkInterfaces();
-        for (const name of Object.keys(ifaces)) {
-            for (const iface of ifaces[name]) {
-                if (iface.family === 'IPv4' && !iface.internal) {
-                    ipAddress = iface.address;
-                    break;
-                }
-            }
-        }
-        return ipAddress;
-    } catch (e) {
-        return '127.0.0.1';
-    }
-}
-
-function _notifySecurityEvent(userId, title, message) {
-    try {
-        const notificationsHandlers = require('./notifications');
-        notificationsHandlers.create({ userId, category: 'security', title, message, severity: 'warning' }).catch(() => {});
-    } catch (_) {}
-}
-
-const _PLATFORM_LABELS = { win32: 'Windows', darwin: 'macOS', linux: 'Linux' };
-
-function _deviceLabel() {
-    try {
-        const os = require('os');
-        const platform = _PLATFORM_LABELS[os.platform()] || os.platform();
-        return `${platform} ${os.release()} (${os.arch()})`;
-    } catch (_) {
-        return 'Sconosciuto';
-    }
-}
-
-function _writeAccessLog({ userId, eventType, success, authMethod }) {
-    try {
-        const db = getDB();
-        const nodeIdentity = require('../core/node_identity');
-        const nodeId = nodeIdentity.getNodeId();
-        const nodeName = nodeIdentity.getNetworkName();
-        const logId = crypto.randomUUID();
-        const now = Date.now();
-        const deviceInfo = _deviceLabel();
-        const logPayload = {
-            id: logId, user_id: userId, node_id: nodeId, node_name: nodeName,
-            ip_address: _localIp(), device_info: deviceInfo, timestamp: now, is_deleted: 0,
-            event_type: eventType, success: success ? 1 : 0, auth_method: authMethod || '', last_modified: now
-        };
-        db.run(
-            'INSERT INTO access_logs (id, user_id, node_id, node_name, ip_address, device_info, timestamp, is_deleted, event_type, success, auth_method, last_modified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-            [logId, userId, nodeId, nodeName, logPayload.ip_address, deviceInfo, now, 0, eventType, success ? 1 : 0, authMethod || '', now]
-        );
-        wrapMutationWithEvent('INSERT', 'access_logs', logId, logPayload);
-    } catch (e) {
-        console.error('[Auth] _writeAccessLog error:', e.message);
-    }
-}
+const { getAllAccessLogs, getAccessLogsStats, writeAccessLog, notifySecurityEvent } = require('./access_logs');
 
 async function _finalizeLogin(userId, authMethod) {
     try {
         const db = getDB();
         const now = Date.now();
         db.run('UPDATE users SET last_login = ? WHERE id = ?', [now, userId]);
-        _writeAccessLog({ userId, eventType: 'login_success', success: true, authMethod });
+        writeAccessLog({ userId, eventType: 'login_success', success: true, authMethod });
         await saveDB();
-        _registerLoginSuccess(userId);
+        registerLoginSuccess(userId);
         sessionManager.setSession(userId);
         const rows = db.query('SELECT * FROM users WHERE id = ?', [userId]);
         const row = rows && rows.length > 0 ? rows[0] : {};
@@ -174,7 +55,6 @@ async function checkIsRegistered() {
     try {
         return dbCheck();
     } catch (e) {
-        console.error('[Auth] checkIsRegistered error:', e.message);
         return false;
     }
 }
@@ -183,7 +63,6 @@ async function unlockDatabase(event) {
     try {
         return await unlockDB();
     } catch (e) {
-        console.error(e);
         return false;
     }
 }
@@ -202,7 +81,6 @@ async function getUsersList() {
             }
             return { needsUnlock: true };
         }
-        console.error('[Auth getUsersList Error]', e);
         return { users: [], error: e.message };
     }
 }
@@ -211,7 +89,7 @@ async function loginUser(event, data) {
     try {
         const { id, pin, password, passkey } = data;
         if (!id) return { success: false };
-        const lockState = _isLoginLocked(id);
+        const lockState = isLoginLocked(id);
         if (lockState.locked) {
             return { success: false, error: 'Troppi tentativi falliti. Riprova tra qualche istante.', retryAfterMs: lockState.waitMs };
         }
@@ -224,24 +102,23 @@ async function loginUser(event, data) {
         })();
         if (passkey) {
             if (!hasWebauthn) {
-                _registerLoginFailure(id);
+                registerLoginFailure(id);
                 return { success: false, error: "Passkey non configurata per questo utente." };
             }
-            _cleanupLoginChallenges();
             const challengeToken = crypto.randomUUID();
-            _loginChallenges.set(challengeToken, { userId: id, expiresAt: Date.now() + LOGIN_CHALLENGE_TTL_MS, attempts: 0, firstFactor: 'passkey' });
+            setChallenge(challengeToken, { userId: id, expiresAt: Date.now() + LOGIN_CHALLENGE_TTL_MS, attempts: 0, firstFactor: 'passkey' });
             return { success: true, requires2fa: true, methods: ['webauthn'], challengeToken };
         }
         const field = password ? 'password' : 'pin';
         const credential = password || pin;
         const rows = db.query(`SELECT * FROM users WHERE id = ?`, [id]);
-        if (!rows || rows.length === 0) { _registerLoginFailure(id); return { success: false }; }
+        if (!rows || rows.length === 0) { registerLoginFailure(id); return { success: false }; }
         const row = rows[0];
         const { valid, needsRehash } = await passwordHasher.verify(credential, row[field]);
         if (!valid) {
-            _registerLoginFailure(id);
-            _writeAccessLog({ userId: id, eventType: 'login_failed', success: false, authMethod: field });
-            _notifySecurityEvent(id, 'Tentativo di accesso fallito', `Credenziali errate (${field}) su questo dispositivo.`);
+            registerLoginFailure(id);
+            writeAccessLog({ userId: id, eventType: 'login_failed', success: false, authMethod: field });
+            notifySecurityEvent(id, 'Tentativo di accesso fallito', `Credenziali errate (${field}) su questo dispositivo.`);
             await saveDB();
             return { success: false };
         }
@@ -254,44 +131,39 @@ async function loginUser(event, data) {
                 if (updatedRows && updatedRows.length > 0) {
                     wrapMutationWithEvent('UPDATE', 'users', id, updatedRows[0]);
                 }
-            } catch (e) { console.error('[Auth] rehash error:', e.message); }
+            } catch (_) {}
         }
         if (row.totp_enabled || hasWebauthn) {
-            _cleanupLoginChallenges();
             const challengeToken = crypto.randomUUID();
             const methods = [];
             if (row.totp_enabled) methods.push('totp');
             if (hasWebauthn) methods.push('webauthn');
-            _loginChallenges.set(challengeToken, { userId: id, expiresAt: Date.now() + LOGIN_CHALLENGE_TTL_MS, attempts: 0, firstFactor: field });
+            setChallenge(challengeToken, { userId: id, expiresAt: Date.now() + LOGIN_CHALLENGE_TTL_MS, attempts: 0, firstFactor: field });
             return { success: true, requires2fa: true, methods, challengeToken };
         }
         return await _finalizeLogin(id, field);
     } catch (e) {
-        console.error(e);
         return { success: false, error: e.message };
     }
 }
 
 async function loginWebauthnOptions(event, { challengeToken }) {
     try {
-        _cleanupLoginChallenges();
-        const pending = _loginChallenges.get(challengeToken);
+        const pending = getChallenge(challengeToken);
         if (!pending) return { success: false, error: 'Sessione di verifica scaduta' };
         return await twofaHandlers.webauthnAuthBegin(pending.userId);
     } catch (e) {
-        console.error('[Auth] loginWebauthnOptions error:', e.message);
         return { success: false, error: e.message };
     }
 }
 
 async function loginUserVerify2fa(event, { challengeToken, code, assertion, backupCode }) {
     try {
-        _cleanupLoginChallenges();
-        const pending = _loginChallenges.get(challengeToken);
+        const pending = getChallenge(challengeToken);
         if (!pending) return { success: false, error: 'Sessione di verifica scaduta, effettua di nuovo il login.' };
         if (pending.attempts >= MAX_2FA_ATTEMPTS) {
-            _loginChallenges.delete(challengeToken);
-            _writeAccessLog({ userId: pending.userId, eventType: '2fa_failed', success: false, authMethod: 'lockout' });
+            deleteChallenge(challengeToken);
+            writeAccessLog({ userId: pending.userId, eventType: '2fa_failed', success: false, authMethod: 'lockout' });
             await saveDB();
             return { success: false, error: 'Troppi tentativi falliti, effettua di nuovo il login.' };
         }
@@ -309,15 +181,14 @@ async function loginUserVerify2fa(event, { challengeToken, code, assertion, back
         }
         if (!ok) {
             pending.attempts++;
-            _writeAccessLog({ userId: pending.userId, eventType: '2fa_failed', success: false, authMethod: authMethod || 'unknown' });
-            _notifySecurityEvent(pending.userId, 'Verifica 2FA fallita', `Tentativo di verifica a due fattori (${authMethod || 'sconosciuto'}) non riuscito.`);
+            writeAccessLog({ userId: pending.userId, eventType: '2fa_failed', success: false, authMethod: authMethod || 'unknown' });
+            notifySecurityEvent(pending.userId, 'Verifica 2FA fallita', `Tentativo di verifica a due fattori (${authMethod || 'sconosciuto'}) non riuscito.`);
             await saveDB();
             return { success: false, error: 'Verifica non riuscita' };
         }
-        _loginChallenges.delete(challengeToken);
+        deleteChallenge(challengeToken);
         return await _finalizeLogin(pending.userId, `${pending.firstFactor}+${authMethod}`);
     } catch (e) {
-        console.error('[Auth] loginUserVerify2fa error:', e.message);
         return { success: false, error: e.message };
     }
 }
@@ -325,7 +196,7 @@ async function loginUserVerify2fa(event, { challengeToken, code, assertion, back
 async function logoutUser(event, { userId }) {
     try {
         if (!userId) return { success: false };
-        _writeAccessLog({ userId, eventType: 'logout', success: true, authMethod: '' });
+        writeAccessLog({ userId, eventType: 'logout', success: true, authMethod: '' });
         await saveDB();
         sessionManager.clearSession();
         return { success: true };
@@ -385,9 +256,15 @@ async function registerUser(event, data) {
 
 async function handleScanNodes(event) {
     try {
-        return await scanForNodes(event);
+        const onProgress = (msg) => {
+            try {
+                if (event && event.sender && !event.sender.isDestroyed()) {
+                    event.sender.send('scan-progress', msg);
+                }
+            } catch (_) {}
+        };
+        return await scanForNodes(onProgress);
     } catch (e) {
-        console.error(e);
         return [];
     }
 }
@@ -538,70 +415,6 @@ async function getNetworkCode() {
         }
         return { success: false, error: 'Non disponibile sui vecchi database' };
     } catch (e) {
-        return { success: false, error: e.message };
-    }
-}
-
-function _hasAccessLogsPermission() {
-    try {
-        const currentUserId = sessionManager.getCurrentUserId();
-        if (!currentUserId) return false;
-        const rbacHandlers = require('./rbac');
-        const perms = rbacHandlers.getEffectiveUserPermissions(null, currentUserId) || [];
-        return perms.includes('*') || perms.some(p => p.startsWith('impostazioni:'));
-    } catch (e) {
-        return false;
-    }
-}
-
-async function getAllAccessLogs(event, filters = {}) {
-    try {
-        const { userId, eventType, success, dateFrom, dateTo, ip, page = 1, pageSize = 50 } = filters;
-        if (!_hasAccessLogsPermission()) return { success: false, error: 'Permesso negato' };
-        const db = getDB();
-        const where = ['1=1'];
-        const params = [];
-        if (userId) { where.push('a.user_id = ?'); params.push(userId); }
-        if (eventType) { where.push('a.event_type = ?'); params.push(eventType); }
-        if (success === true || success === false) { where.push('a.success = ?'); params.push(success ? 1 : 0); }
-        if (dateFrom) { where.push('a.timestamp >= ?'); params.push(Number(dateFrom)); }
-        if (dateTo) { where.push('a.timestamp <= ?'); params.push(Number(dateTo)); }
-        if (ip) { where.push('a.ip_address LIKE ?'); params.push(`%${ip}%`); }
-        const whereSql = where.join(' AND ');
-        const totalRows = db.query(`SELECT COUNT(*) as cnt FROM access_logs a WHERE ${whereSql}`, params);
-        const total = totalRows && totalRows.length > 0 ? totalRows[0].cnt : 0;
-        const safePageSize = Math.min(Math.max(Number(pageSize) || 50, 1), 500);
-        const offset = Math.max((Number(page) || 1) - 1, 0) * safePageSize;
-        const logs = db.query(
-            `SELECT a.*, u.username, u.nome, u.cognome FROM access_logs a 
-            LEFT JOIN users u ON u.id = a.user_id 
-            WHERE ${whereSql} 
-            ORDER BY a.timestamp DESC LIMIT ? OFFSET ?`,
-            [...params, safePageSize, offset]
-        );
-        return { success: true, logs, total, page: Number(page) || 1, pageSize: safePageSize };
-    } catch (e) {
-        console.error('[Auth] getAllAccessLogs error:', e.message);
-        return { success: false, error: e.message };
-    }
-}
-
-async function getAccessLogsStats(event) {
-    try {
-        if (!_hasAccessLogsPermission()) return { success: false, error: 'Permesso negato' };
-        const db = getDB();
-        const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-        const last7d = db.query('SELECT COUNT(*) as cnt FROM access_logs WHERE timestamp >= ? AND event_type = ?', [sevenDaysAgo, 'login_success']);
-        const failed7d = db.query('SELECT COUNT(*) as cnt FROM access_logs WHERE timestamp >= ? AND success = 0', [sevenDaysAgo]);
-        const devices7d = db.query('SELECT COUNT(DISTINCT device_info) as cnt FROM access_logs WHERE timestamp >= ?', [sevenDaysAgo]);
-        return {
-            success: true,
-            logins7d: last7d[0] ? last7d[0].cnt : 0,
-            failed7d: failed7d[0] ? failed7d[0].cnt : 0,
-            distinctDevices7d: devices7d[0] ? devices7d[0].cnt : 0
-        };
-    } catch (e) {
-        console.error('[Auth] getAccessLogsStats error:', e.message);
         return { success: false, error: e.message };
     }
 }
