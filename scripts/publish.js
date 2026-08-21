@@ -12,7 +12,16 @@ async function publishAll() {
     try {
         console.log('1. Svuotamento della cartella dist...');
         if (fs.existsSync(distDir)) {
-            fs.rmSync(distDir, { recursive: true, force: true });
+            try {
+                fs.rmSync(distDir, { recursive: true, force: true });
+            } catch (e) {
+                try {
+                    const items = fs.readdirSync(distDir);
+                    for (const item of items) {
+                        try { fs.rmSync(path.join(distDir, item), { recursive: true, force: true }); } catch (_) {}
+                    }
+                } catch (_) {}
+            }
         }
 
         console.log('\n2. Aggiornamento automatico della versione...');

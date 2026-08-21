@@ -61,7 +61,7 @@ async function runDiagnostics(event) {
         await delay(1500);
         try {
             if (process.platform === 'win32') {
-                const { stdout } = await execPromise('powershell -Command "Get-NetFirewallRule -DisplayName \'Adestio Blockchain P2P\' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Enabled"');
+                const { stdout } = await execPromise('powershell -Command "Get-NetFirewallRule -DisplayName \'Adestio\' -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Enabled"');
                 if (!stdout.includes('True')) {
                     log("Regole Firewall per Adestio mancanti o disabilitate.", "error", { fixable: 'firewall' });
                     issuesFound++;
@@ -175,16 +175,13 @@ async function fixDiagnostics(event) {
     log("Inizio processo di Auto-Risoluzione...", "loading");
     if (process.platform === 'win32') {
         try {
-            log("Tentativo di applicazione regole Firewall per le porte 34567-34568...", "info");
-            const script = `New-NetFirewallRule -DisplayName 'Adestio Blockchain P2P' -Direction Inbound -LocalPort 34567,34568 -Protocol TCP -Action Allow -ErrorAction SilentlyContinue; New-NetFirewallRule -DisplayName 'Adestio Blockchain P2P UDP' -Direction Inbound -LocalPort 34567,34568 -Protocol UDP -Action Allow -ErrorAction SilentlyContinue;`;
+            log("Tentativo di applicazione regole Firewall per Adestio...", "info");
             try {
-                await execPromise(`powershell -Command "${script}"`);
-                log("Regole Firewall create con successo.", "success");
+                const { ensureFirewallRules } = require('../p2p/firewall/windows_firewall');
+                await ensureFirewallRules();
+                log("Regole Firewall configurate con successo.", "success");
             } catch (err) {
-                log("Privilegi insufficienti. Richiesta elevazione (UAC)...", "warning");
-                const elevateScript = `Start-Process powershell -ArgumentList '-Command', \\"${script}\\" -Verb RunAs -WindowStyle Hidden`;
-                await execPromise(`powershell -Command "${elevateScript}"`);
-                log("Elevazione completata. Regole applicate.", "success");
+                log("Privilegi insufficienti per le regole firewall.", "warning");
             }
             await delay(1000);
             log("Tentativo di impostazione Rete su Privato...", "info");

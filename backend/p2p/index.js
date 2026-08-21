@@ -121,6 +121,14 @@ function startSyncServer() {
         app.use(express.json({ limit: '50mb' }));
         app.get('/ping', async (req, res) => {
             try {
+                let callerIp = req.socket.remoteAddress;
+                if (callerIp && callerIp.includes('::ffff:')) callerIp = callerIp.split('::ffff:')[1];
+                if (callerIp && callerIp !== '127.0.0.1') {
+                    try {
+                        const { updatePeerMeta } = require('./peers/peer_registry');
+                        updatePeerMeta(callerIp, {});
+                    } catch (_) {}
+                }
                 const { checkIsRegistered } = require('../handlers/auth');
                 const { getTotalBlocksCount } = require('../dag/graph/dag_store');
                 const { app: electronApp } = require('electron');
