@@ -52,18 +52,35 @@ setInterval(() => {
     }
 }, 60000);
 function getDetailedPeers() {
-    const { getNodeId } = require('../../core/node_identity');
-    const myNodeId = getNodeId();
-    const now = Date.now();
-    return getAllPeers()
-        .filter(p => p.ip !== '127.0.0.1' && (!myNodeId || p.nodeId !== myNodeId))
-        .filter(p => now - p.lastSeen <= 15 * 60 * 1000)
-        .map(p => ({
-        ...p,
-        status: (p.state === STATES.SYNCED && now - p.lastSeen < 45000) ? 'Online'
-              : (p.state === STATES.DISCONNECTED || now - p.lastSeen >= 45000) ? 'Offline'
-              : p.state
-    }));
+    try {
+        const { getNodeId } = require('../../core/node_identity');
+        const myNodeId = getNodeId();
+        const now = Date.now();
+        return getAllPeers()
+            .filter(p => p.ip !== '127.0.0.1' && (!myNodeId || p.nodeId !== myNodeId))
+            .filter(p => now - p.lastSeen <= 15 * 60 * 1000)
+            .map(p => {
+                try {
+                    const isRecentlySeen = (now - p.lastSeen < 45000);
+                    let status = 'Offline';
+                    if (isRecentlySeen) {
+                        if (p.state === STATES.DISCONNECTED) {
+                            status = 'Offline';
+                        } else {
+                            status = 'Online';
+                        }
+                    }
+                    return {
+                        ...p,
+                        status
+                    };
+                } catch (_) {
+                    return { ...p, status: 'Online' };
+                }
+            });
+    } catch (e) {
+        return [];
+    }
 }
 function loadFromCache(cachedPeers) {
     const { getLocalIPs } = require('../discovery/arp_scanner');

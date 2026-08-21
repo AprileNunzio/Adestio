@@ -151,12 +151,14 @@ async function importClonedDB(buffer, networkCode, networkName) {
         const mApp = require('./migrations/app_data');
         const mStore = require('./migrations/store');
         const mAnagrafica = require('./migrations/anagrafica');
+        const mAzienda = require('./migrations/azienda');
         const mAudit = require('./migrations/audit');
         await dbManager.loadDatabase('auth', mAuth);
         await dbManager.loadDatabase('config', mConfig);
         await dbManager.loadDatabase('app', mApp);
         await dbManager.loadDatabase('store', mStore);
         await dbManager.loadDatabase('app_anagrafica', mAnagrafica);
+        await dbManager.loadDatabase('app_azienda', mAzienda);
         await dbManager.loadDatabase('audit', mAudit);
         const SqlJsAdapter = require('./db/SqlJsAdapter');
         const ledgerAdapter = new SqlJsAdapter();
@@ -171,10 +173,9 @@ async function importClonedDB(buffer, networkCode, networkName) {
         await configDb.execute("INSERT OR REPLACE INTO network_config (key_name, key_value) VALUES (?, ?)", ['node_id', nodeId]);
         await dbManager.saveAll();
         const { rebuildStateFromLog } = require('./blockchain');
-        rebuildStateFromLog();
+        await rebuildStateFromLog();
         let finalNetworkName = networkName; 
         try {
-            const configDb = dbManager.getDB('config');
             const res = await configDb.query("SELECT key_value FROM network_config WHERE key_name = 'network_name'");
             if (res && res.length > 0 && res[0].key_value) {
                 finalNetworkName = res[0].key_value;

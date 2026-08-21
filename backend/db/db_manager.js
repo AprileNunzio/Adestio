@@ -17,7 +17,9 @@ class DatabaseManager {
             ledger: null,
             app: null,
             store: null,
-            app_anagrafica: null
+            app_anagrafica: null,
+            app_azienda: null,
+            audit: null
         };
         this.deviceKey = null;
         this.basePath = null;
@@ -57,31 +59,36 @@ class DatabaseManager {
     loadOrGenerateLocalDeviceKey(networkCode = null) {
         try {
             const { safeStorage } = require('electron');
-            if (!safeStorage || !safeStorage.isEncryptionAvailable()) return null;
             const p = path.join(app.getPath('userData'), 'device.key');
             if (networkCode) {
                 const newKey = deriveKeyForPurpose(networkCode, 'db-encryption');
-                const buffer = safeStorage.encryptString(newKey);
-                const dir = path.dirname(p);
-                if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-                fs.writeFileSync(p, buffer);
+                if (safeStorage && safeStorage.isEncryptionAvailable()) {
+                    try {
+                        const buffer = safeStorage.encryptString(newKey);
+                        const dir = path.dirname(p);
+                        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+                        fs.writeFileSync(p, buffer);
+                    } catch (_) {}
+                }
                 return newKey;
             }
-            if (fs.existsSync(p)) {
+            if (fs.existsSync(p) && safeStorage && safeStorage.isEncryptionAvailable()) {
                 try {
                     const buffer = fs.readFileSync(p);
-                    return safeStorage.decryptString(buffer);
-                } catch (e) {
-                    return null;
-                }
-            } else {
-                const newKey = crypto.randomBytes(32).toString('hex');
-                const buffer = safeStorage.encryptString(newKey);
-                const dir = path.dirname(p);
-                if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-                fs.writeFileSync(p, buffer);
-                return newKey;
+                    const decrypted = safeStorage.decryptString(buffer);
+                    if (decrypted) return decrypted;
+                } catch (e) {}
             }
+            const fallbackKey = crypto.randomBytes(32).toString('hex');
+            if (safeStorage && safeStorage.isEncryptionAvailable()) {
+                try {
+                    const buffer = safeStorage.encryptString(fallbackKey);
+                    const dir = path.dirname(p);
+                    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+                    fs.writeFileSync(p, buffer);
+                } catch (_) {}
+            }
+            return fallbackKey;
         } catch (e) {
             return null;
         }
@@ -126,16 +133,13 @@ class DatabaseManager {
                 if (!fileExists || fs.statSync(tmpPath).mtimeMs > fs.statSync(dbPath).mtimeMs) {
                     targetFile = tmpPath;
                     fileExists = true;
-                    console.warn(`[DB] Rilevato file .tmp più recente per ${domain}. Eseguo recovery da Write-Aside!`);
                 }
             }
             if (fileExists) {
                 try {
                     const fileBuffer = fs.readFileSync(targetFile);
                     decryptedData = this.decryptBuffer(fileBuffer, this.deviceKey);
-                } catch (err) {
-                    console.error(`[DB] Fallita decrittazione ${domain}.enc`, err);
-                }
+                } catch (err) {}
                 if (!decryptedData) {
                     const backupDir = path.join(this.basePath, 'backups', domain);
                     const fallbackPath = BackupManager.getLatestValidBackup(backupDir);
@@ -143,13 +147,11 @@ class DatabaseManager {
                         try {
                             const fileBuffer = fs.readFileSync(fallbackPath);
                             decryptedData = this.decryptBuffer(fileBuffer, this.deviceKey);
-                        } catch (err) {
-                            console.error(`[DB] Fallita decrittazione backup per ${domain}`, err);
-                        }
+                        } catch (err) {}
                     }
                 }
                 if (!decryptedData) {
-                    throw new Error(`Impossibile decriptare il database esistente: ${domain}.enc. Chiave non valida o file corrotto.`);
+                    throw new Error(`Impossibile decriptare il database esistente: ${domain}.enc`);
                 }
             }
             const adapter = new SqlJsAdapter();
@@ -159,7 +161,6 @@ class DatabaseManager {
             this.databases[domain] = adapter;
             return true;
         } catch (e) {
-            console.error(`[DB] Errore critico nel caricamento di ${domain}:`, e);
             throw e; 
         }
     }
@@ -184,7 +185,6 @@ class DatabaseManager {
                     if (err.code === 'EBUSY' || err.code === 'EPERM') {
                         retries--;
                         if (retries === 0) {
-                            console.warn(`[DB] OneDrive Lock persistente su ${domain}.enc. I dati sono protetti in ${domain}.enc.tmp (Write-Aside)`);
                             renameSuccess = true; 
                         } else {
                             const start = Date.now();
@@ -233,6 +233,7 @@ class DatabaseManager {
             const mStore = require('../migrations/store');
             const mAnagrafica = require('../migrations/anagrafica');
             const mAzienda = require('../migrations/azienda');
+            const mAudit = require('../migrations/audit');
             await this.loadDatabase('auth', mAuth);
             await this.loadDatabase('config', mConfig);
             await this.loadDatabase('ledger', mLedger);
@@ -240,20 +241,19 @@ class DatabaseManager {
             await this.loadDatabase('store', mStore);
             await this.loadDatabase('app_anagrafica', mAnagrafica);
             await this.loadDatabase('app_azienda', mAzienda);
+            await this.loadDatabase('audit', mAudit);
             if (this.databases['config']) {
                 const res = this.databases['config'].query("SELECT key_value FROM network_config WHERE key_name = 'network_code'");
                 if (res && res.length > 0) {
                     const netCode = res[0].key_value;
                     const expectedKey = deriveKeyForPurpose(netCode, 'db-encryption');
                     if (this.deviceKey !== expectedKey) {
-                        console.log('[Security] Eseguo migrazione silente verso Encryption deterministica...');
                         this.deviceKey = this.loadOrGenerateLocalDeviceKey(netCode); 
                     }
                     const expectedHash = deriveKeyForPurpose(netCode, 'network-membership-hash');
                     const hashRes = this.databases['config'].query("SELECT key_value FROM network_config WHERE key_name = 'network_code_hash'");
                     const storedHash = (hashRes && hashRes.length > 0) ? hashRes[0].key_value : null;
                     if (storedHash !== expectedHash) {
-                        console.log('[Security] Aggiorno network_code_hash al nuovo schema di derivazione...');
                         this.databases['config'].execute("INSERT OR REPLACE INTO network_config (key_name, key_value) VALUES ('network_code_hash', ?)", [expectedHash]);
                     }
                 }
@@ -273,7 +273,16 @@ class DatabaseManager {
                     fs.unlinkSync(path.join(this.basePath, f));
                 }
             }
-            this.databases = { config: null, auth: null, ledger: null, app: null };
+            this.databases = {
+                config: null,
+                auth: null,
+                ledger: null,
+                app: null,
+                store: null,
+                app_anagrafica: null,
+                app_azienda: null,
+                audit: null
+            };
             return true;
         } catch (e) {
             return false;

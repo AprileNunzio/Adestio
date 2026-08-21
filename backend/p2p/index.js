@@ -42,12 +42,17 @@ function _rlMiddleware(limit, windowMs) {
 function getBoundPort() { return _boundPort; }
 bus.subscribe('sync:state', ({ state }) => { _syncState = state; });
 bus.subscribe('peer:discovered', (peer) => {
-    if (peer && (peer.source === 'pex' || peer.source === 'manual')) {
-        const { syncWithPeer } = require('../dag/sync/sync_coordinator');
-        setTimeout(() => {
-            syncWithPeer(peer.ip, peer.port || 34567).catch(() => {});
-        }, Math.random() * 2000);
-    }
+    try {
+        if (peer && peer.ip && peer.ip !== '127.0.0.1') {
+            const { syncWithPeer } = require('../dag/sync/sync_coordinator');
+            const delay = (peer.source === 'pex' || peer.source === 'manual') ? Math.random() * 1500 : 500 + Math.random() * 1500;
+            setTimeout(() => {
+                try {
+                    syncWithPeer(peer.ip, peer.port || PORT).catch(() => {});
+                } catch (_) {}
+            }, delay);
+        }
+    } catch (_) {}
 });
 function getSyncState() { return _syncState; }
 function getConnectedNodesCount() {
