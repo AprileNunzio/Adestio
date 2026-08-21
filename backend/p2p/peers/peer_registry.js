@@ -38,30 +38,33 @@ function markPeerIncompatible(ip) {
     removePeer(ip);
 }
 function getPexPeers() {
+    const { PEER_HEARTBEAT_TTL_MS } = require('../protocol/constants');
     const now = Date.now();
     return getAllPeers()
-        .filter(p => p.state === STATES.SYNCED && now - p.lastSeen < 45000)
+        .filter(p => p.state === STATES.SYNCED && now - p.lastSeen < PEER_HEARTBEAT_TTL_MS)
         .map(({ ip, name, port, nodeId, protocolVersion }) => ({ ip, name, port, nodeId, protocolVersion }));
 }
 setInterval(() => {
+    const { PEER_EXPIRY_MS } = require('../protocol/constants');
     const now = Date.now();
     for (const [ip, p] of _peers.entries()) {
-        if (now - p.meta.lastSeen > 15 * 60 * 1000) {
+        if (now - p.meta.lastSeen > PEER_EXPIRY_MS) {
             _peers.delete(ip);
         }
     }
-}, 60000);
+}, 30000);
 function getDetailedPeers() {
     try {
         const { getNodeId } = require('../../core/node_identity');
+        const { PEER_HEARTBEAT_TTL_MS, PEER_EXPIRY_MS } = require('../protocol/constants');
         const myNodeId = getNodeId();
         const now = Date.now();
         return getAllPeers()
             .filter(p => p.ip !== '127.0.0.1' && (!myNodeId || p.nodeId !== myNodeId))
-            .filter(p => now - p.lastSeen <= 15 * 60 * 1000)
+            .filter(p => now - p.lastSeen <= PEER_EXPIRY_MS)
             .map(p => {
                 try {
-                    const isRecentlySeen = (now - p.lastSeen < 45000);
+                    const isRecentlySeen = (now - p.lastSeen < PEER_HEARTBEAT_TTL_MS);
                     let status = 'Offline';
                     if (isRecentlySeen) {
                         if (p.state === STATES.DISCONNECTED) {

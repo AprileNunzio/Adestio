@@ -56,8 +56,13 @@ bus.subscribe('peer:discovered', (peer) => {
 });
 function getSyncState() { return _syncState; }
 function getConnectedNodesCount() {
-    const now = Date.now();
-    return getAllPeers().filter(p => p.state === 'SYNCED' && now - p.lastSeen < 45000).length;
+    try {
+        const { PEER_HEARTBEAT_TTL_MS } = require('./protocol/constants');
+        const now = Date.now();
+        return getAllPeers().filter(p => p.state === 'SYNCED' && now - p.lastSeen < PEER_HEARTBEAT_TTL_MS).length;
+    } catch (_) {
+        return 0;
+    }
 }
 function getDetailedNodes() {
     return getDetailedPeers();

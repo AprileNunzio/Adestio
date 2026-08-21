@@ -2,9 +2,8 @@
 const { getDetailedPeers } = require('../../p2p/peers/peer_registry');
 const { isOnCooldown } = require('../../p2p/resilience/backoff');
 const { syncWithPeer } = require('./sync_coordinator');
-const { PORT } = require('../../p2p/protocol/constants');
+const { PORT, ANTI_ENTROPY_INTERVAL_MS } = require('../../p2p/protocol/constants');
 const bus = require('../../core/event_bus');
-const ANTI_ENTROPY_INTERVAL_MS = 15000;
 let _timer = null;
 async function sweep() {
     try {
@@ -17,23 +16,28 @@ async function sweep() {
                 if (b.status === 'Online' && a.status !== 'Online') return 1;
                 return (b.lastSeen || 0) - (a.lastSeen || 0);
             });
-    let syncedAny = false;
-    for (const peer of peers) {
-        const ok = await syncWithPeer(peer.ip, peer.port || PORT).catch(() => false);
-        if (ok) syncedAny = true;
-    }
-    try { await require('./realignment_engine').realign(); } catch (_) {}
-    if (peers.length === 0) bus.publish('sync:state', { state: 'Sincronizzato' });
-    return syncedAny;
+        let syncedAny = false;
+        for (const peer of peers) {
+            const ok = await syncWithPeer(peer.ip, peer.port || PORT).catch(() => false);
+            if (ok) syncedAny = true;
+        }
+        try { await require('./realignment_engine').realign(); } catch (_) {}
+        if (peers.length === 0) bus.publish('sync:state', { state: 'Sincronizzato' });
+        return syncedAny;
     } catch (e) {
-        console.error('[AntiEntropy] Error during sweep:', e.message);
         return false;
     }
 }
 function start() {
-    if (_timer) return;
-    setTimeout(() => sweep().catch(() => {}), 8000);
-    _timer = setInterval(() => sweep().catch(e => console.error('[AntiEntropy]', e.message)), ANTI_ENTROPY_INTERVAL_MS);
+    try {
+        if (_timer) return;
+        setTimeout(() => sweep().catch(() => {}), 3000);
+        _timer = setInterval(() => sweep().catch(() => {}), ANTI_ENTROPY_INTERVAL_MS || 8000);
+    } catch (_) {}
 }
-function stop() { if (_timer) { clearInterval(_timer); _timer = null; } }
+function stop() {
+    try {
+        if (_timer) { clearInterval(_timer); _timer = null; }
+    } catch (_) {}
+}
 module.exports = { sweep, start, stop };
