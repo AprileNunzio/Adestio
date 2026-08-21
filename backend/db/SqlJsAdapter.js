@@ -73,6 +73,7 @@ class SqlJsAdapter extends IDatabaseAdapter {
     runMigrations(migrations) {
         try {
             if (!this.db) throw new Error('DB_NOT_INITIALIZED');
+            if (!Array.isArray(migrations) || migrations.length === 0) return true;
             const versionRes = this.query('PRAGMA user_version;');
             let currentVersion = 0;
             if (versionRes.length > 0) {
@@ -87,7 +88,11 @@ class SqlJsAdapter extends IDatabaseAdapter {
                 try {
                     let lastVersion = currentVersion;
                     for (const m of pendingMigrations) {
-                        this.exec(m.sql);
+                        if (typeof m.sql === 'string' && m.sql.trim().length > 0) {
+                            this.exec(m.sql);
+                        } else if (typeof m.up === 'function') {
+                            m.up(this);
+                        }
                         lastVersion = m.version;
                     }
                     this.exec(`PRAGMA user_version = ${lastVersion};`);
